@@ -10,12 +10,7 @@ import io.ktor.utils.io.ExperimentalKtorApi
 
 @OptIn(ExperimentalKtorApi::class)
 fun Route.overviewRoutes() {
-    /**
-     * 协程并行汇总员工、部门、岗位、地点、地区、t_emp。
-     *
-     * Tag: system
-     * Response: 200 application/json [OverviewDto] 并行查询汇总
-     */
+    /** 协程并行汇总员工、部门、岗位、地点、地区、t_emp。 */
     get("/overview") {
         val cached = OverviewService.loadOverview()
         call.cacheHeader(cached)

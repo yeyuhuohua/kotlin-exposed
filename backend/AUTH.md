@@ -21,7 +21,7 @@
 
 公开入口包括 `POST /api/auth/login`、`GET /api/health`，以及文档页面和静态资源。
 其余现有 HR 业务接口和演示接口均需要 Bearer Token。
-CORS 插件负责处理浏览器预检请求，并允许 `Authorization` 请求头。
+CORS 默认只允许 `localhost` 与 `127.0.0.1`，跨域部署需在 `application.yaml` 的 `cors.allowedHosts` 中显式列出域名。
 
 ## 首次启动
 
@@ -55,6 +55,23 @@ JWT 签名密钥和可选的初始管理员写在 `src/main/resources/applicatio
 该开关不会修改已有表的列结构；后续涉及列结构的变更需要显式迁移。
 正常运行时不应继续携带管理员初始化环境变量。
 
+## 登录限流
+
+`POST /api/auth/login` 连续失败会触发限流，同时按来源地址和账号计数（默认 300 秒内分别 30 次与 8 次，见 `auth.loginRateLimit`）。
+超限时返回 429 与 `Retry-After` 头，错误码为 `rate_limited`；登录成功后只清账号维度的计数。
+计数保存在进程内存里，只保护单个实例；多实例部署或对外暴露时仍需在网关或反向代理上限流。
+
+## 错误码
+
+失败响应除 `code`、`message` 外还带稳定的 `error` 字段，前端按它选择提示文案，因此后端可以自由改写 `message` 的措辞。
+常用错误码：`validation_failed`(400)、`unauthorized`(401)、`invalid_credentials`(401 登录失败)、`forbidden`(403)、
+`admin_only`(403/400 管理权限)、`role_protected`、`admin_account_protected`、`self_demotion`、`not_found`(404)、
+`conflict`(409)、`revision_conflict`(409 权限版本过期)、`username_taken`、`unknown_permission`、
+`unsupported_media_type`(415)、`rate_limited`(429)、`internal_error`(500)、`dependency_unavailable`(503)。
+
+500 与数据库约束冲突只返回通用文案（`internal error` / `resource conflict`），具体异常只写日志，不返回给调用方。
+`/api` 下的响应统一带 `X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY` 和 `Referrer-Policy: no-referrer`。
+
 ## 接口调用流程
 
 1. 调用 `POST /api/auth/login`，提交 JSON：
@@ -83,9 +100,18 @@ JWT 签名密钥和可选的初始管理员写在 `src/main/resources/applicatio
 - `PUT /api/auth/roles/{code}`：修改普通角色的名称或启用状态。
 - `GET /api/auth/roles/{code}/permissions`：获取角色权限和配置版本号。
 - `PUT /api/auth/roles/{code}/permissions`：在事务中完整替换角色权限。
+- `DELETE /api/auth/users/{id}`：删除账号。内置 `admin` 账号返回 403（`admin_account_protected`），
+  删除当前登录账号返回 400（`self_deletion`），账号不存在返回 404。删除后该账号的 Token 立即失效。
+- `DELETE /api/auth/roles/{code}`：删除角色及其权限配置。`ADMIN` 角色返回 403（`role_protected`），
+  仍有账号引用时返回 409（`role_in_use`，提示剩余账号数），角色不存在返回 404。
+
+员工的部分更新有两个接口：`PUT /api/employees/{id}` 只接受非空值；`PATCH /api/employees/{id}` 支持显式 `null` 清空可空列，
+两者权限分别登记为 `api:PUT:/api/employees/{id}` 与 `api:PATCH:/api/employees/{id}`。
+未授予 PATCH 权限的角色仍可编辑员工，但不能清空字段。
 
 这些接口只允许 `ADMIN` 角色调用。旧的账号级权限 GET/PUT 接口已移除。
-用户名为 `admin` 的内置账号受保护，不能被移除权限、降级或停用，其他管理员也不能重置其密码。
+用户名为 `admin` 的内置账号受保护，不能被删除、移除权限、降级或停用，其他管理员也不能重置其密码；
+任何管理员都不能删除当前登录的账号。`ADMIN` 角色同样不能删除或改名，只有先把它下面的账号改到别的角色才能删普通角色。
 `ADMIN` 角色本身的名称、启用状态和权限不可修改，避免管理员丢失管理入口。
 内置 `admin` 仍可以通过已有的用户更新接口修改自己的密码。
 
@@ -129,7 +155,9 @@ JWT 使用 HS256 算法，签名密钥至少为 32 字节。
 验证内容包括签发者、受众、签名、有效期和必需的声明字段。
 当前未提供刷新 Token。
 
-JWT 验证通过后，每次受保护请求都会从数据库读取用户、角色及该角色的权限，不读取账号级授权，也不使用 Redis 缓存权限。
+JWT 验证通过后，每次受保护请求都会解析用户、角色及该角色的权限，不读取账号级授权，也不使用 Redis 缓存权限。
+进程内有一层短 TTL 缓存（`auth.permissionCacheSeconds`，默认 3 秒，设 0 关闭），key 含 `tokenVersion`：
+改密码、改角色、停用账号都会让版本 +1，缓存立即失效；只有"直接在数据库里改数据"最多滞后该 TTL。
 用户被停用或删除、角色被停用、Token 版本过期时，请求都会被拒绝。
 直接在数据库中调整角色后，下一次请求即可读取到变化；通过管理接口修改时，还会撤销原有 Token。
 权限变化发生前已经进入执行阶段的请求，不会被追溯取消。
@@ -138,7 +166,7 @@ JWT 验证通过后，每次受保护请求都会从数据库读取用户、角�
 数据库不可用时不会放行请求。登录失败提示不会透露用户名是否存在。
 
 生产环境应使用 HTTPS 并保护密钥。
-在对外开放服务前，需要在反向代理或 API 网关配置登录限流，当前实现不包含分布式登录限流。
+内置登录限流只覆盖单实例，对外开放服务前仍应在反向代理或 API 网关配置分布式限流。
 如果不希望公开接口规范，应在网关限制文档入口的访问。
 
 ## 验证方式

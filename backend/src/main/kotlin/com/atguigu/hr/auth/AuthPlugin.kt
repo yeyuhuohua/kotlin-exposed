@@ -72,6 +72,6 @@ fun StatusPagesConfig.authErrors() {
         if (cause.status == HttpStatusCode.Unauthorized) {
             call.response.headers.append("WWW-Authenticate", "Bearer realm=\"hr-api\"")
         }
-        call.respondFail(cause.status, cause.message)
+        call.respondFail(cause.status, cause.message, cause.error)
     }
 }

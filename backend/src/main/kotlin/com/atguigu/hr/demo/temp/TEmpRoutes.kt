@@ -16,12 +16,7 @@ import io.ktor.utils.io.ExperimentalKtorApi
 
 @OptIn(ExperimentalKtorApi::class)
 fun Route.tEmpRoutes() {
-    /**
-     * t_emp 人物示例表。
-     *
-     * Tag: t-emp
-     * Response: 200 application/json [TEmpDto] 人物列表
-     */
+    /** t_emp 人物示例表。 */
     get("/t-emp") {
         val cached = TEmpService.listTEmp()
         call.cacheHeader(cached)
@@ -32,15 +27,7 @@ fun Route.tEmpRoutes() {
         responseExamples(listOf(sampleTEmp))
     }
 
-    /**
-     * 新增人物并刷新缓存。id 由数据库自增。
-     *
-     * Tag: t-emp
-     * Body: application/json [TEmpCreateRequest] empno 必填
-     * Response: 200 application/json [TEmpDto] 新建人物
-     * Response: 400 empno 缺失
-     * Response: 409 约束冲突
-     */
+    /** 新增人物并刷新缓存。id 由数据库自增。 */
     post("/t-emp") {
         val body = call.receive<TEmpCreateRequest>()
         val created = TEmpService.createTEmp(body)
@@ -59,17 +46,7 @@ fun Route.tEmpRoutes() {
         )
     }
 
-    /**
-     * 部分更新人物并刷新缓存。
-     *
-     * Tag: t-emp
-     * Path: [Int] id t_emp 主键
-     * Body: application/json [TEmpUpdateRequest] 只提交要改的字段
-     * Response: 200 application/json [TEmpDto] 更新后的人物
-     * Response: 400 无更新字段或 ID 无效
-     * Response: 404 人物不存在
-     * Response: 409 外键等约束冲突
-     */
+    /** 部分更新人物并刷新缓存。 */
     put("/t-emp/{id}") {
         val id = call.parameters["id"]?.toIntOrNull()
             ?: return@put call.respondFail(HttpStatusCode.BadRequest, "invalid t_emp id")

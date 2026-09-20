@@ -16,12 +16,7 @@ import io.ktor.utils.io.ExperimentalKtorApi
 
 @OptIn(ExperimentalKtorApi::class)
 fun Route.tDeptRoutes() {
-    /**
-     * t_dept 门派示例表。
-     *
-     * Tag: t-dept
-     * Response: 200 application/json [TDeptDto] 门派列表
-     */
+    /** t_dept 门派示例表。 */
     get("/t-dept") {
         val cached = TDeptService.listTDept()
         call.cacheHeader(cached)
@@ -32,14 +27,7 @@ fun Route.tDeptRoutes() {
         responseExamples(listOf(sampleTDept))
     }
 
-    /**
-     * 新增门派并刷新缓存。id 由数据库自增。
-     *
-     * Tag: t-dept
-     * Body: application/json [TDeptCreateRequest] 至少填一个字段
-     * Response: 200 application/json [TDeptDto] 新建门派
-     * Response: 400 未提交字段
-     */
+    /** 新增门派并刷新缓存。id 由数据库自增。 */
     post("/t-dept") {
         val body = call.receive<TDeptCreateRequest>()
         if (!body.hasValues()) {
@@ -62,16 +50,7 @@ fun Route.tDeptRoutes() {
         )
     }
 
-    /**
-     * 部分更新门派并刷新缓存。
-     *
-     * Tag: t-dept
-     * Path: [Int] id t_dept 主键
-     * Body: application/json [TDeptUpdateRequest] 只提交要改的字段
-     * Response: 200 application/json [TDeptDto] 更新后的门派
-     * Response: 400 无更新字段或 ID 无效
-     * Response: 404 门派不存在
-     */
+    /** 部分更新门派并刷新缓存。 */
     put("/t-dept/{id}") {
         val id = call.parameters["id"]?.toIntOrNull()
             ?: return@put call.respondFail(HttpStatusCode.BadRequest, "invalid t_dept id")

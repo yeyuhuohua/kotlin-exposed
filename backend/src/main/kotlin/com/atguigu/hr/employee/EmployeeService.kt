@@ -35,8 +35,24 @@ object EmployeeService {
             EmployeeRepository.listEmployeeDetails(limit, offset)
         }
 
+    /** 部门模块按部门取员工时走这里，缓存 key 与失效规则都留在员工模块内部。 */
+    suspend fun listEmployeesByDepartment(departmentId: Int): Cached<List<EmployeeDto>> =
+        RedisCache.getOrLoad(EmployeeCache.employeesDept(departmentId)) {
+            EmployeeRepository.listEmployeesByDepartment(departmentId)
+        }
+
+    /** 概览用的聚合统计：由数据库聚合，随概览结果一起缓存，不单独进 Redis。 */
+    suspend fun countByDepartment(): List<DepartmentHeadcountDto> =
+        EmployeeRepository.countEmployeesByDepartment()
+
+    suspend fun salarySummary(): SalarySummaryDto = EmployeeRepository.salarySummary()
+
     suspend fun updateEmployee(id: Int, patch: EmployeeUpdateRequest): EmployeeDto? = invalidateAfterWrite {
         EmployeeRepository.updateEmployee(id, patch)
+    }
+
+    suspend fun patchEmployee(id: Int, patch: EmployeePatch): EmployeeDto? = invalidateAfterWrite {
+        EmployeeRepository.patchEmployee(id, patch)
     }
 
     suspend fun createEmployee(body: EmployeeCreateRequest): EmployeeDto = invalidateAfterWrite {

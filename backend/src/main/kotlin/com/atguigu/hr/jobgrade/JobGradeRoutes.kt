@@ -10,12 +10,7 @@ import io.ktor.utils.io.ExperimentalKtorApi
 
 @OptIn(ExperimentalKtorApi::class)
 fun Route.jobGradeRoutes() {
-    /**
-     * 薪资等级。
-     *
-     * Tag: job-grades
-     * Response: 200 application/json [JobGradeDto] 薪资等级
-     */
+    /** 薪资等级。 */
     get("/job-grades") {
         val cached = JobGradeService.listJobGrades()
         call.cacheHeader(cached)

@@ -1,6 +1,8 @@
 package com.atguigu.hr.overview
 
 import com.atguigu.hr.department.sampleDepartment
+import com.atguigu.hr.employee.DepartmentHeadcountDto
+import com.atguigu.hr.employee.SalarySummaryDto
 import com.atguigu.hr.employee.sampleEmployee
 import com.atguigu.hr.geography.sampleRegion
 
@@ -18,4 +20,16 @@ internal val sampleOverview = OverviewDto(
     sampleEmployees = listOf(sampleEmployee),
     departments = listOf(sampleDepartment),
     regions = listOf(sampleRegion),
+    departmentHeadcount = listOf(
+        DepartmentHeadcountDto(departmentId = 90, departmentName = "Executive", count = 3),
+        DepartmentHeadcountDto(departmentId = 60, departmentName = "IT", count = 5),
+        DepartmentHeadcountDto(departmentId = null, departmentName = "未分配部门", count = 1),
+    ),
+    salarySummary = SalarySummaryDto(
+        employeesWithSalary = 107,
+        totalSalary = 691_416.0,
+        averageSalary = 6_461.83,
+        minSalary = 2_100.0,
+        maxSalary = 24_000.0,
+    ),
 )

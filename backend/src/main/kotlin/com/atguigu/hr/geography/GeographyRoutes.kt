@@ -10,12 +10,7 @@ import io.ktor.utils.io.ExperimentalKtorApi
 
 @OptIn(ExperimentalKtorApi::class)
 fun Route.geographyRoutes() {
-    /**
-     * 全部国家。
-     *
-     * Tag: countries
-     * Response: 200 application/json [CountryDto] 国家列表
-     */
+    /** 全部国家。 */
     get("/countries") {
         val cached = GeographyService.listCountries()
         call.cacheHeader(cached)
@@ -26,12 +21,7 @@ fun Route.geographyRoutes() {
         responseExamples(listOf(sampleCountry))
     }
 
-    /**
-     * 全部地区。
-     *
-     * Tag: regions
-     * Response: 200 application/json [RegionDto] 地区列表
-     */
+    /** 全部地区。 */
     get("/regions") {
         val cached = GeographyService.listRegions()
         call.cacheHeader(cached)

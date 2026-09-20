@@ -16,12 +16,7 @@ import io.ktor.utils.io.ExperimentalKtorApi
 
 @OptIn(ExperimentalKtorApi::class)
 fun Route.locationRoutes() {
-    /**
-     * 全部地点。
-     *
-     * Tag: locations
-     * Response: 200 application/json [LocationDto] 地点列表
-     */
+    /** 全部地点。 */
     get("/locations") {
         val cached = LocationService.listLocations()
         call.cacheHeader(cached)
@@ -32,15 +27,7 @@ fun Route.locationRoutes() {
         responseExamples(listOf(sampleLocation))
     }
 
-    /**
-     * 新增地点并刷新缓存。locationId 由调用方提供。
-     *
-     * Tag: locations
-     * Body: application/json [LocationCreateRequest] locationId、city 必填
-     * Response: 200 application/json [LocationDto] 新建地点
-     * Response: 400 城市为空
-     * Response: 409 主键冲突或外键失败
-     */
+    /** 新增地点并刷新缓存。locationId 由调用方提供。 */
     post("/locations") {
         val body = call.receive<LocationCreateRequest>()
         if (body.city.isBlank()) {
@@ -69,17 +56,7 @@ fun Route.locationRoutes() {
         )
     }
 
-    /**
-     * 部分更新地点并刷新缓存。
-     *
-     * Tag: locations
-     * Path: [Int] id 地点主键 location_id，例如 1700
-     * Body: application/json [LocationUpdateRequest] 只提交要改的字段
-     * Response: 200 application/json [LocationDto] 更新后的地点
-     * Response: 400 无更新字段或 ID 无效
-     * Response: 404 地点不存在
-     * Response: 409 外键等约束冲突
-     */
+    /** 部分更新地点并刷新缓存。 */
     put("/locations/{id}") {
         val id = call.parameters["id"]?.toIntOrNull()
             ?: return@put call.respondFail(HttpStatusCode.BadRequest, "invalid location id")

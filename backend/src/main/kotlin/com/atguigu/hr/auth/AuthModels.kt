@@ -1,5 +1,6 @@
 package com.atguigu.hr.auth
 
+import com.atguigu.hr.common.api.ErrorCode
 import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.Serializable
 
@@ -77,4 +78,9 @@ data class AuthUser(
     fun toCurrentUser() = CurrentUserDto(id, username, roleCode, enabled, effectivePermissions())
 }
 
-class AuthException(val status: HttpStatusCode, override val message: String) : RuntimeException(message)
+/** error 为稳定错误码，未指定时按状态码归类，客户端据此选择提示文案。 */
+class AuthException(
+    val status: HttpStatusCode,
+    override val message: String,
+    val error: String = ErrorCode.forStatus(status),
+) : RuntimeException(message)

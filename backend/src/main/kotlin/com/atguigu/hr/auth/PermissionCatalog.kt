@@ -44,6 +44,7 @@ object PermissionCatalog {
         api("POST", "/employees", "新增员工", "员工管理"),
         api("GET", "/employees/{id}", "查询单个员工", "员工管理"),
         api("PUT", "/employees/{id}", "修改员工", "员工管理"),
+        api("PATCH", "/employees/{id}", "精确修改员工（可清空可空字段）", "员工管理"),
         api("DELETE", "/employees/{id}", "删除员工", "员工管理"),
         api("GET", "/employees/{id}/details", "查询员工关联详情", "员工管理"),
         api("GET", "/emp-details", "分页查询员工详情视图", "员工详情视图"),
@@ -72,9 +73,11 @@ object PermissionCatalog {
         api("GET", "/auth/users", "查询用户", "用户管理", true),
         api("POST", "/auth/users", "创建用户", "用户管理", true),
         api("PUT", "/auth/users/{id}", "修改用户、角色和密码", "用户管理", true),
+        api("DELETE", "/auth/users/{id}", "删除用户", "用户管理", true),
         api("GET", "/auth/roles", "查询角色", "角色权限", true),
         api("POST", "/auth/roles", "创建角色", "角色权限", true),
         api("PUT", "/auth/roles/{code}", "修改角色名称和状态", "角色权限", true),
+        api("DELETE", "/auth/roles/{code}", "删除角色", "角色权限", true),
         api("GET", "/auth/permissions", "查询权限目录", "权限管理", true),
         api("GET", "/auth/roles/{code}/permissions", "查看角色权限", "权限管理", true),
         api("PUT", "/auth/roles/{code}/permissions", "修改角色权限", "权限管理", true),
@@ -82,9 +85,7 @@ object PermissionCatalog {
 
     val byCode = definitions.associateBy { it.code }
     private val apiPatterns = definitions.filter { it.kind == "API" }.map { definition ->
-        definition to Regex(definition.path.split('/').joinToString("/") { segment ->
-            if (segment in setOf("{id}", "{code}")) "[^/]+" else Regex.escape(segment)
-        })
+        definition to apiPathPattern(definition.path)
     }
 
     fun requiredApi(method: String, path: String): PermissionDefinition? {
@@ -107,3 +108,15 @@ object PermissionCatalog {
         }
     }
 }
+
+/** 路径参数段（任意名字，如 {id}、{code}、{employeeId}）匹配单层非斜杠路径。 */
+private val pathParameter = Regex("\\{[^/{}]+}")
+
+/**
+ * 把登记的路径模板编译成正则。只认 `{...}` 形式，其余字符按字面量转义，
+ * 避免新增路由时因为参数名不认识而退化成字面量、导致权限永远匹配不上。
+ */
+internal fun apiPathPattern(path: String): Regex =
+    Regex(path.split('/').joinToString("/") { segment ->
+        if (pathParameter.matches(segment)) "[^/]+" else Regex.escape(segment)
+    })

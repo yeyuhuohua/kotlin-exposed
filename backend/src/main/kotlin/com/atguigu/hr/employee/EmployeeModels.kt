@@ -2,6 +2,11 @@ package com.atguigu.hr.employee
 
 import io.ktor.openapi.JsonSchema
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.intOrNull
 
 /** employees 表。hireDate 序列化为 ISO 日期字符串。 */
 @Serializable
@@ -75,8 +80,7 @@ data class EmployeeUpdateRequest(
         if (jobId != null && jobId.isBlank()) "jobId must not be blank" else null
 }
 
-/** POST /api/employees。employeeId 由调用方提供。 */
-@Serializable
+/** POST /api/employees。employeeId 由调用方提供。 */@Serializable
 @JsonSchema.Description("新增员工。employeeId 必填")
 data class EmployeeCreateRequest(
     @JsonSchema.Description("员工主键，必填")
@@ -102,3 +106,109 @@ data class EmployeeCreateRequest(
     @JsonSchema.Description("所属部门 ID")
     val departmentId: Int? = null,
 )
+
+/** 未分配部门的显示名，聚合查询和前端展示共用。 */
+const val UNASSIGNED_DEPARTMENT = "未分配部门"
+
+/** 按部门统计的员工人数。departmentId 为 null 表示未分配部门。 */
+@Serializable
+@JsonSchema.Description("部门人数分布")
+data class DepartmentHeadcountDto(
+    @JsonSchema.Description("部门 ID，未分配时为 null")
+    val departmentId: Int?,
+    @JsonSchema.Description("部门名称")
+    val departmentName: String,
+    @JsonSchema.Description("该部门员工人数")
+    val count: Long,
+)
+
+/** 员工薪资汇总，全部由数据库聚合得出。 */
+@Serializable
+@JsonSchema.Description("薪资汇总")
+data class SalarySummaryDto(
+    @JsonSchema.Description("有薪资记录的员工数")
+    val employeesWithSalary: Long,
+    @JsonSchema.Description("薪资总额")
+    val totalSalary: Double,
+    @JsonSchema.Description("平均薪资，无记录时为 null")
+    val averageSalary: Double?,
+    @JsonSchema.Description("最低薪资")
+    val minSalary: Double?,
+    @JsonSchema.Description("最高薪资")
+    val maxSalary: Double?,
+)
+
+/**
+ * PATCH /api/employees/{id} 的部分更新语义：只有请求体里出现的字段才会被修改，
+ * 显式传 null 表示把可空列清空（这是 PUT 做不到的）。
+ */
+data class EmployeePatch(
+    val present: Set<String>,
+    val firstName: String? = null,
+    val salary: Double? = null,
+    val commissionPct: Double? = null,
+    val departmentId: Int? = null,
+    val managerId: Int? = null,
+    val phoneNumber: String? = null,
+    val jobId: String? = null,
+) {
+    companion object {
+        private val nullableNumbers = setOf("salary", "commissionPct")
+        private val nullableInts = setOf("departmentId", "managerId")
+        private val nullableTexts = setOf("firstName", "phoneNumber")
+        /** jobId 对应非空列，只允许改成另一个非空值。 */
+        private val requiredTexts = setOf("jobId")
+
+        /** 未知字段直接拒绝，避免字段名拼错时被静默忽略。 */
+        fun parse(body: JsonObject): EmployeePatch {
+            if (body.isEmpty()) throw IllegalArgumentException("no fields to update")
+            val unknown = body.keys - (nullableNumbers + nullableInts + nullableTexts + requiredTexts)
+            require(unknown.isEmpty()) { "unknown fields: ${unknown.sorted().joinToString(", ")}" }
+            // job_id 是非空列，显式 null 必须报错而不是被忽略
+            require(requiredTexts.none { it in body.keys && body[it] is JsonNull }) {
+                "${requiredTexts.first()} must not be null"
+            }
+            return EmployeePatch(
+                present = body.keys.toSet(),
+                firstName = body.text("firstName"),
+                salary = body.number("salary"),
+                commissionPct = body.number("commissionPct"),
+                departmentId = body.integer("departmentId"),
+                managerId = body.integer("managerId"),
+                phoneNumber = body.text("phoneNumber"),
+                jobId = body.text("jobId")?.also { require(it.isNotBlank()) { "jobId must not be blank" } },
+            )
+        }
+
+        private fun JsonObject.element(key: String) = this[key]?.takeIf { it !is JsonNull }
+
+        private fun JsonObject.text(key: String): String? =
+            element(key)?.let { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content }
+                ?: validateAbsentOrNull(key)
+
+        // 注意：JsonPrimitive.doubleOrNull 对字符串 "9000" 也会解析成功，必须显式排除字符串。
+        private fun JsonObject.number(key: String): Double? = element(key)?.let { value ->
+            val primitive = value as? JsonPrimitive
+            if (primitive == null || primitive.isString) typeError(key, "number")
+            primitive.doubleOrNull ?: typeError(key, "number")
+        }
+
+        private fun JsonObject.integer(key: String): Int? = element(key)?.let { value ->
+            val primitive = value as? JsonPrimitive
+            if (primitive == null || primitive.isString) typeError(key, "integer")
+            primitive.intOrNull ?: typeError(key, "integer")
+        }
+
+        /** 字段缺失或显式为 null 都返回 null，由 present 决定是否写库。 */
+        private fun JsonObject.validateAbsentOrNull(key: String): String? {
+            val value = this[key]
+            require(value == null || value is JsonNull || (value as? JsonPrimitive)?.isString == true) {
+                "$key must be a string or null"
+            }
+            return null
+        }
+
+        private fun typeError(key: String, expected: String): Nothing =
+            throw IllegalArgumentException("$key must be a $expected or null")
+    }
+}

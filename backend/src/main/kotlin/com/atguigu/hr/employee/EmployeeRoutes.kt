@@ -11,25 +11,17 @@ import io.ktor.server.request.receive
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
+import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
+import kotlinx.serialization.json.JsonObject
 import java.time.LocalDate
 
 @OptIn(ExperimentalKtorApi::class)
 fun Route.employeeRoutes() {
-    /**
-     * 分页查询员工，支持部门、岗位、关键字筛选。
-     *
-     * Tag: employees
-     * Query: [Int] limit 每页条数，默认 50，最大 200
-     * Query: [Long] offset 跳过条数，默认 0。limit=50&offset=50 为第二页
-     * Query: [Int] departmentId 按部门 ID 过滤，例如 90=Executive
-     * Query: [String] jobId 按岗位编码精确过滤，例如 IT_PROG
-     * Query: [String] q 姓名或邮箱模糊搜索，例如 King
-     * Response: 200 application/json [ApiList] 员工分页列表
-     */
+    /** 分页查询员工，支持部门、岗位、关键字筛选。 */
     get("/employees") {
         val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 200) ?: 50
         val offset = call.request.queryParameters["offset"]?.toLongOrNull()?.coerceAtLeast(0) ?: 0L
@@ -52,15 +44,7 @@ fun Route.employeeRoutes() {
         responseExamples(ApiList(total = 107, items = listOf(sampleEmployee)))
     }
 
-    /**
-     * 新增员工并刷新缓存。employeeId 由调用方提供。
-     *
-     * Tag: employees
-     * Body: application/json [EmployeeCreateRequest] employeeId、lastName、email、hireDate、jobId 必填
-     * Response: 200 application/json [EmployeeDto] 新建员工
-     * Response: 400 必填字段缺失或日期格式错误
-     * Response: 409 主键/邮箱冲突或外键失败
-     */
+    /** 新增员工并刷新缓存。employeeId 由调用方提供。 */
     post("/employees") {
         val body = call.receive<EmployeeCreateRequest>()
         if (body.lastName.isBlank() || body.email.isBlank() || body.jobId.isBlank() || body.hireDate.isBlank()) {
@@ -96,15 +80,7 @@ fun Route.employeeRoutes() {
         )
     }
 
-    /**
-     * 按主键查询员工。
-     *
-     * Tag: employees
-     * Path: [Int] id 员工主键 employee_id，例如 100
-     * Response: 200 application/json [EmployeeDto] 员工信息
-     * Response: 400 无效 ID
-     * Response: 404 员工不存在
-     */
+    /** 按主键查询员工。 */
     get("/employees/{id}") {
         val id = call.parameters["id"]?.toIntOrNull()
             ?: return@get call.respondFail(HttpStatusCode.BadRequest, "invalid employee id")
@@ -128,17 +104,7 @@ fun Route.employeeRoutes() {
         )
     }
 
-    /**
-     * 部分更新员工并刷新 Redis 实体缓存、清除列表缓存。
-     *
-     * Tag: employees
-     * Path: [Int] id 员工主键
-     * Body: application/json [EmployeeUpdateRequest] 只提交要改的字段
-     * Response: 200 application/json [EmployeeDto] 更新后的员工
-     * Response: 400 无更新字段或 ID 无效
-     * Response: 404 员工不存在
-     * Response: 409 外键等约束冲突
-     */
+    /** 部分更新员工并刷新 Redis 实体缓存、清除列表缓存。 */
     put("/employees/{id}") {
         val id = call.parameters["id"]?.toIntOrNull()
             ?: return@put call.respondFail(HttpStatusCode.BadRequest, "invalid employee id")
@@ -169,15 +135,39 @@ fun Route.employeeRoutes() {
         )
     }
 
-    /**
-     * 删除员工并清除相关缓存。若被任职历史等外键引用会失败。
-     *
-     * Tag: employees
-     * Path: [Int] id 员工主键
-     * Response: 200 已删除
-     * Response: 404 员工不存在
-     * Response: 409 外键约束冲突
-     */
+    /** 精确的部分更新：只有请求体里出现的字段才会修改，显式 null 表示清空可空列。 */
+    patch("/employees/{id}") {
+        val id = call.parameters["id"]?.toIntOrNull()
+            ?: return@patch call.respondFail(HttpStatusCode.BadRequest, "invalid employee id")
+        val body = call.receive<JsonObject>()
+        val patch = try {
+            EmployeePatch.parse(body)
+        } catch (cause: IllegalArgumentException) {
+            return@patch call.respondFail(HttpStatusCode.BadRequest, cause.message ?: "invalid patch")
+        }
+        val updated = EmployeeService.patchEmployee(id, patch)
+            ?: return@patch call.respondFail(HttpStatusCode.NotFound, "employee not found")
+        call.respondOk(updated, message = "updated")
+    }.describe {
+        summary = "精确部分更新员工（可清空可空字段）"
+        tag("employees")
+        parameters {
+            path("id") { description = "员工主键" }
+        }
+        requestExample(sampleEmployeePatch, "只提交要改的字段；\"departmentId\": null 表示清空部门")
+        responseExamples(
+            sampleEmployee,
+            message = "updated",
+            okDescription = "更新成功",
+            fails = arrayOf(
+                HttpStatusCode.BadRequest to "unknown fields: nickname",
+                HttpStatusCode.NotFound to "employee not found",
+                HttpStatusCode.Conflict to "resource conflict",
+            ),
+        )
+    }
+
+    /** 删除员工并清除相关缓存。若被任职历史等外键引用会失败。 */
     delete("/employees/{id}") {
         val id = call.parameters["id"]?.toIntOrNull()
             ?: return@delete call.respondFail(HttpStatusCode.BadRequest, "invalid employee id")
@@ -201,15 +191,7 @@ fun Route.employeeRoutes() {
         )
     }
 
-    /**
-     * 员工详情，JOIN 岗位、部门、地点、国家、地区。
-     *
-     * Tag: employees
-     * Path: [Int] id 员工主键
-     * Response: 200 application/json [EmployeeDetailDto] 含岗位部门地点
-     * Response: 400 无效 ID
-     * Response: 404 员工不存在
-     */
+    /** 员工详情，JOIN 岗位、部门、地点、国家、地区。 */
     get("/employees/{id}/details") {
         val id = call.parameters["id"]?.toIntOrNull()
             ?: return@get call.respondFail(HttpStatusCode.BadRequest, "invalid employee id")
@@ -230,14 +212,7 @@ fun Route.employeeRoutes() {
         )
     }
 
-    /**
-     * 员工详情视图 emp_details_view 分页。
-     *
-     * Tag: employees
-     * Query: [Int] limit 每页条数，默认 50，最大 200
-     * Query: [Long] offset 跳过条数，默认 0
-     * Response: 200 application/json [ApiList] 详情分页列表
-     */
+    /** 员工详情视图 emp_details_view 分页。 */
     get("/emp-details") {
         val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 200) ?: 50
         val offset = call.request.queryParameters["offset"]?.toLongOrNull()?.coerceAtLeast(0) ?: 0L

@@ -17,12 +17,7 @@ import io.ktor.utils.io.ExperimentalKtorApi
 
 @OptIn(ExperimentalKtorApi::class)
 fun Route.departmentRoutes() {
-    /**
-     * 全部部门。
-     *
-     * Tag: departments
-     * Response: 200 application/json [DepartmentDto] 部门列表
-     */
+    /** 全部部门。 */
     get("/departments") {
         val cached = DepartmentService.listDepartments()
         call.cacheHeader(cached)
@@ -33,15 +28,7 @@ fun Route.departmentRoutes() {
         responseExamples(listOf(sampleDepartment))
     }
 
-    /**
-     * 新增部门并刷新缓存。departmentId 由调用方提供。
-     *
-     * Tag: departments
-     * Body: application/json [DepartmentCreateRequest] departmentId、departmentName 必填
-     * Response: 200 application/json [DepartmentDto] 新建部门
-     * Response: 400 名称为空
-     * Response: 409 主键冲突或外键失败
-     */
+    /** 新增部门并刷新缓存。departmentId 由调用方提供。 */
     post("/departments") {
         val body = call.receive<DepartmentCreateRequest>()
         if (body.departmentName.isBlank()) {
@@ -64,15 +51,7 @@ fun Route.departmentRoutes() {
         )
     }
 
-    /**
-     * 按主键查询部门。
-     *
-     * Tag: departments
-     * Path: [Int] id 部门主键 department_id，例如 90
-     * Response: 200 application/json [DepartmentDto] 部门信息
-     * Response: 400 无效 ID
-     * Response: 404 部门不存在
-     */
+    /** 按主键查询部门。 */
     get("/departments/{id}") {
         val id = call.parameters["id"]?.toIntOrNull()
             ?: return@get call.respondFail(HttpStatusCode.BadRequest, "invalid department id")
@@ -93,17 +72,7 @@ fun Route.departmentRoutes() {
         )
     }
 
-    /**
-     * 部分更新部门并刷新缓存。
-     *
-     * Tag: departments
-     * Path: [Int] id 部门主键
-     * Body: application/json [DepartmentUpdateRequest] 只提交要改的字段
-     * Response: 200 application/json [DepartmentDto] 更新后的部门
-     * Response: 400 无更新字段或 ID 无效
-     * Response: 404 部门不存在
-     * Response: 409 外键等约束冲突
-     */
+    /** 部分更新部门并刷新缓存。 */
     put("/departments/{id}") {
         val id = call.parameters["id"]?.toIntOrNull()
             ?: return@put call.respondFail(HttpStatusCode.BadRequest, "invalid department id")
@@ -134,13 +103,7 @@ fun Route.departmentRoutes() {
         )
     }
 
-    /**
-     * 某部门下的员工。
-     *
-     * Tag: departments
-     * Path: [Int] id 部门主键
-     * Response: 200 application/json [EmployeeDto] 该部门员工
-     */
+    /** 某部门下的员工。 */
     get("/departments/{id}/employees") {
         val id = call.parameters["id"]?.toIntOrNull()
             ?: return@get call.respondFail(HttpStatusCode.BadRequest, "invalid department id")

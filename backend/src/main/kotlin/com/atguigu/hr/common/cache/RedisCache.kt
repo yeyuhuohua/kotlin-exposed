@@ -1,6 +1,9 @@
 package com.atguigu.hr.common.cache
 
 import com.atguigu.hr.config.RedisFactory
+import io.lettuce.core.KeyScanCursor
+import io.lettuce.core.ScanArgs
+import io.lettuce.core.ScanCursor
 import io.lettuce.core.SetArgs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -15,21 +18,31 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
 import org.slf4j.LoggerFactory
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
-/** 旁路缓存。失效失败的业务分组保持旁路，清理成功后才重新启用。 */
+/**
+ * 旁路缓存。
+ *
+ * - 失效按业务分组进行：每组各有一把锁和一份版本号，不同分组互不阻塞。
+ * - 超时只计 Redis 命令本身，排队等待不会被误判成 Redis 不可用。
+ * - 清理分组用 SCAN 游标，不用 KEYS，避免在请求路径上阻塞 Redis。
+ * - 失效失败的分组保持旁路（dirty），清理成功后才重新启用，并在失败后退避一段时间。
+ */
 object RedisCache {
     private const val OPERATION_TIMEOUT_MS = 2_000L
+    private const val RECOVER_BACKOFF_MS = 5_000L
+    private const val SCAN_BATCH = 256L
+    private const val DELETE_BATCH = 256
     private val log = LoggerFactory.getLogger(RedisCache::class.java)
     private val json = Json {
         encodeDefaults = true
         ignoreUnknownKeys = true
     }
-    private val gate = Mutex()
 
-    private data class Version(val number: Long = 0, val dirty: Boolean = false)
+    internal data class Version(val number: Long = 0, val dirty: Boolean = false)
 
-    private enum class Group(vararg val patterns: String) {
+    internal enum class Group(vararg val patterns: String) {
         EMPLOYEES("hr:employees:*"),
         EMPLOYEE("hr:employee:*"),
         EMP_DETAILS("hr:emp-details:*"),
@@ -46,9 +59,15 @@ object RedisCache {
 
         // 重启会丢失上次失效失败的标记，首次使用前先清理遗留缓存。
         val version = AtomicReference(Version(dirty = true))
+
+        /** 同一分组内的清理与回填串行；不同分组各用各的锁。 */
+        val lock = Mutex()
+
+        /** 清理失败后的退避截止时间（System.nanoTime），退避期内直接旁路。 */
+        val recoverNotBefore = AtomicLong(0L)
     }
 
-    private fun groupOf(key: String): Group? = when {
+    internal fun groupOf(key: String): Group? = when {
         key.startsWith("hr:employees:") -> Group.EMPLOYEES
         key.startsWith("hr:employee:") -> Group.EMPLOYEE
         key.startsWith("hr:emp-details:") -> Group.EMP_DETAILS
@@ -65,14 +84,17 @@ object RedisCache {
         else -> null
     }
 
+    private fun groupsOf(keys: Array<out String>): List<Group> =
+        keys.map { requireNotNull(groupOf(it)) { "Unsupported cache key: $it" } }.distinct()
+
     /** 即使写入抛出异常，也可能已提交；多做一次失效比遗漏失效安全。 */
     suspend fun <T> withInvalidation(vararg keys: String, block: suspend () -> T): T {
-        require(keys.all { groupOf(it) != null }) { "Unsupported cache invalidation group" }
+        val groups = groupsOf(keys)
         currentCoroutineContext().ensureActive()
         val result = try {
             block()
         } finally {
-            withContext(NonCancellable) { evictAll(*keys) }
+            withContext(NonCancellable) { invalidate(groups) }
         }
         currentCoroutineContext().ensureActive()
         return result
@@ -94,12 +116,7 @@ object RedisCache {
                 .onFailure { log.warn("Cache decode failed for {}", key, it) }
         }
         val value = loader()
-        cacheAttempt("fill $key") {
-            val version = group.version.get()
-            if (!version.dirty && version.number == snap) {
-                RedisFactory.async.set(key, json.encodeToString(serializer, value), ttl()).await()
-            }
-        }
+        fill(key, group, snap) { json.encodeToString(serializer, value) }
         return Cached(value, hit = false)
     }
 
@@ -121,14 +138,7 @@ object RedisCache {
                 .onFailure { log.warn("Cache decode failed for {}", key, it) }
         }
         val value = loader()
-        if (value != null) {
-            cacheAttempt("fill $key") {
-                val version = group.version.get()
-                if (!version.dirty && version.number == snap) {
-                    RedisFactory.async.set(key, json.encodeToString(serializer, value), ttl()).await()
-                }
-            }
-        }
+        if (value != null) fill(key, group, snap) { json.encodeToString(serializer, value) }
         return Cached(value, hit = false)
     }
 
@@ -138,46 +148,83 @@ object RedisCache {
 
     suspend fun evictMatching(pattern: String) = evictAll(pattern.substringBefore('*'))
 
-    /** 先同步标记全部分组，再等待锁；超时、取消或删除失败都不会重新暴露旧缓存。 */
-    suspend fun evictAll(vararg keys: String) {
-        val groups = keys.map { requireNotNull(groupOf(it)) { "Unsupported cache key: $it" } }.distinct()
+    suspend fun evictAll(vararg keys: String) = invalidate(groupsOf(keys))
+
+    /** 先同步标记全部分组，再逐个清理；清理失败的分组保持旁路，不会重新暴露旧缓存。 */
+    private suspend fun invalidate(groups: List<Group>) {
         groups.forEach { group -> group.version.updateAndGet { Version(it.number + 1, dirty = true) } }
-        cacheAttempt("invalidate ${groups.joinToString()}") {
-            groups.forEach { recover(it) }
-        }
+        groups.forEach { group -> ensureClean(group) }
     }
 
     suspend fun readRaw(key: String): String? {
         val group = groupOf(key) ?: return null
+        // 清理与退避在 cacheAttempt 之外，排队等待不算进 Redis 命令的超时预算。
+        if (!ensureClean(group)) return null
+        val before = group.version.get()
+        if (before.dirty) return null
         return cacheAttempt("read $key") {
-            if (!recover(group)) return@cacheAttempt null
-            val before = group.version.get()
-            if (before.dirty) return@cacheAttempt null
             val raw = RedisFactory.async.get(key).await()
             // 新的失效可能在等待 Redis GET 时标记分组。
             if (group.version.get() == before) raw else null
         }
     }
 
-    /** 必须持有 gate。恢复时清理整个分组，不能用某个 key 的删除替代之前失败的清理。 */
+    /** 回填前重新核对版本，避免把失效期间读到的旧值写回缓存。 */
+    private suspend fun fill(key: String, group: Group, snap: Long, encode: () -> String) {
+        if (group.version.get().dirty) return
+        group.lock.withLock {
+            cacheAttempt("fill $key") {
+                val version = group.version.get()
+                if (!version.dirty && version.number == snap) {
+                    RedisFactory.async.set(key, encode(), ttl()).await()
+                }
+            }
+        }
+    }
+
+    /** 分组脏时清理一次；正在退避或清理失败时返回 false，调用方直接旁路。 */
+    private suspend fun ensureClean(group: Group): Boolean {
+        if (!group.version.get().dirty) return true
+        if (System.nanoTime() < group.recoverNotBefore.get()) return false
+        return group.lock.withLock {
+            if (!group.version.get().dirty) return@withLock true
+            val cleaned = cacheAttempt("recover ${group.name}") { recover(group) }
+            if (cleaned == null) group.recoverNotBefore.set(System.nanoTime() + RECOVER_BACKOFF_MS * 1_000_000)
+            cleaned == true
+        }
+    }
+
+    /** 必须持有该分组的锁。清理时不能只删某个 key，否则会留下同组的其它旧缓存。 */
     private suspend fun recover(group: Group): Boolean {
         val before = group.version.get()
         if (!before.dirty) return true
-        for (pattern in group.patterns) {
-            val keys = if ('*' in pattern) RedisFactory.async.keys(pattern).await() else listOf(pattern)
-            if (keys.isNotEmpty()) RedisFactory.async.del(*keys.toTypedArray()).await()
-        }
+        val keys = group.patterns.flatMap { pattern -> scanKeys(pattern) }
+        keys.chunked(DELETE_BATCH).forEach { batch -> RedisFactory.async.del(*batch.toTypedArray()).await() }
+        // 清理期间若有新的失效，版本号会变，这里保持 dirty 让下次重试。
         return group.version.compareAndSet(before, Version(before.number))
+    }
+
+    /** 用 SCAN 游标遍历，KEYS 会阻塞 Redis 单线程，不能在请求路径上调用。 */
+    private suspend fun scanKeys(pattern: String): List<String> {
+        val keys = mutableListOf<String>()
+        var cursor: ScanCursor = ScanCursor.INITIAL
+        do {
+            val result: KeyScanCursor<String> = RedisFactory.async
+                .scan(cursor, ScanArgs.Builder.matches(pattern).limit(SCAN_BATCH))
+                .await()
+            keys += result.keys
+            cursor = result
+        } while (!result.isFinished)
+        return keys
     }
 
     private fun ttl(): SetArgs = SetArgs.Builder.ex(RedisFactory.ttlSeconds)
 
     private data class Outcome<T>(val value: T)
 
+    /** 超时与异常都只记录日志并返回 null，缓存不可用时业务照常走数据库。 */
     private suspend fun <T> cacheAttempt(operation: String, block: suspend () -> T): T? = try {
-        val outcome = withTimeoutOrNull(OPERATION_TIMEOUT_MS) {
-            gate.withLock { Outcome(block()) }
-        }
+        val outcome = withTimeoutOrNull(OPERATION_TIMEOUT_MS) { Outcome(block()) }
         if (outcome == null) log.warn("Redis {} timed out; cache bypassed", operation)
         outcome?.value
     } catch (cause: CancellationException) {

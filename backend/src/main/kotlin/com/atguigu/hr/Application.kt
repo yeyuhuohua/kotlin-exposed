@@ -1,6 +1,7 @@
 package com.atguigu.hr
 
 import com.atguigu.hr.auth.AuthSettings
+import com.atguigu.hr.auth.LoginThrottle
 import com.atguigu.hr.auth.TokenService
 import com.atguigu.hr.auth.authErrors
 import com.atguigu.hr.auth.authProtectedRoutes
@@ -8,7 +9,7 @@ import com.atguigu.hr.auth.authPublicRoutes
 import com.atguigu.hr.auth.createAuthService
 import com.atguigu.hr.auth.installTokenAuthentication
 import com.atguigu.hr.auth.withBusinessPermissions
-import com.atguigu.hr.common.api.ApiResult
+import com.atguigu.hr.common.api.respondFail
 import com.atguigu.hr.common.database.isConstraintConflict
 import com.atguigu.hr.config.DatabaseFactory
 import com.atguigu.hr.config.RedisFactory
@@ -32,7 +33,9 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.ApplicationStopped
+import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
+import io.ktor.server.config.ApplicationConfig
 import io.ktor.server.auth.authenticate
 import io.ktor.server.netty.EngineMain
 import io.ktor.server.plugins.calllogging.CallLogging
@@ -64,6 +67,7 @@ fun Application.module() {
     val authService = runBlocking { createAuthService(environment.config, DatabaseFactory.database, tokens) }
     installTokenAuthentication(authService, tokens)
     RedisFactory.connect(environment.config)
+    val loginThrottle = loginThrottle(environment.config)
     // 进程退出时关掉 Lettuce 连接和 client
     monitor.subscribe(ApplicationStopped) {
         RedisFactory.shutdown()
@@ -83,55 +87,69 @@ fun Application.module() {
         level = Level.INFO
         filter { call -> call.request.path().startsWith("/api") }
     }
+    install(createApplicationPlugin("ApiSecurityHeaders") {
+        onCall { call ->
+            if (call.request.path().startsWith("/api")) {
+                call.response.headers.append("X-Content-Type-Options", "nosniff")
+                call.response.headers.append("X-Frame-Options", "DENY")
+                call.response.headers.append("Referrer-Policy", "no-referrer")
+            }
+        }
+    })
+    // 默认只允许本机开发来源；跨域部署时在 application.yaml 的 cors.allowedHosts 里显式列出。
+    val corsHosts = environment.config.propertyOrNull("cors.allowedHosts")?.getList().orEmpty()
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+    val corsAnyHost = corsHosts.contains("*")
+    if (corsAnyHost) {
+        environment.log.warn("CORS: cors.allowedHosts 包含 *，任何来源都可调用接口，请勿用于生产环境")
+    }
     install(CORS) {
-        anyHost()
+        when {
+            corsAnyHost -> anyHost()
+            // 显式配置按原样匹配；Ktor 的 allowHost 只匹配默认端口，带端口要写成 host:port
+            corsHosts.isNotEmpty() -> corsHosts.forEach { host -> allowHost(host) }
+            // 未配置时放行本机任意端口：Vite 开发端口可能变化（5173 被占用时会顺延）
+            else -> allowOrigins(::isLocalOrigin)
+        }
         allowHeader(HttpHeaders.ContentType)
         allowHeader(HttpHeaders.Authorization)
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Post)
         allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Patch)
         allowMethod(HttpMethod.Delete)
     }
     install(StatusPages) {
         authErrors()
         exception<UnsupportedMediaTypeException> { call, cause ->
-            call.respond(
-                HttpStatusCode.UnsupportedMediaType,
-                ApiResult.fail(415, cause.message ?: "unsupported media type"),
-            )
+            call.application.environment.log.warn("Unsupported media type", cause)
+            call.respondFail(HttpStatusCode.UnsupportedMediaType, "unsupported media type")
         }
         exception<CannotTransformContentToTypeException> { call, cause ->
-            call.respond(
-                HttpStatusCode.UnsupportedMediaType,
-                ApiResult.fail(415, cause.message ?: "unsupported media type"),
-            )
+            call.application.environment.log.warn("Cannot transform request body", cause)
+            call.respondFail(HttpStatusCode.UnsupportedMediaType, "unsupported media type")
         }
         exception<BadRequestException> { call, cause ->
+            // 请求体解析失败属于调用方问题，回显细节便于排错。
             val detail = cause.cause?.message ?: cause.message ?: "invalid request body"
-            call.respond(HttpStatusCode.BadRequest, ApiResult.fail(400, detail))
+            call.respondFail(HttpStatusCode.BadRequest, detail)
         }
         exception<SerializationException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ApiResult.fail(400, cause.message ?: "invalid request body"),
-            )
+            call.respondFail(HttpStatusCode.BadRequest, cause.message ?: "invalid request body")
         }
         exception<CancellationException> { _, cause ->
             throw cause
         }
         exception<Throwable> { call, cause ->
             if (cause.isConstraintConflict()) {
-                call.respond(
-                    HttpStatusCode.Conflict,
-                    ApiResult.fail(409, cause.message ?: "conflict"),
-                )
+                // 数据库约束细节只进日志，不回显给调用方。
+                call.application.environment.log.warn("Constraint conflict", cause)
+                call.respondFail(HttpStatusCode.Conflict, "resource conflict")
                 return@exception
             }
             call.application.environment.log.error("Unhandled error", cause)
-            call.respond(
-                HttpStatusCode.InternalServerError,
-                ApiResult.fail(500, cause.message ?: cause::class.simpleName ?: "internal error"),
-            )
+            call.respondFail(HttpStatusCode.InternalServerError, "internal error")
         }
     }
 
@@ -139,7 +157,7 @@ fun Application.module() {
         docsRoutes()
         route("/api") {
             healthRoutes()
-            authPublicRoutes(authService)
+            authPublicRoutes(authService, loginThrottle)
             authenticate("auth-jwt") {
                 authProtectedRoutes(authService)
                 withBusinessPermissions { businessRoutes() }
@@ -176,4 +194,28 @@ internal fun Route.businessRoutes() {
     tDeptRoutes()
     tEmpRoutes()
     orderRoutes()
+}
+
+/** 本机开发来源：http(s)://localhost、127.0.0.1 或 ::1，端口不限。 */
+internal fun isLocalOrigin(origin: String): Boolean {
+    if (!origin.startsWith("http://") && !origin.startsWith("https://")) return false
+    val authority = origin.substringAfter("://").substringBefore('/')
+    if (authority.isEmpty()) return false
+    val host = if (authority.startsWith("[")) {
+        authority.substringAfter('[').substringBefore(']')
+    } else {
+        authority.substringBefore(':')
+    }
+    return host == "localhost" || host == "127.0.0.1" || host == "::1"
+}
+
+/** 登录限流参数来自 application.yaml 的 auth.loginRateLimit，缺省为开启。 */
+private fun loginThrottle(config: ApplicationConfig): LoginThrottle {
+    val section = "auth.loginRateLimit"
+    return LoginThrottle.of(
+        enabled = config.propertyOrNull("$section.enabled")?.getString()?.toBooleanStrictOrNull() ?: true,
+        windowSeconds = config.propertyOrNull("$section.windowSeconds")?.getString()?.toLongOrNull() ?: 300,
+        maxAccountFailures = config.propertyOrNull("$section.maxAccountFailures")?.getString()?.toIntOrNull() ?: 8,
+        maxAddressFailures = config.propertyOrNull("$section.maxAddressFailures")?.getString()?.toIntOrNull() ?: 30,
+    )
 }

@@ -14,6 +14,10 @@ interface AuthStore {
     suspend fun getRolePermissions(code: String): RolePermissionsDto?
     suspend fun createUser(username: String, passwordHash: String, roleCode: String): AuthUser
     suspend fun updateUser(id: Int, roleCode: String?, enabled: Boolean?, passwordHash: String?): AuthUser?
+    /** 删除账号；返回是否真的删掉了记录。 */
+    suspend fun deleteUser(id: Int): Boolean
+    /** 删除角色及其权限配置；仍有账号引用时抛冲突。 */
+    suspend fun deleteRole(code: String): Boolean
     suspend fun revokeTokens(id: Int)
     suspend fun replaceRolePermissions(code: String, request: RolePermissionsRequest): RolePermissionsDto
 }

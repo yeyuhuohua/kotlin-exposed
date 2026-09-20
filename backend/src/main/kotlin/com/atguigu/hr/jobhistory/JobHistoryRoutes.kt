@@ -10,12 +10,7 @@ import io.ktor.utils.io.ExperimentalKtorApi
 
 @OptIn(ExperimentalKtorApi::class)
 fun Route.jobHistoryRoutes() {
-    /**
-     * 任职历史。
-     *
-     * Tag: job-history
-     * Response: 200 application/json [JobHistoryDto] 任职历史
-     */
+    /** 任职历史。 */
     get("/job-history") {
         val cached = JobHistoryService.listJobHistory()
         call.cacheHeader(cached)

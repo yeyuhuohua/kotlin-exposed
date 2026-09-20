@@ -1,16 +1,20 @@
 package com.atguigu.hr.auth
 
 import com.atguigu.hr.common.api.ApiList
+import com.atguigu.hr.common.api.respondFail
 import com.atguigu.hr.common.api.respondOk
 import com.atguigu.hr.docs.requestExample
 import com.atguigu.hr.docs.responseExamples
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.install
 import io.ktor.server.auth.principal
+import io.ktor.server.plugins.origin
 import io.ktor.server.request.receive
 import io.ktor.server.response.header
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
@@ -21,15 +25,37 @@ import io.ktor.utils.io.ExperimentalKtorApi
 /** 注册认证、用户和角色管理接口，管理路由统一启用 ADMIN 限制。 */
 
 @OptIn(ExperimentalKtorApi::class)
-fun Route.authPublicRoutes(service: AuthService) {
+fun Route.authPublicRoutes(service: AuthService, throttle: LoginThrottle) {
     post("/auth/login") {
         call.response.header("Cache-Control", "no-store")
-        call.respondOk(service.login(call.receive<LoginRequest>()))
+        val body = call.receive<LoginRequest>()
+        val remoteHost = call.request.origin.remoteHost
+        throttle.blockedSeconds(remoteHost, body.username)?.let { retryAfter ->
+            call.response.header(HttpHeaders.RetryAfter, retryAfter.toString())
+            return@post call.respondFail(
+                HttpStatusCode.TooManyRequests,
+                "too many login attempts, retry later",
+            )
+        }
+        try {
+            val token = service.login(body)
+            throttle.recordSuccess(body.username)
+            call.respondOk(token)
+        } catch (cause: AuthException) {
+            throttle.recordFailure(remoteHost, body.username)
+            throw cause
+        }
     }.describe {
         summary = "使用数据库账号登录并获取访问 Token"
         tag("auth")
         requestExample(sampleLogin, "用户名和密码")
-        responseExamples(sampleToken, fails = arrayOf(HttpStatusCode.Unauthorized to "invalid username or password"))
+        responseExamples(
+            sampleToken,
+            fails = arrayOf(
+                HttpStatusCode.Unauthorized to "invalid username or password",
+                HttpStatusCode.TooManyRequests to "too many login attempts, retry later",
+            ),
+        )
     }
 }
 
@@ -89,6 +115,23 @@ fun Route.authProtectedRoutes(service: AuthService) {
             responseExamples(sampleUser.copy(enabled = false), message = "updated",
                 fails = arrayOf(HttpStatusCode.BadRequest to "invalid update", HttpStatusCode.NotFound to "user not found"))
         }
+        delete("/{id}") {
+            val id = call.parameters["id"]?.toIntOrNull()?.takeIf { it > 0 }
+                ?: throw AuthException(HttpStatusCode.BadRequest, "invalid user id")
+            if (!service.deleteUser(call.authUser().id, id)) {
+                throw AuthException(HttpStatusCode.NotFound, "user not found")
+            }
+            call.respondOk("deleted")
+        }.describe {
+            summary = "删除账号（仅 ADMIN；admin 账号与当前登录账号不可删除）"
+            tag("auth")
+            parameters { path("id") { description = "用户编号" } }
+            responseExamples("deleted", fails = arrayOf(
+                HttpStatusCode.BadRequest to "cannot delete your own account",
+                HttpStatusCode.Forbidden to "admin account is protected",
+                HttpStatusCode.NotFound to "user not found",
+            ))
+        }
     }
     route("/auth/roles") {
         install(RoleAuthorization) { adminOnly = true }
@@ -131,6 +174,21 @@ fun Route.authProtectedRoutes(service: AuthService) {
                 HttpStatusCode.BadRequest to "unknown permission code",
                 HttpStatusCode.Forbidden to "ADMIN role is protected",
                 HttpStatusCode.Conflict to "permissions changed; reload before saving",
+            ))
+        }
+        delete("/{code}") {
+            if (!service.deleteRole(call.roleCode())) {
+                throw AuthException(HttpStatusCode.NotFound, "role not found")
+            }
+            call.respondOk("deleted")
+        }.describe {
+            summary = "删除角色（仅 ADMIN；ADMIN 角色受保护，仍有账号引用时返回 409）"
+            tag("auth")
+            parameters { path("code") { description = "角色编码" } }
+            responseExamples("deleted", fails = arrayOf(
+                HttpStatusCode.Forbidden to "ADMIN role is protected",
+                HttpStatusCode.NotFound to "role not found",
+                HttpStatusCode.Conflict to "role still has 2 user(s)",
             ))
         }
         get {

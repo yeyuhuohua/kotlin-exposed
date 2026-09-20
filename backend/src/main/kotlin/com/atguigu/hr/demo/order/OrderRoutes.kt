@@ -10,12 +10,7 @@ import io.ktor.utils.io.ExperimentalKtorApi
 
 @OptIn(ExperimentalKtorApi::class)
 fun Route.orderRoutes() {
-    /**
-     * order 表示例数据。
-     *
-     * Tag: orders
-     * Response: 200 application/json [OrderDto] 订单列表
-     */
+    /** order 表示例数据。 */
     get("/orders") {
         val cached = OrderService.listOrders()
         call.cacheHeader(cached)

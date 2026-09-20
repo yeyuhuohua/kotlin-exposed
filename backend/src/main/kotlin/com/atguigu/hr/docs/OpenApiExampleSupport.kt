@@ -7,9 +7,7 @@ import io.ktor.openapi.ExampleObject
 import io.ktor.openapi.GenericElement
 import io.ktor.openapi.Operation
 
-/**
- * 一次写入全部 responses。Ktor 的 responses {} 是整段替换，不能多次调用。
- */
+/** 一次写入全部 responses。Ktor 的 responses {} 是整段替换，不能多次调用。 */
 internal inline fun <reified T : Any> Operation.Builder.responseExamples(
     data: T,
     message: String = "ok",

@@ -1,6 +1,7 @@
 package com.atguigu.hr.auth
 
 import com.atguigu.hr.common.api.ApiList
+import com.atguigu.hr.common.api.ErrorCode
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
@@ -76,7 +77,9 @@ class AuthRepository(private val database: R2dbcDatabase) : AuthStore {
     }
 
     override suspend fun updateRole(code: String, body: RoleUpdateRequest): RoleDto? = suspendTransaction(db = database) {
-        if (code == RoleCode.ADMIN.name) throw AuthException(HttpStatusCode.Forbidden, "ADMIN role is protected")
+        if (code == RoleCode.ADMIN.name) {
+            throw AuthException(HttpStatusCode.Forbidden, "ADMIN role is protected", ErrorCode.ROLE_PROTECTED)
+        }
         val row = Roles.selectAll().where { Roles.code eq code }.forUpdate().firstOrNull() ?: return@suspendTransaction null
         Roles.update({ Roles.code eq code }) {
             body.name?.let { value -> it[name] = value }
@@ -113,6 +116,29 @@ class AuthRepository(private val database: R2dbcDatabase) : AuthStore {
             if (rows == 0) null else loadUser(id)
         }
 
+    /** 删除账号；账号本身没有外键引用，删掉后其 Token 立即失效（查不到用户）。 */
+    override suspend fun deleteUser(id: Int): Boolean = suspendTransaction(db = database) {
+        Users.deleteWhere { Users.id eq id } > 0
+    }
+
+    /** 删除角色及其权限配置。仍有账号引用该角色时返回冲突，避免把账号留在无效角色上。 */
+    override suspend fun deleteRole(code: String): Boolean = suspendTransaction(db = database) {
+        val role = Roles.selectAll().where { Roles.code eq code }.forUpdate().firstOrNull()
+            ?: return@suspendTransaction false
+        val members = Users.selectAll().where { Users.roleCode eq code }.count()
+        if (members > 0) {
+            throw AuthException(
+                HttpStatusCode.Conflict,
+                "role still has $members user(s)",
+                ErrorCode.ROLE_IN_USE,
+            )
+        }
+        // 先删权限明细与版本，再删角色；即使数据库没有配级联也保持一致
+        RolePermissions.deleteWhere { RolePermissions.roleCode eq code }
+        RolePermissionProfiles.deleteWhere { RolePermissionProfiles.roleCode eq code }
+        Roles.deleteWhere { Roles.code eq role[Roles.code] } > 0
+    }
+
     override suspend fun revokeTokens(id: Int) {
         suspendTransaction(db = database) {
             Users.update({ Users.id eq id }) { it[tokenVersion] = Users.tokenVersion + 1 }
@@ -120,19 +146,29 @@ class AuthRepository(private val database: R2dbcDatabase) : AuthStore {
     }
 
     override suspend fun replaceRolePermissions(code: String, request: RolePermissionsRequest): RolePermissionsDto = suspendTransaction(db = database) {
-        if (code == RoleCode.ADMIN.name) throw AuthException(HttpStatusCode.Forbidden, "ADMIN role is protected")
+        if (code == RoleCode.ADMIN.name) {
+            throw AuthException(HttpStatusCode.Forbidden, "ADMIN role is protected", ErrorCode.ROLE_PROTECTED)
+        }
         // Role changes and user assignments take the same role lock.
         Roles.selectAll().where { Roles.code eq code }.forUpdate().firstOrNull()
             ?: throw AuthException(HttpStatusCode.NotFound, "role not found")
         val profile = checkNotNull(loadRolePermissions(code))
         if (request.revision != profile.revision) {
-            throw AuthException(HttpStatusCode.Conflict, "permissions changed; reload before saving")
+            throw AuthException(
+                HttpStatusCode.Conflict,
+                "permissions changed; reload before saving",
+                ErrorCode.REVISION_CONFLICT,
+            )
         }
         if (request.permissions.any { PermissionCatalog.byCode[it] == null }) {
-            throw AuthException(HttpStatusCode.BadRequest, "unknown permission code")
+            throw AuthException(HttpStatusCode.BadRequest, "unknown permission code", ErrorCode.UNKNOWN_PERMISSION)
         }
         if (request.permissions.any { PermissionCatalog.byCode[it]?.adminOnly == true }) {
-            throw AuthException(HttpStatusCode.BadRequest, "management permissions require ADMIN role")
+            throw AuthException(
+                HttpStatusCode.BadRequest,
+                "management permissions require ADMIN role",
+                ErrorCode.ADMIN_ONLY,
+            )
         }
         RolePermissionProfiles.insertIgnore { it[roleCode] = code }
         RolePermissionProfiles.update({ RolePermissionProfiles.roleCode eq code }) {

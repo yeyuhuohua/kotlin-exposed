@@ -21,5 +21,11 @@ suspend fun createAuthService(config: ApplicationConfig, database: R2dbcDatabase
     if (normalizedUsername != null && password != null) {
         repository.bootstrapAdmin(normalizedUsername, PasswordHasher.hash(password))
     }
-    return AuthService(repository, tokens, PasswordHasher.hash(UUID.randomUUID().toString()))
+    val cacheSeconds = config.propertyOrNull("auth.permissionCacheSeconds")?.getString()?.toLongOrNull() ?: 3
+    return AuthService(
+        repository,
+        tokens,
+        PasswordHasher.hash(UUID.randomUUID().toString()),
+        AuthUserCache(ttlMillis = cacheSeconds.coerceAtLeast(0) * 1000),
+    )
 }

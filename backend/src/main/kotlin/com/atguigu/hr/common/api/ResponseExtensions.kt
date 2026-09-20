@@ -10,8 +10,13 @@ suspend inline fun <reified T> ApplicationCall.respondOk(data: T, message: Strin
     respond(HttpStatusCode.OK, ApiResult.ok(data, message))
 }
 
-suspend fun ApplicationCall.respondFail(status: HttpStatusCode, message: String) {
-    respond(status, ApiResult.fail(status.value, message))
+/** 失败响应默认按状态码填 error，调用方需要更精确的语义时再显式指定。 */
+suspend fun ApplicationCall.respondFail(
+    status: HttpStatusCode,
+    message: String,
+    error: String = ErrorCode.forStatus(status),
+) {
+    respond(status, ApiResult.fail(status.value, message, error))
 }
 
 /** 把缓存命中情况写到响应头，便于对照 Spring 的 cache hit。 */

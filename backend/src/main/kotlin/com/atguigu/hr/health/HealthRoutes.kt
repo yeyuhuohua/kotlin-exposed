@@ -12,13 +12,7 @@ import io.ktor.utils.io.ExperimentalKtorApi
 
 @OptIn(ExperimentalKtorApi::class)
 fun Route.healthRoutes() {
-    /**
-     * MySQL 与 Redis 连通性检查。
-     *
-     * Tag: system
-     * Response: 200 application/json [HealthDto] 均可用
-     * Response: 503 application/json [HealthDto] 有依赖不可用
-     */
+    /** MySQL 与 Redis 连通性检查。 */
     get("/health") {
         val health = HealthService.check()
         if (health.status == "UP") {

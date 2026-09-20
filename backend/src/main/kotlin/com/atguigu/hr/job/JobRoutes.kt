@@ -16,12 +16,7 @@ import io.ktor.utils.io.ExperimentalKtorApi
 
 @OptIn(ExperimentalKtorApi::class)
 fun Route.jobRoutes() {
-    /**
-     * 全部岗位。
-     *
-     * Tag: jobs
-     * Response: 200 application/json [JobDto] 岗位列表
-     */
+    /** 全部岗位。 */
     get("/jobs") {
         val cached = JobService.listJobs()
         call.cacheHeader(cached)
@@ -32,15 +27,7 @@ fun Route.jobRoutes() {
         responseExamples(listOf(sampleJob))
     }
 
-    /**
-     * 新增岗位并刷新缓存。
-     *
-     * Tag: jobs
-     * Body: application/json [JobCreateRequest] jobId、jobTitle 必填
-     * Response: 200 application/json [JobDto] 新建岗位
-     * Response: 400 必填字段缺失
-     * Response: 409 主键冲突
-     */
+    /** 新增岗位并刷新缓存。 */
     post("/jobs") {
         val body = call.receive<JobCreateRequest>()
         if (body.jobId.isBlank() || body.jobTitle.isBlank()) {
@@ -63,17 +50,7 @@ fun Route.jobRoutes() {
         )
     }
 
-    /**
-     * 部分更新岗位并刷新缓存。
-     *
-     * Tag: jobs
-     * Path: [String] id 岗位编码 job_id，例如 AD_PRES
-     * Body: application/json [JobUpdateRequest] 只提交要改的字段
-     * Response: 200 application/json [JobDto] 更新后的岗位
-     * Response: 400 无更新字段或 ID 无效
-     * Response: 404 岗位不存在
-     * Response: 409 约束冲突
-     */
+    /** 部分更新岗位并刷新缓存。 */
     put("/jobs/{id}") {
         val id = call.parameters["id"]?.takeIf { it.isNotBlank() }
             ?: return@put call.respondFail(HttpStatusCode.BadRequest, "invalid job id")

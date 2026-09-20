@@ -21,6 +21,12 @@ redis:
   password: ""
   ttlSeconds: 600
 
+# 允许跨域调用接口的来源。留空或整段删除时只放行本机来源（localhost / 127.0.0.1 / ::1，端口不限）。
+# 填写后按原样匹配：非默认端口要写成 host:port（例如 hr.example.com:8443），
+# 默认端口（https 443 / http 80）可省略。写 * 表示不限制，仅限本机调试。
+cors:
+  allowedHosts: []
+
 auth:
   # 至少 32 字节的随机签名密钥；留空会拒绝启动，不提供默认密钥。
   jwtSecret: ""
@@ -31,3 +37,12 @@ auth:
   # 首次创建管理员时同时填写；已有账号不会被覆盖。
   adminUsername: ""
   adminPassword: ""
+  # 鉴权结果的进程内缓存秒数：key 含 tokenVersion，改密码/改角色/停用立即失效；
+  # 只有直接在库里改数据才会滞后这么久。设 0 关闭（每个请求都查库）。
+  permissionCacheSeconds: 3
+  # 登录失败限流：单实例内存计数，多实例部署仍需在网关限流。
+  loginRateLimit:
+    enabled: true
+    windowSeconds: 300
+    maxAccountFailures: 8
+    maxAddressFailures: 30

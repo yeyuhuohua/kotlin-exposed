@@ -48,4 +48,14 @@ dependencies {
     implementation(libs.lettuce.core)
 
     implementation(libs.logback.classic)
+
+    testImplementation(kotlin("test"))
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.test {
+    useJUnitPlatform()
+    testLogging {
+        events("passed", "failed", "skipped")
+    }
 }

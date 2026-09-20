@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * 统一接口信封。成功 code=200；失败 code 与 HTTP 状态码一致，data 为 null。
+ * error 是稳定的机器可读错误码（见 [ErrorCode]），客户端据此选择提示文案。
  */
 @Serializable
 @JsonSchema.Description("统一响应信封")
@@ -15,12 +16,14 @@ data class ApiResult<T>(
     val message: String,
     @JsonSchema.Description("业务数据，失败时为 null")
     val data: T? = null,
+    @JsonSchema.Description("稳定的机器可读错误码，成功时为 null")
+    val error: String? = null,
 ) {
     companion object {
         fun <T> ok(data: T, message: String = "ok"): ApiResult<T> =
             ApiResult(code = 200, message = message, data = data)
 
-        fun fail(code: Int, message: String): ApiResult<String?> =
-            ApiResult(code = code, message = message, data = null)
+        fun fail(code: Int, message: String, error: String? = null): ApiResult<String?> =
+            ApiResult(code = code, message = message, data = null, error = error)
     }
 }
