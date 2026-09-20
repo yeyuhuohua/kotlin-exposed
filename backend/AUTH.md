@@ -32,7 +32,7 @@ JWT 签名密钥和可选的初始管理员写在 `src/main/resources/applicatio
 - `auth.jwtSecret`：至少 32 字节，用来签发和校验登录 Token
 - `auth.adminUsername` / `auth.adminPassword`：同时填写才会在库中还不存在该用户名时创建管理员；已有账号不会被覆盖
 
-在 `backend/` 目录执行 `./gradlew run`，或使用 IDEA 配置「后端本地启动」。
+在 IDEA 中以 **Debug** 运行配置 `ApplicationKt`（工作目录指向 `backend/`），或临时执行 `./gradlew run`。
 
 服务重启前后应保持 `jwtSecret` 不变，多实例部署时也应使用相同密钥。改密钥会使之前签发的全部 Token 失效，需要重新登录。
 

@@ -27,7 +27,11 @@
 
 - `./gradlew build`：编译并生成构建产物。
 - `./gradlew test`：运行后端单元测试（不需要 MySQL/Redis）。
-- `./gradlew run`：启动 Netty，默认端口为 8080。文档入口包括 `/doc.html`、`/swagger` 和 `/v3/api-docs`。
+- `./gradlew run`：临时验证用，会占用 8080，不要长期驻留。
+
+**本机启动后端统一走 IDEA 的 Debug 模式**：运行配置 `ApplicationKt`（Ktor 应用程序，工作目录 `backend/`），
+这样可以随时打断点。需要后端在线时先探测 `http://127.0.0.1:8080/api/health`，如果没起来就请使用者用 Debug 启动，
+不要用 `./gradlew run` 占用端口。文档入口包括 `/doc.html`、`/swagger` 和 `/v3/api-docs`。
 
 本地运行需要已具备 `atguigudb` 库及对应表结构的 MySQL，以及 Redis；连接参数在 `application.yaml` 中配置。
 
