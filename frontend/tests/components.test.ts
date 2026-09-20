@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createPinia } from 'pinia'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import ElementPlus, {
   ElButton,
@@ -41,7 +42,8 @@ vi.mock('vue-router', () => ({
 }))
 
 const mounted: VueWrapper[] = []
-const options = { attachTo: document.body, global: { plugins: [ElementPlus] } }
+// 主题 store 是真实实现（只操作 <html> 的 class），因此挂载时需要 Pinia
+const options = { attachTo: document.body, global: { plugins: [ElementPlus, createPinia()] } }
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.api.mockResolvedValue({})

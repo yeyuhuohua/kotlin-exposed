@@ -55,3 +55,164 @@ onBeforeUnmount(() => chart?.destroy())
     </ul>
   </div>
 </template>
+
+<style scoped>
+/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
+.distribution {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-height: 223px;
+}
+
+.donut-wrap {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  flex-shrink: 0;
+}
+
+.donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.donut-center strong {
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.donut-center span {
+  font-size: 9px;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+
+.chart-legend {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+}
+
+.chart-legend li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 15px 0;
+  font-size: 10px;
+  color: var(--text-muted);
+  min-width: 0;
+}
+
+.chart-legend i {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.chart-legend li > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.chart-legend strong {
+  margin-left: auto;
+  color: var(--text-soft);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+@media (min-width: 1500px) {
+  .distribution {
+    gap: 35px;
+  }
+}
+
+@media (min-width: 1500px) {
+  .donut-wrap {
+    width: 210px;
+    height: 210px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .distribution {
+    gap: 10px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 1200px) {
+  .donut-wrap {
+    width: 155px;
+    height: 155px;
+    align-self: center;
+  }
+}
+
+@media (max-width: 1200px) {
+  .chart-legend {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 14px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .chart-legend li {
+    margin: 6px 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .distribution {
+    flex-direction: row;
+    gap: 35px;
+    padding: 5px 15px;
+    min-height: 180px;
+  }
+}
+
+@media (max-width: 900px) {
+  .chart-legend {
+    display: block;
+  }
+}
+
+@media (max-width: 900px) {
+  .chart-legend li {
+    margin: 13px 0;
+  }
+}
+
+@media (max-width: 680px) {
+  .distribution {
+    gap: 21px;
+    padding: 4px 0;
+  }
+}
+
+@media (max-width: 680px) {
+  .donut-wrap {
+    width: 156px;
+    height: 156px;
+  }
+}
+
+@media (max-width: 680px) {
+  .chart-legend li {
+    font-size: 9px;
+  }
+}
+</style>

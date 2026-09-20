@@ -7,6 +7,7 @@ import { api, query } from '../lib/api'
 import { fullName, initials, money } from '../lib/format'
 import { employeeCreateFields, employeeUpdateFields } from '../config/resources'
 import { useResource } from '../composables/useResource'
+import { departmentsPaths, employeesPaths, fillTemplate, jobsPaths } from '../api/paths'
 import { useAuth } from '../stores/auth'
 import { useNotices } from '../stores/notices'
 import StateBlock from '../components/StateBlock.vue'
@@ -36,14 +37,16 @@ const deleteError = ref('')
 const deleteBusy = ref(false)
 const { data, loading, error, refresh } = useResource((signal) =>
   api<Page<Employee>>(
-    `/employees${query({ q: keyword.value, departmentId: departmentId.value, jobId: jobId.value, limit: pageSize.value, offset: (page.value - 1) * pageSize.value })}`,
+    `${employeesPaths.collection}${query({ q: keyword.value, departmentId: departmentId.value, jobId: jobId.value, limit: pageSize.value, offset: (page.value - 1) * pageSize.value })}`,
     { signal },
   ),
 )
 const filtered = computed(() => Boolean(keyword.value || departmentId.value || jobId.value))
 const canDetail = computed(
-  () => auth.canApi('GET', '/employees/{id}') || auth.canApi('GET', '/employees/{id}/details'),
+  () => auth.canApi('GET', employeesPaths.item) || auth.canApi('GET', employeesPaths.itemDetails),
 )
+// 清空可空字段走 PATCH，需要单独授权；没有该权限时编辑框仍可改值但不能清空。
+const canClearFields = computed(() => auth.canApi('PATCH', employeesPaths.item))
 watch([page, pageSize, keyword, departmentId, jobId], refresh, { immediate: true })
 watch(
   () => data.value?.total,
@@ -69,8 +72,10 @@ watch(
 onMounted(async () => {
   try {
     ;[departments.value, jobs.value] = await Promise.all([
-      auth.canApi('GET', '/departments') ? api<Department[]>('/departments') : Promise.resolve([]),
-      auth.canApi('GET', '/jobs') ? api<Job[]>('/jobs') : Promise.resolve([]),
+      auth.canApi('GET', departmentsPaths.collection)
+        ? api<Department[]>(departmentsPaths.collection)
+        : Promise.resolve([]),
+      auth.canApi('GET', jobsPaths.collection) ? api<Job[]>(jobsPaths.collection) : Promise.resolve([]),
     ])
   } catch (cause) {
     lookupError.value = cause instanceof Error ? cause.message : '筛选选项加载失败'
@@ -117,7 +122,7 @@ async function remove() {
   deleteBusy.value = true
   deleteError.value = ''
   try {
-    await api(`/employees/${deleting.value.employeeId}`, { method: 'DELETE' })
+    await api(fillTemplate(employeesPaths.item, deleting.value.employeeId), { method: 'DELETE' })
     deleting.value = undefined
     notices.show('员工记录已删除')
     if (data.value?.items.length === 1 && page.value > 1) page.value--
@@ -142,7 +147,12 @@ async function remove() {
       </div>
       <div class="heading-actions">
         <el-button :icon="RefreshCw" :loading="loading" aria-label="刷新员工" @click="refresh" />
-        <el-button v-if="auth.canApi('POST', '/employees')" type="primary" :icon="Plus" @click="edit()">
+        <el-button
+          v-if="auth.canApi('POST', employeesPaths.collection)"
+          type="primary"
+          :icon="Plus"
+          @click="edit()"
+        >
           新增员工
         </el-button>
       </div>
@@ -249,7 +259,9 @@ async function remove() {
         <template #default="{ row }">{{ money(row.salary) }}</template>
       </el-table-column>
       <el-table-column
-        v-if="canDetail || auth.canApi('PUT', '/employees/{id}') || auth.canApi('DELETE', '/employees/{id}')"
+        v-if="
+          canDetail || auth.canApi('PUT', employeesPaths.item) || auth.canApi('DELETE', employeesPaths.item)
+        "
         label="操作"
         width="135"
         align="right"
@@ -265,7 +277,7 @@ async function remove() {
                 @click="detailId = row.employeeId"
               />
             </el-tooltip>
-            <el-tooltip v-if="auth.canApi('PUT', '/employees/{id}')" content="编辑员工">
+            <el-tooltip v-if="auth.canApi('PUT', employeesPaths.item)" content="编辑员工">
               <el-button
                 link
                 :icon="Pencil"
@@ -273,7 +285,7 @@ async function remove() {
                 @click="edit(row as Employee)"
               />
             </el-tooltip>
-            <el-tooltip v-if="auth.canApi('DELETE', '/employees/{id}')" content="删除员工">
+            <el-tooltip v-if="auth.canApi('DELETE', employeesPaths.item)" content="删除员工">
               <el-button
                 link
                 type="danger"
@@ -297,9 +309,11 @@ async function remove() {
     <RecordDialog
       v-if="formOpen"
       :title="editing ? '编辑员工' : '新增员工'"
-      endpoint="/employees"
+      :endpoint="employeesPaths.collection"
+      :update-template="employeesPaths.item"
       :fields="editing ? employeeUpdateFields : employeeCreateFields"
       :original="editing"
+      :allow-clear="canClearFields"
       id-key="employeeId"
       @close="formOpen = false"
       @saved="saved"
@@ -321,3 +335,72 @@ async function remove() {
     </Modal>
   </section>
 </template>
+
+<style scoped>
+/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
+.person-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.person-button:hover strong {
+  color: var(--green);
+}
+
+.cell-subtitle {
+  display: block;
+  color: var(--text-faint);
+  font-size: 9px;
+  margin-top: 2px;
+}
+
+.job-name {
+  white-space: nowrap;
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .filters {
+    width: 100%;
+  }
+}
+
+.filters :deep(.el-select) {
+  width: 180px;
+}
+
+.el-button.person-button {
+  height: auto;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  /* 组件库按钮默认居中内容，会把头像推到列中间、和表头对不齐。 */
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.el-button.person-button > span {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 11px;
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 680px) {
+  .filters :deep(.el-select) {
+    flex: 1;
+    min-width: 0;
+    width: 130px;
+  }
+}
+</style>

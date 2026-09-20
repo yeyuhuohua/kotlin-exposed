@@ -16,6 +16,7 @@ import {
   Users,
   X,
 } from '@lucide/vue'
+import { docsPaths } from '../api/paths'
 import { useAuth } from '../stores/auth'
 
 /** 桌面侧栏与移动抽屉共用同一菜单，按服务端返回的角色页面权限过滤。 */
@@ -123,7 +124,7 @@ const demos = computed(() =>
           <span>系统状态</span>
         </el-menu-item>
       </el-menu>
-      <a class="nav-link" href="/swagger" target="_blank" rel="noopener">
+      <a class="nav-link" :href="docsPaths.swagger" target="_blank" rel="noopener">
         <BookOpen :size="18" />
         接口文档
         <ArrowUpRight :size="14" class="push-right" />
@@ -136,3 +137,192 @@ const demos = computed(() =>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 27px 23px 25px;
+  font-size: 18px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.brand small {
+  display: block;
+  font-size: 9px;
+  color: var(--text-faint);
+  margin-top: 3px;
+  font-weight: 500;
+}
+
+.workspace-label {
+  margin: 0 16px 18px;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.workspace-symbol {
+  width: 29px;
+  height: 29px;
+  background: var(--green-soft-hover);
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  color: var(--text-soft);
+  font-size: 14px;
+}
+
+.workspace-label small {
+  display: block;
+  color: var(--text-dim);
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.workspace-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green-mid);
+  margin-left: auto;
+}
+
+.main-nav {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0 12px 10px;
+  scrollbar-width: thin;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  margin: 3px 0;
+  font-size: 12px;
+  color: var(--text-nav);
+  min-height: 37px;
+  border-radius: 5px;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.nav-link svg {
+  color: var(--text-dim);
+}
+
+.nav-link:hover {
+  background: var(--surface-hover);
+  color: var(--text-green-dark);
+}
+
+.nav-link.active {
+  color: var(--green);
+  background: var(--green-soft);
+  font-weight: 600;
+}
+
+.nav-link.active svg {
+  color: var(--green);
+}
+
+.sidebar-bottom {
+  padding: 10px 16px 0;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-footnote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  color: var(--text-pale);
+  border-top: 1px solid var(--border);
+  padding: 17px 0;
+  margin-top: 8px;
+}
+
+.sidebar-footnote > span:last-child {
+  margin-left: auto;
+}
+
+.tiny-square {
+  height: 6px;
+  width: 6px;
+  background: var(--green-text-light);
+  border-radius: 1px;
+}
+
+@media (max-width: 1200px) {
+  .brand {
+    padding-left: 19px;
+    font-size: 16px;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 900px) {
+  .brand {
+    padding: 24px 15px;
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 900px) {
+  .sidebar-footnote {
+    font-size: 8px;
+  }
+}
+
+.sidebar-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.workspace-menu.el-menu {
+  border: 0;
+  --el-menu-bg-color: transparent;
+  --el-menu-hover-bg-color: var(--green-tint);
+  --el-menu-active-color: var(--green);
+}
+
+.workspace-menu :deep(.el-menu-item),
+.workspace-menu :deep(.el-sub-menu__title) {
+  height: 39px;
+  line-height: 39px;
+  gap: 11px;
+  border-radius: 5px;
+  margin: 3px 0;
+  font-size: 12px;
+}
+
+.workspace-menu :deep(.el-menu-item.is-active) {
+  background: var(--green-soft);
+  font-weight: 600;
+}
+
+.workspace-menu :deep(.el-menu-item-group__title) {
+  font-size: 10px;
+  color: var(--text-dim);
+  padding-top: 15px;
+}
+
+.drawer-close.el-button {
+  position: absolute;
+  top: 27px;
+  right: 6px;
+}
+</style>

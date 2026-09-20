@@ -53,9 +53,17 @@ describe('typed API client', () => {
   it('does not attach credentials or expire another session when login fails', async () => {
     saveSession('valid', 60)
     const fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ code: 401, message: 'invalid username or password', data: null }), {
-        status: 401,
-      }),
+      new Response(
+        JSON.stringify({
+          code: 401,
+          message: 'invalid username or password',
+          error: 'invalid_credentials',
+          data: null,
+        }),
+        {
+          status: 401,
+        },
+      ),
     )
     vi.stubGlobal('fetch', fetch)
     await expect(api('/auth/login', { auth: false, method: 'POST', body: {} })).rejects.toThrow(

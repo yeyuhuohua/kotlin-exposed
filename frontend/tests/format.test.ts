@@ -31,6 +31,31 @@ describe('form payloads', () => {
       '不能清空',
     )
   })
+  it('clears only fields marked clearable when the API supports PATCH', () => {
+    const clearable: Field[] = [
+      { key: 'departmentId', label: '所属部门', type: 'select', clearable: true },
+      { key: 'jobId', label: '岗位', type: 'select' },
+    ]
+    expect(
+      formPayload(
+        clearable,
+        { departmentId: '', jobId: 'IT_PROG' },
+        { departmentId: 90, jobId: 'IT_PROG' },
+        { allowClear: true },
+      ),
+    ).toEqual({ departmentId: null })
+    // 未标记 clearable 的字段依然拒绝清空
+    expect(() =>
+      formPayload(
+        clearable,
+        { departmentId: 90, jobId: '' },
+        { departmentId: 90, jobId: 'IT_PROG' },
+        {
+          allowClear: true,
+        },
+      ),
+    ).toThrow('不能清空')
+  })
   it('rejects unchanged updates and non-finite numbers', () => {
     expect(() =>
       formPayload(fields, { salary: '1000', enabled: false }, { salary: 1000, enabled: false }),

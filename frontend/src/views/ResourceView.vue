@@ -1,11 +1,15 @@
 <script setup lang="ts">
 /** 复用业务目录页面，区分服务端分页与本地分页，并只暴露后端支持的管理操作。 */
 import { computed, ref, watch } from 'vue'
-import { ArrowUpRight, Pencil, Plus, RefreshCw, Search, ShieldCheck } from '@lucide/vue'
+import { ArrowUpRight, Pencil, Plus, RefreshCw, Search, ShieldCheck, Trash2 } from '@lucide/vue'
 import { api, query } from '../lib/api'
 import { money } from '../lib/format'
 import { useResource } from '../composables/useResource'
+import { fillTemplate, rolesPaths } from '../api/paths'
+import { isProtectedRole, isProtectedUser } from '../lib/permissions'
 import { useAuth } from '../stores/auth'
+import { useNotices } from '../stores/notices'
+import Modal from '../components/Modal.vue'
 import Pagination from '../components/Pagination.vue'
 import StateBlock from '../components/StateBlock.vue'
 import RecordDialog from '../components/RecordDialog.vue'
@@ -13,6 +17,7 @@ import RolePermissionEditor from '../components/RolePermissionEditor.vue'
 import type { Page, Resource, Row } from '../types'
 const props = defineProps<{ resource: Resource }>()
 const auth = useAuth()
+const notices = useNotices()
 const page = ref(1)
 const pageSize = ref(20)
 const search = ref('')
@@ -23,18 +28,60 @@ const canCreate = computed(() => !!props.resource.fields && auth.canApi('POST', 
 const canEdit = computed(
   () =>
     !!props.resource.fields &&
-    auth.canApi('PUT', `${props.resource.endpoint}/${props.resource.key === 'roles' ? '{code}' : '{id}'}`),
+    !!props.resource.updateTemplate &&
+    auth.canApi('PUT', props.resource.updateTemplate),
 )
 const canManagePermissions = computed(
   () =>
     props.resource.key === 'roles' &&
     auth.isAdmin &&
-    auth.canApi('GET', '/auth/permissions') &&
-    auth.canApi('GET', '/auth/roles/{code}/permissions') &&
-    auth.canApi('PUT', '/auth/roles/{code}/permissions'),
+    auth.canApi('GET', rolesPaths.catalog) &&
+    auth.canApi('GET', rolesPaths.permissions) &&
+    auth.canApi('PUT', rolesPaths.permissions),
 )
 const canLinkEmployees = computed(() => props.resource.key === 'departments' && auth.canPage('employees'))
-const hasActions = computed(() => canEdit.value || canManagePermissions.value || canLinkEmployees.value)
+const canDelete = computed(
+  () => !!props.resource.updateTemplate && auth.canApi('DELETE', props.resource.updateTemplate),
+)
+const hasActions = computed(
+  () => canEdit.value || canManagePermissions.value || canLinkEmployees.value || canDelete.value,
+)
+/** 删除确认里的名词：只有账号与角色开放删除，其余资源回落到"记录"。 */
+const recordNoun = computed(() => ({ users: '用户', roles: '角色' })[props.resource.key] ?? '记录')
+const deleting = ref<Row>()
+const deleteBusy = ref(false)
+const deleteError = ref('')
+/** 内置 admin 账号、ADMIN 角色和当前登录账号都不允许删除，按钮直接禁用。 */
+function protectedRow(row: Row): boolean {
+  if (props.resource.key === 'roles') return isProtectedRole(row.code)
+  if (props.resource.key === 'users') return isProtectedUser(row, auth.user?.id)
+  return false
+}
+function protectedReason(row: Row): string {
+  if (props.resource.key === 'roles') return 'ADMIN 角色不可删除'
+  return row.id === auth.user?.id ? '不能删除当前登录账号' : 'admin 账号不可删除'
+}
+function recordLabel(row: Row): string {
+  const column = props.resource.columns[1] ?? props.resource.columns[0]
+  return String(row[column.key] ?? row[props.resource.id])
+}
+async function confirmDelete() {
+  if (!deleting.value || !props.resource.updateTemplate) return
+  deleteBusy.value = true
+  deleteError.value = ''
+  try {
+    await api(fillTemplate(props.resource.updateTemplate, String(deleting.value[props.resource.id])), {
+      method: 'DELETE',
+    })
+    notices.show(`${recordNoun.value}已删除`)
+    deleting.value = undefined
+    await refresh()
+  } catch (cause) {
+    deleteError.value = cause instanceof Error ? cause.message : '删除失败'
+  } finally {
+    deleteBusy.value = false
+  }
+}
 const { data, loading, error, refresh } = useResource(async (signal) => {
   const result = await api<Row[] | Page<Row>>(
     `${props.resource.endpoint}${props.resource.paginated ? query({ limit: pageSize.value, offset: (page.value - 1) * pageSize.value }) : ''}`,
@@ -180,7 +227,13 @@ function saved() {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column v-if="hasActions" label="操作" width="125" align="right" fixed="right">
+      <el-table-column
+        v-if="hasActions"
+        label="操作"
+        :width="canDelete ? 150 : 125"
+        align="right"
+        fixed="right"
+      >
         <template #default="{ row }">
           <div class="row-actions">
             <RouterLink v-if="canLinkEmployees" :to="`/employees?departmentId=${row.departmentId}`">
@@ -190,20 +243,32 @@ function saved() {
               v-if="canEdit"
               link
               :icon="Pencil"
-              :disabled="resource.key === 'roles' && row.code === 'ADMIN'"
+              :disabled="resource.key === 'roles' && isProtectedRole(row.code)"
               :aria-label="`编辑 ${row[resource.id]}`"
               title="编辑记录"
               @click="edit(row)"
             />
+            <el-tooltip v-if="canDelete" :content="protectedRow(row) ? protectedReason(row) : '删除记录'">
+              <span>
+                <el-button
+                  link
+                  type="danger"
+                  :icon="Trash2"
+                  :disabled="protectedRow(row)"
+                  :aria-label="`删除 ${recordLabel(row)}`"
+                  @click="deleting = row"
+                />
+              </span>
+            </el-tooltip>
             <el-tooltip
               v-if="canManagePermissions"
-              :content="row.code === 'ADMIN' ? 'ADMIN 角色权限不可修改' : '配置角色的页面与接口权限'"
+              :content="isProtectedRole(row.code) ? 'ADMIN 角色权限不可修改' : '配置角色的页面与接口权限'"
             >
               <span>
                 <el-button
                   link
                   :icon="ShieldCheck"
-                  :disabled="row.code === 'ADMIN'"
+                  :disabled="isProtectedRole(row.code)"
                   :aria-label="`角色权限 ${row.code}`"
                   @click="permissionTarget = row"
                 />
@@ -225,12 +290,29 @@ function saved() {
       v-if="open && resource.fields"
       :title="`${editing ? '编辑' : '新增'}${resource.key === 'users' ? '用户' : resource.key === 'roles' ? '角色' : '记录'}`"
       :endpoint="resource.endpoint"
+      :update-template="resource.updateTemplate"
       :fields="resource.fields"
       :original="editing"
       :id-key="resource.id"
       @close="open = false"
       @saved="saved"
     />
+    <Modal v-if="deleting" :title="`删除${recordNoun}`" :busy="deleteBusy" @close="deleting = undefined">
+      <div class="modal-body">
+        <p>
+          确定删除「{{ recordLabel(deleting) }}」？该操作不可撤销。
+          <template v-if="resource.key === 'roles'">仍在使用的角色需要先移除其下所有账号。</template>
+        </p>
+        <el-alert v-if="deleteError" :title="deleteError" type="error" :closable="false" show-icon />
+      </div>
+      <footer class="modal-footer">
+        <el-button :disabled="deleteBusy" @click="deleting = undefined">取消</el-button>
+        <el-button type="danger" :loading="deleteBusy" @click="confirmDelete">
+          <Trash2 v-if="!deleteBusy" :size="16" />
+          删除
+        </el-button>
+      </footer>
+    </Modal>
     <RolePermissionEditor
       v-if="permissionTarget"
       :role="permissionTarget"
@@ -239,3 +321,31 @@ function saved() {
     />
   </section>
 </template>
+
+<style scoped>
+/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
+.self-label {
+  display: inline-flex;
+  font-size: 9px;
+  color: var(--green-text-light);
+  background: var(--green-tint);
+  border-radius: 3px;
+  padding: 0 4px;
+  margin-left: 7px;
+}
+
+.table-caption {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+@media (max-width: 900px) {
+  .table-caption {
+    font-size: 10px;
+  }
+}
+
+.role-notice {
+  margin-bottom: 22px;
+}
+</style>

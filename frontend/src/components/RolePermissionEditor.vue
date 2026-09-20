@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from 'vue'
 import { LoaderCircle, Save, RefreshCw, ShieldCheck } from '@lucide/vue'
 import Modal from './Modal.vue'
 import StateBlock from './StateBlock.vue'
+import { fillTemplate, rolesPaths } from '../api/paths'
 import { api } from '../lib/api'
 import { useNotices } from '../stores/notices'
 import type { PermissionDefinition, Row, RolePermissions } from '../types'
@@ -41,8 +42,8 @@ async function load() {
   saveError.value = ''
   try {
     const [definitions, profile] = await Promise.all([
-      api<PermissionDefinition[]>('/auth/permissions'),
-      api<RolePermissions>(`/auth/roles/${encodeURIComponent(String(props.role.code))}/permissions`),
+      api<PermissionDefinition[]>(rolesPaths.catalog),
+      api<RolePermissions>(fillTemplate(rolesPaths.permissions, String(props.role.code))),
     ])
     catalog.value = definitions
     current.value = profile
@@ -69,7 +70,7 @@ async function save() {
   busy.value = true
   saveError.value = ''
   try {
-    await api(`/auth/roles/${encodeURIComponent(String(props.role.code))}/permissions`, {
+    await api(fillTemplate(rolesPaths.permissions, String(props.role.code)), {
       method: 'PUT',
       body: {
         revision: current.value.revision,
@@ -155,3 +156,152 @@ onMounted(load)
     </footer>
   </Modal>
 </template>
+
+<style scoped>
+/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
+.permission-summary {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.permission-summary > span:last-child {
+  margin-left: auto;
+}
+
+.permission-impact {
+  margin: 20px 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.permission-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.permission-list {
+  max-height: 48dvh;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.permission-group {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  margin: 0;
+  padding: 12px 0;
+  min-width: 0;
+}
+
+.permission-group legend {
+  padding-top: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-medium);
+}
+
+.permission-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.permission-item > input {
+  flex-shrink: 0;
+}
+
+.permission-item > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+
+.permission-item strong {
+  display: block;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.permission-item code {
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+
+.permission-item > .badge {
+  flex-shrink: 0;
+}
+
+.permission-item:has(input:disabled) {
+  color: var(--text-dim);
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+.alert {
+  padding: 11px 13px;
+  border: 1px solid var(--danger-soft);
+  background: var(--danger-tint);
+  color: var(--danger);
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 14px 0;
+  overflow-wrap: anywhere;
+}
+
+.alert .text-button {
+  margin-left: 8px;
+}
+
+.permission-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.permission-toolbar :deep(.el-tabs) {
+  flex: 1;
+  min-width: 0;
+}
+
+.permission-toolbar :deep(.el-tabs__header) {
+  margin-bottom: 0;
+}
+
+.permission-item.el-checkbox {
+  display: flex;
+  height: auto;
+  width: 100%;
+  margin: 0;
+  padding: 10px 0;
+  white-space: normal;
+}
+
+.permission-item :deep(.el-checkbox__label) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  white-space: normal;
+}
+
+.permission-item :deep(.el-checkbox__label > span:first-child) {
+  flex: 1;
+  min-width: 0;
+}
+
+.permission-item code {
+  white-space: normal;
+}
+</style>

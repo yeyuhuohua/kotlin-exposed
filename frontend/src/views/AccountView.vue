@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** 显示当前账号及其角色的有效权限摘要，不提供账号级授权编辑。 */
 import { ShieldCheck, UserRound } from '@lucide/vue'
+import { rolesPaths } from '../api/paths'
 import { useAuth } from '../stores/auth'
 import { initials } from '../lib/format'
 const auth = useAuth()
@@ -42,7 +43,7 @@ const auth = useAuth()
           <dt>账号管理</dt>
           <dd>
             <ShieldCheck :size="16" />
-            {{ auth.canApi('PUT', '/auth/roles/{code}/permissions') ? '可管理角色权限' : '无权限修改权' }}
+            {{ auth.canApi('PUT', rolesPaths.permissions) ? '可管理角色权限' : '无权限修改权' }}
           </dd>
         </div>
       </dl>
@@ -50,3 +51,21 @@ const auth = useAuth()
     </section>
   </section>
 </template>
+
+<style scoped>
+/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
+.account-profile {
+  max-width: 750px;
+  padding: 28px 0;
+}
+
+.account-profile .detail-grid {
+  margin-bottom: 28px;
+}
+
+@media (max-width: 680px) {
+  .account-profile .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

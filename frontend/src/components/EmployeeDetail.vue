@@ -4,6 +4,7 @@ import { computed, onMounted } from 'vue'
 import { Building2, MapPin, Pencil } from '@lucide/vue'
 import Modal from './Modal.vue'
 import StateBlock from './StateBlock.vue'
+import { employeesPaths, fillTemplate } from '../api/paths'
 import { api } from '../lib/api'
 import { useResource } from '../composables/useResource'
 import { fullName, initials, money } from '../lib/format'
@@ -14,11 +15,11 @@ defineEmits<{ close: []; edit: [employee: Employee] }>()
 const auth = useAuth()
 const { data, loading, error, refresh } = useResource(async (signal) => {
   const [employee, detail] = await Promise.all([
-    auth.canApi('GET', '/employees/{id}')
-      ? api<Employee>(`/employees/${props.id}`, { signal })
+    auth.canApi('GET', employeesPaths.item)
+      ? api<Employee>(fillTemplate(employeesPaths.item, props.id), { signal })
       : Promise.resolve(null),
-    auth.canApi('GET', '/employees/{id}/details')
-      ? api<Employee>(`/employees/${props.id}/details`, { signal })
+    auth.canApi('GET', employeesPaths.itemDetails)
+      ? api<Employee>(fillTemplate(employeesPaths.itemDetails, props.id), { signal })
       : Promise.resolve(null),
   ])
   const record = employee || detail
@@ -80,7 +81,7 @@ const entries = computed(() =>
       <el-button class="button secondary" @click="$emit('close')">关闭</el-button>
       <el-button
         type="primary"
-        v-if="auth.canApi('PUT', '/employees/{id}') && data"
+        v-if="auth.canApi('PUT', employeesPaths.item) && data"
         class="button primary"
         @click="$emit('edit', data.employee)"
       >
@@ -90,3 +91,21 @@ const entries = computed(() =>
     </footer>
   </Modal>
 </template>
+
+<style scoped>
+/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
+.profile-tags {
+  display: flex;
+  gap: 20px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+  margin-bottom: 25px;
+}
+
+.profile-tags > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+</style>

@@ -1,5 +1,5 @@
 import type { Employee, Field, Row } from '../types'
-/** 统一数据格式与部分更新载荷；拒绝将不支持清空的字段静默发送为 null。 */
+/** 统一数据格式与部分更新载荷；未标记 clearable 的字段拒绝静默清空。 */
 export const integer = (value: number) => new Intl.NumberFormat('zh-CN').format(value)
 export const money = (value: unknown) =>
   value == null ? '—' : new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(Number(value))
@@ -13,7 +13,16 @@ export const initials = (name: string) =>
     .map((part) => part[0])
     .join('')
     .toUpperCase()
-export function formPayload(fields: Field[], values: Row, original?: Row): Row {
+export interface FormPayloadOptions {
+  /** 后端支持 PATCH 语义时，clearable 字段可以提交 null 表示清空。 */
+  allowClear?: boolean
+}
+export function formPayload(
+  fields: Field[],
+  values: Row,
+  original?: Row,
+  options: FormPayloadOptions = {},
+): Row {
   const payload: Row = {}
   for (const field of fields) {
     if (original && field.createOnly) continue
@@ -31,7 +40,13 @@ export function formPayload(fields: Field[], values: Row, original?: Row): Row {
       throw new Error(`${field.label}必须是有效数字`)
     if (original) {
       if (value === (original[field.key] ?? null)) continue
-      if (value === null) throw new Error(`${field.label}不能清空，当前接口仅支持修改为非空值`)
+      if (value === null) {
+        if (!(options.allowClear && field.clearable)) {
+          throw new Error(`${field.label}不能清空，当前接口仅支持修改为非空值`)
+        }
+        payload[field.key] = null
+        continue
+      }
       payload[field.key] = value
     } else if (value !== null) payload[field.key] = value
   }

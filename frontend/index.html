@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,6 +8,27 @@
     <title>人事工作台 · HR Workspace</title>
   </head>
   <body>
+    <script>
+      // 首屏前置应用主题，避免先渲染浅色再切成夜间造成闪白。
+      // 颜色变量分别定义在 html.light / html.dark 下，所以这里必须二选一，
+      // 而 <html class="light"> 已经是同步渲染时的默认值。
+      ;(() => {
+        try {
+          const saved = localStorage.getItem('hr-workspace.theme')
+          const theme =
+            saved === 'dark' || saved === 'light'
+              ? saved
+              : matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+          document.documentElement.classList.remove('light', 'dark')
+          document.documentElement.classList.add(theme)
+          document.documentElement.style.colorScheme = theme
+        } catch {
+          /* 读不到偏好就保留默认的 light 类 */
+        }
+      })()
+    </script>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

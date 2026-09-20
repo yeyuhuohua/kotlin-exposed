@@ -2,6 +2,8 @@ export interface ApiEnvelope<T> {
   /** 前后端数据契约及通用表单定义；权限清单来自角色，前端展示不能代替后端鉴权。 */
   code: number
   message: string
+  /** 稳定的机器可读错误码，成功时为 null；前端按它选择提示文案。 */
+  error?: string | null
   data: T
 }
 export interface Page<T> {
@@ -62,6 +64,18 @@ export interface Job extends Row {
   minSalary: number | null
   maxSalary: number | null
 }
+export interface DepartmentHeadcount {
+  departmentId: number | null
+  departmentName: string
+  count: number
+}
+export interface SalarySummary {
+  employeesWithSalary: number
+  totalSalary: number
+  averageSalary: number | null
+  minSalary: number | null
+  maxSalary: number | null
+}
 export interface Overview {
   employeeTotal: number
   departmentCount: number
@@ -72,6 +86,10 @@ export interface Overview {
   sampleEmployees: Employee[]
   departments: Department[]
   regions: Row[]
+  /** 服务端聚合的部门人数分布（按人数倒序）。 */
+  departmentHeadcount: DepartmentHeadcount[]
+  /** 服务端聚合的薪资汇总。 */
+  salarySummary: SalarySummary
   elapsedMs: number
   fetchedWith: string
 }
@@ -97,6 +115,8 @@ export interface Field {
   step?: string
   options?: Option[]
   lookup?: string
+  /** 允许清空为 null（需要后端支持 PATCH 语义）。 */
+  clearable?: boolean
   default?: string | number | boolean
 }
 export interface Column {
@@ -108,7 +128,10 @@ export interface Resource {
   key: string
   title: string
   subtitle: string
+  /** 集合请求路径，来自 src/api/paths 对应页面的常量。 */
   endpoint: string
+  /** 单条记录的路径模板（含 {id}/{code}），同时用于发请求与判断 PUT 权限。 */
+  updateTemplate?: string
   id: string
   columns: Column[]
   fields?: Field[]

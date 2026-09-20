@@ -1,3 +1,18 @@
+import {
+  countriesPaths,
+  departmentsPaths,
+  empDetailsPaths,
+  jobGradesPaths,
+  jobHistoryPaths,
+  jobsPaths,
+  locationsPaths,
+  ordersPaths,
+  regionsPaths,
+  rolesPaths,
+  tDeptPaths,
+  tEmpPaths,
+  usersPaths,
+} from '../api/paths'
 import type { Field, Resource } from '../types'
 /** 业务目录与可编辑字段集中声明；只为后端真实提供的接口显示写操作。 */
 const number = (key: string, label: string, required = false, createOnly = false): Field => ({
@@ -35,16 +50,22 @@ export const employeeCreateFields: Field[] = [
   number('managerId', '直属经理编号'),
   lookup('departmentId', '所属部门', 'departments'),
 ]
-export const employeeUpdateFields = employeeCreateFields.filter((field) =>
-  ['salary', 'departmentId', 'jobId', 'phoneNumber'].includes(field.key),
-)
+// 员工支持 PATCH：salary / departmentId / phoneNumber 对应可空列，可以清空；
+// jobId 对应非空列（jobs.job_id），只能改成另一个岗位。
+export const employeeUpdateFields: Field[] = [
+  { ...number('salary', '月薪'), min: 0, step: '0.01', clearable: true },
+  { ...lookup('departmentId', '所属部门', 'departments'), clearable: true },
+  lookup('jobId', '岗位', 'jobs', true),
+  { ...text('phoneNumber', '联系电话', false, 20), clearable: true },
+]
 
 export const resources: Resource[] = [
   {
     key: 'departments',
     title: '部门管理',
     subtitle: '组织与团队',
-    endpoint: '/departments',
+    endpoint: departmentsPaths.collection,
+    updateTemplate: departmentsPaths.item,
     id: 'departmentId',
     columns: [
       { key: 'departmentId', label: '部门编号', kind: 'id' },
@@ -63,7 +84,8 @@ export const resources: Resource[] = [
     key: 'jobs',
     title: '岗位管理',
     subtitle: '岗位与薪酬',
-    endpoint: '/jobs',
+    endpoint: jobsPaths.collection,
+    updateTemplate: jobsPaths.item,
     id: 'jobId',
     columns: [
       { key: 'jobId', label: '岗位编码', kind: 'id' },
@@ -82,7 +104,8 @@ export const resources: Resource[] = [
     key: 'locations',
     title: '办公地点',
     subtitle: '全球组织',
-    endpoint: '/locations',
+    endpoint: locationsPaths.collection,
+    updateTemplate: locationsPaths.item,
     id: 'locationId',
     columns: [
       { key: 'locationId', label: '地点编号', kind: 'id' },
@@ -105,7 +128,7 @@ export const resources: Resource[] = [
     key: 'countries',
     title: '国家与地区',
     subtitle: '全球组织',
-    endpoint: '/countries',
+    endpoint: countriesPaths.list,
     id: 'countryId',
     columns: [
       { key: 'countryId', label: '国家代码', kind: 'id' },
@@ -117,7 +140,7 @@ export const resources: Resource[] = [
     key: 'regions',
     title: '区域目录',
     subtitle: '全球组织',
-    endpoint: '/regions',
+    endpoint: regionsPaths.list,
     id: 'regionId',
     columns: [
       { key: 'regionId', label: '区域编号', kind: 'id' },
@@ -128,7 +151,7 @@ export const resources: Resource[] = [
     key: 'job-history',
     title: '任职历史',
     subtitle: '人事档案',
-    endpoint: '/job-history',
+    endpoint: jobHistoryPaths.list,
     id: 'employeeId',
     columns: [
       { key: 'employeeId', label: '员工编号', kind: 'id' },
@@ -142,7 +165,7 @@ export const resources: Resource[] = [
     key: 'job-grades',
     title: '薪资等级',
     subtitle: '岗位与薪酬',
-    endpoint: '/job-grades',
+    endpoint: jobGradesPaths.list,
     id: 'gradeLevel',
     columns: [
       { key: 'gradeLevel', label: '薪级', kind: 'id' },
@@ -154,7 +177,7 @@ export const resources: Resource[] = [
     key: 'emp-details',
     title: '员工详情视图',
     subtitle: '人事档案',
-    endpoint: '/emp-details',
+    endpoint: empDetailsPaths.list,
     id: 'employeeId',
     paginated: true,
     columns: [
@@ -172,7 +195,8 @@ export const resources: Resource[] = [
     key: 't-dept',
     title: '示例部门',
     subtitle: '演示数据',
-    endpoint: '/t-dept',
+    endpoint: tDeptPaths.collection,
+    updateTemplate: tDeptPaths.item,
     id: 'id',
     columns: [
       { key: 'id', label: '编号', kind: 'id' },
@@ -185,7 +209,8 @@ export const resources: Resource[] = [
     key: 't-emp',
     title: '示例人员',
     subtitle: '演示数据',
-    endpoint: '/t-emp',
+    endpoint: tEmpPaths.collection,
+    updateTemplate: tEmpPaths.item,
     id: 'id',
     columns: [
       { key: 'id', label: '编号', kind: 'id' },
@@ -205,7 +230,7 @@ export const resources: Resource[] = [
     key: 'orders',
     title: '示例订单',
     subtitle: '演示数据',
-    endpoint: '/orders',
+    endpoint: ordersPaths.list,
     id: 'orderId',
     columns: [
       { key: 'orderId', label: '订单编号', kind: 'id' },
@@ -216,7 +241,8 @@ export const resources: Resource[] = [
     key: 'users',
     title: '用户管理',
     subtitle: '访问控制',
-    endpoint: '/auth/users',
+    endpoint: usersPaths.collection,
+    updateTemplate: usersPaths.item,
     id: 'id',
     paginated: true,
     adminOnly: true,
@@ -237,7 +263,8 @@ export const resources: Resource[] = [
     key: 'roles',
     title: '角色权限',
     subtitle: '访问控制',
-    endpoint: '/auth/roles',
+    endpoint: rolesPaths.collection,
+    updateTemplate: rolesPaths.item,
     id: 'code',
     adminOnly: true,
     columns: [
@@ -253,10 +280,41 @@ export const resources: Resource[] = [
   },
 ]
 export const lookupSources: Record<string, { endpoint: string; id: string; label: string }> = {
-  departments: { endpoint: '/departments', id: 'departmentId', label: 'departmentName' },
-  jobs: { endpoint: '/jobs', id: 'jobId', label: 'jobTitle' },
-  locations: { endpoint: '/locations', id: 'locationId', label: 'city' },
-  countries: { endpoint: '/countries', id: 'countryId', label: 'countryName' },
-  't-dept': { endpoint: '/t-dept', id: 'id', label: 'deptName' },
-  roles: { endpoint: '/auth/roles', id: 'code', label: 'name' },
+  departments: { endpoint: departmentsPaths.collection, id: 'departmentId', label: 'departmentName' },
+  jobs: { endpoint: jobsPaths.collection, id: 'jobId', label: 'jobTitle' },
+  locations: { endpoint: locationsPaths.collection, id: 'locationId', label: 'city' },
+  countries: { endpoint: countriesPaths.list, id: 'countryId', label: 'countryName' },
+  't-dept': { endpoint: tDeptPaths.collection, id: 'id', label: 'deptName' },
+  roles: { endpoint: rolesPaths.collection, id: 'code', label: 'name' },
 }
+
+/**
+ * 页面清单的唯一来源：权限码 `page:<key>`、路由 path、菜单标题都由这里派生，
+ * 避免出现"后端登记了页面、前端却忘了加路由"或反过来的漂移。
+ */
+export interface PageDefinition {
+  key: string
+  title: string
+  path: string
+  adminOnly?: boolean
+}
+
+/** 有独立视图组件的页面，顺序即登录后的默认落地顺序。 */
+export const staticPages: PageDefinition[] = [
+  { key: 'overview', title: '工作概览', path: '/' },
+  { key: 'employees', title: '员工管理', path: '/employees' },
+  { key: 'system', title: '系统状态', path: '/system' },
+]
+
+/** 全部可授权的业务页面，资源页面的 key 与 path 一律取资源定义。 */
+export const pages: PageDefinition[] = [
+  ...staticPages,
+  ...resources.map((resource) => ({
+    key: resource.key,
+    title: resource.title,
+    path: `/${resource.key}`,
+    adminOnly: resource.adminOnly,
+  })),
+]
+
+export const pagePaths = pages.map((page) => page.path)

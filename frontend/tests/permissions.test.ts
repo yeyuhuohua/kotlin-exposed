@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 /** 验证角色有效授权在页面和接口上的独立性，以及管理权限的角色限制。 */
-import { canApi, canPage, homePath, pagePaths } from '../src/lib/permissions'
+import {
+  canApi,
+  canPage,
+  homePath,
+  isProtectedRole,
+  isProtectedUser,
+  pagePaths,
+} from '../src/lib/permissions'
 import type { User } from '../src/types'
 
 const reader: User = {
@@ -62,6 +69,15 @@ describe('page and API permissions', () => {
     expect(canApi(null, 'GET', '/auth/me')).toBe(false)
     expect(canApi(null, 'GET', '/health')).toBe(true)
     expect(canPage({ ...reader, enabled: false }, '/employees')).toBe(false)
+  })
+  it('protects the built-in role, the built-in account and the current account', () => {
+    expect(isProtectedRole('ADMIN')).toBe(true)
+    expect(isProtectedRole('admin')).toBe(true)
+    expect(isProtectedRole('HR_VIEWER')).toBe(false)
+    expect(isProtectedUser({ id: 1, username: 'admin' }, 2)).toBe(true)
+    expect(isProtectedUser({ id: 1, username: 'Admin' }, 2)).toBe(true)
+    expect(isProtectedUser({ id: 2, username: 'operator' }, 2)).toBe(true)
+    expect(isProtectedUser({ id: 3, username: 'operator' }, 2)).toBe(false)
   })
   it('keeps routable permission paths unique', () => {
     expect(new Set(pagePaths).size).toBe(pagePaths.length)

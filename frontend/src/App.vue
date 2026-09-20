@@ -16,7 +16,8 @@ function expired() {
   if (route.name !== 'login') void router.replace({ name: 'login', query: { redirect: route.fullPath } })
 }
 async function forbidden() {
-  await auth.refreshUser()
+  // 被服务端拒绝说明权限可能刚变过，这里强制刷新而不是复用缓存
+  await auth.refreshUser({ force: true })
   if (
     (route.meta.adminOnly && !auth.isAdmin) ||
     (typeof route.meta.page === 'string' && !auth.canPage(route.meta.page))

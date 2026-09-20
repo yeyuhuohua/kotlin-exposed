@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { Save } from '@lucide/vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import Modal from './Modal.vue'
+import { fillTemplate, itemUrl, rolesPaths, usersPaths } from '../api/paths'
 import { api } from '../lib/api'
 import { formPayload } from '../lib/format'
 import { lookupSources } from '../config/resources'
@@ -12,11 +13,17 @@ import type { Field, Option, Row } from '../types'
 const props = defineProps<{
   title: string
   endpoint: string
+  /** 单条记录的路径模板（含 {id}/{code}），缺省时按 endpoint + 主键拼接。 */
+  updateTemplate?: string
   fields: Field[]
   original?: Row
   idKey: string
+  /** 后端该资源支持 PATCH（出现才改、null 即清空）时为 true。 */
+  allowClear?: boolean
 }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
+/** 账号与角色资源的集合路径：这两类资源有额外的保护规则。 */
+const accountCollections: string[] = [usersPaths.collection, rolesPaths.collection]
 const auth = useAuth()
 const notices = useNotices()
 const values = reactive<Row>({})
@@ -31,13 +38,9 @@ const fields = computed(() =>
     .filter(
       (field) =>
         !(props.original && field.createOnly) &&
+        !(accountCollections.includes(props.endpoint) && !props.original && field.key === 'enabled') &&
         !(
-          ['/auth/users', '/auth/roles'].includes(props.endpoint) &&
-          !props.original &&
-          field.key === 'enabled'
-        ) &&
-        !(
-          props.endpoint === '/auth/users' &&
+          props.endpoint === usersPaths.collection &&
           props.original?.username === 'admin' &&
           props.original.id !== auth.user?.id &&
           field.type === 'password'
@@ -57,9 +60,9 @@ const fields = computed(() =>
 )
 for (const field of fields.value)
   values[field.key] = props.original?.[field.key] ?? field.default ?? (field.type === 'checkbox' ? false : '')
-const self = computed(() => props.endpoint === '/auth/users' && props.original?.id === auth.user?.id)
+const self = computed(() => props.endpoint === usersPaths.collection && props.original?.id === auth.user?.id)
 const disabledField = (field: Field) =>
-  (self.value || (props.endpoint === '/auth/users' && props.original?.username === 'admin')) &&
+  (self.value || (props.endpoint === usersPaths.collection && props.original?.username === 'admin')) &&
   ['enabled', 'roleCode'].includes(field.key)
 /** 通用字段规则保持与后端约束一致；编辑时空密码表示不重置密码。 */
 const rules = computed<FormRules>(() =>
@@ -146,17 +149,22 @@ async function save() {
   error.value = ''
   busy.value = true
   try {
-    const payload = formPayload(fields.value, values, props.original)
+    const payload = formPayload(fields.value, values, props.original, { allowClear: props.allowClear })
     if (
       payload.minSalary != null &&
       payload.maxSalary != null &&
       Number(payload.minSalary) > Number(payload.maxSalary)
     )
       throw new Error('最低月薪不能大于最高月薪')
-    const path = props.original
-      ? `${props.endpoint}/${encodeURIComponent(String(props.original[props.idKey]))}`
-      : props.endpoint
-    await api(path, { method: props.original ? 'PUT' : 'POST', body: payload })
+    const path = !props.original
+      ? props.endpoint
+      : props.updateTemplate
+        ? fillTemplate(props.updateTemplate, String(props.original[props.idKey]))
+        : itemUrl(props.endpoint, String(props.original[props.idKey]))
+    // 只有真的要清空字段时才用 PATCH，其余情况保持原来的 PUT 语义，权限也不用扩大。
+    const clearing = Object.values(payload).some((value) => value === null)
+    const method = props.original ? (clearing ? 'PATCH' : 'PUT') : 'POST'
+    await api(path, { method, body: payload })
     notices.show(props.original ? '修改已保存' : '记录已创建')
     if (self.value) {
       auth.clear()
@@ -261,3 +269,51 @@ async function save() {
     </el-form>
   </Modal>
 </template>
+
+<style scoped>
+/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 18px 16px;
+}
+
+@media (max-width: 680px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-grid :deep(.el-form-item) {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.form-grid {
+  padding-bottom: 4px;
+}
+
+/* 字段数为奇数时最后一个占满整行，避免右侧空出一块。 */
+.form-grid > :deep(.el-form-item:last-child:nth-child(odd)) {
+  grid-column: 1 / -1;
+}
+
+/* 开关字段单独成行：左侧标签、右侧开关，与项目的状态行一致。 */
+.form-grid > :deep(.el-form-item:has(.el-switch)) {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.form-grid > :deep(.el-form-item:has(.el-switch):not(:first-child)) {
+  border-top: 1px solid var(--border);
+  padding-top: 15px;
+}
+
+.form-grid > :deep(.el-form-item:has(.el-switch) > .el-form-item__label) {
+  margin-bottom: 0;
+}
+</style>

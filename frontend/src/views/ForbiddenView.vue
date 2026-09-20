@@ -15,3 +15,10 @@ const auth = useAuth()
     </RouterLink>
   </section>
 </template>
+
+<style scoped>
+/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
+.forbidden-page {
+  min-height: 60vh;
+}
+</style>
