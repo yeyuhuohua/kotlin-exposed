@@ -1,0 +1,1343 @@
+openapi: 3.0.3
+info:
+  title: atguigudb HR API
+  description: |
+    Ktor + Exposed R2DBC 非阻塞查询接口，数据来自本地 Docker MySQL **atguigudb**。
+
+    - 查询走协程与 R2DBC，不阻塞 Ktor 工作线程
+    - `/api/overview` 用 `async` 并行拉取多张表
+    - 业务接口统一返回 `{ code, message, data }`，成功 code=200
+    - GET 走 Redis 缓存（Lettuce 异步客户端），响应头 `X-Cache: HIT|MISS`
+    - `PUT/DELETE /api/employees/{id}` 写库后刷新实体缓存并清除列表缓存
+    - 在右侧可以直接试调接口
+    - 先调用 `/api/auth/login` 获取 JWT，再在 Authorize 中填写 Token
+    - 用户关联角色，角色绑定页面及 HTTP 方法/路径权限；同角色用户共享权限
+    - 只有 ADMIN 角色能管理角色权限；ADMIN 角色固定全权限，不可修改或停用
+    - 登录与健康检查公开；运行时完整文档以 `/v3/api-docs` 为准
+  version: 0.0.1
+  contact:
+    name: kotlin-exposed
+
+servers:
+  - url: http://localhost:8080
+    description: 本地开发
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: auth
+    description: 用户、角色与 Token
+  - name: health
+    description: 健康检查
+  - name: employees
+    description: 员工
+  - name: departments
+    description: 部门
+  - name: jobs
+    description: 岗位
+  - name: locations
+    description: 地点 / 国家 / 地区
+  - name: history
+    description: 任职历史与薪资等级
+  - name: wuxia
+    description: t_dept / t_emp 示例表
+  - name: overview
+    description: 协程并行汇总
+  - name: orders
+    description: 订单示例表
+
+paths:
+  /api/auth/login:
+    post:
+      tags: [auth]
+      summary: 使用用户表中的账号密码登录
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: 统一信封 data 包含 accessToken、tokenType、expiresIn、user
+        "401":
+          description: 账号密码错误或用户/角色已禁用
+  /api/auth/me:
+    get:
+      tags: [auth]
+      summary: 当前用户、角色及生效的 permissions 权限清单
+      responses:
+        "200":
+          description: 当前用户，不含密码哈希
+        "401":
+          description: Token 无效或过期
+  /api/auth/logout:
+    post:
+      tags: [auth]
+      summary: 注销当前用户所有设备的 Token
+      responses:
+        "200":
+          description: 已注销
+        "401":
+          description: Token 无效或过期
+  /api/auth/users:
+    get:
+      tags: [auth]
+      summary: 分页查询用户（ADMIN）
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: 用户列表，不含密码哈希
+        "401":
+          description: 未认证
+        "403":
+          description: 需要 ADMIN 角色
+    post:
+      tags: [auth]
+      summary: 新增用户（ADMIN）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreateRequest"
+      responses:
+        "200":
+          description: 已创建
+        "400":
+          description: 账号、密码或角色无效
+        "401":
+          description: 未认证
+        "403":
+          description: 需要 ADMIN 角色
+        "409":
+          description: 用户名重复
+  /api/auth/users/{id}:
+    put:
+      tags: [auth]
+      summary: 调整角色、禁用/启用或重置密码，并撤销原有 Token（ADMIN）
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdateRequest"
+      responses:
+        "200":
+          description: 已更新
+        "400":
+          description: 参数无效或试图禁用/降级当前管理员
+        "401":
+          description: 未认证
+        "403":
+          description: 需要 ADMIN 角色
+        "404":
+          description: 用户不存在
+  /api/auth/roles:
+    post:
+      tags: [auth]
+      summary: 创建普通角色（仅 ADMIN；初始权限为空）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, name]
+              properties:
+                code:
+                  type: string
+                  pattern: '^[A-Z][A-Z0-9_]{1,19}$'
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+            example:
+              code: HR_VIEWER
+              name: 人事查询员
+      responses:
+        "200":
+          description: 角色已创建
+        "400":
+          description: 角色编码或名称无效
+        "403":
+          description: 需要 ADMIN 角色
+        "409":
+          description: 角色编码已存在
+    get:
+      tags: [auth]
+      summary: 查询角色表（ADMIN）
+      responses:
+        "200":
+          description: 角色列表
+        "401":
+          description: 未认证
+        "403":
+          description: 需要 ADMIN 角色
+  /api/auth/roles/{code}:
+    put:
+      tags: [auth]
+      summary: 修改角色名称或状态（仅 ADMIN；ADMIN 角色不可修改）
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+                enabled:
+                  type: boolean
+      responses:
+        "200":
+          description: 角色已更新；状态变化会撤销该角色所有用户的 Token
+        "403":
+          description: 需要 ADMIN 角色，且不能修改 ADMIN 角色
+        "404":
+          description: 角色不存在
+  /api/auth/permissions:
+    get:
+      tags: [auth]
+      summary: 页面与接口权限目录（ADMIN 且持有对应接口权限）
+      responses:
+        "200":
+          description: 权限定义列表，包含 code、kind、label、group、path、method、adminOnly
+        "401":
+          description: 未认证
+        "403":
+          description: 缺少 ADMIN 角色或接口权限
+  /api/auth/roles/{code}/permissions:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [auth]
+      summary: 查看角色权限与版本（仅 ADMIN）
+      responses:
+        "200":
+          description: role、revision、permissions、protectedRole
+        "401":
+          description: 未认证
+        "403":
+          description: 缺少 ADMIN 角色或接口权限
+        "404":
+          description: 角色不存在
+    put:
+      tags: [auth]
+      summary: 替换角色权限并撤销该角色所有用户的 Token（仅 ADMIN）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision, permissions]
+              properties:
+                revision:
+                  type: integer
+                  minimum: 0
+                permissions:
+                  type: array
+                  uniqueItems: true
+                  items:
+                    type: string
+            example:
+              revision: 0
+              permissions: ["page:employees", "api:GET:/api/employees"]
+      responses:
+        "200":
+          description: 已保存，返回新的权限版本；该角色下所有账号须重新登录
+        "400":
+          description: 未知权限或试图给非 ADMIN 角色授予管理权限
+        "401":
+          description: 未认证
+        "403":
+          description: 没有 ADMIN 权限或目标为受保护的 ADMIN 角色
+        "404":
+          description: 角色不存在
+        "409":
+          description: 权限版本已变化，请重新加载后保存
+  /api/health:
+    get:
+      security: []
+      tags: [health]
+      summary: 数据库连通性检查
+      operationId: getHealth
+      responses:
+        "200":
+          description: 数据库可用
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResult"
+        "503":
+          description: 数据库不可用
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResult"
+
+  /api/overview:
+    get:
+      tags: [overview]
+      summary: 协程并行拉取汇总数据
+      description: |
+        使用 `coroutineScope` + `async` 同时查询员工、部门、岗位、地点、地区、t_emp，
+        再合并为一条响应。每路查询各自走 Exposed R2DBC `suspendTransaction`。
+      operationId: getOverview
+      responses:
+        "200":
+          description: 并行查询汇总
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OverviewResult"
+
+  /api/employees:
+    get:
+      tags: [employees]
+      summary: 分页查询员工
+      operationId: listEmployees
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - name: departmentId
+          in: query
+          description: |
+            按部门主键过滤，对应 `employees.department_id`。
+            不传则返回所有部门的员工。示例：`90` 为 Executive。
+          schema:
+            type: integer
+            example: 90
+        - name: jobId
+          in: query
+          description: |
+            按岗位编码精确过滤，对应 `employees.job_id`。
+            常见值：`AD_PRES`（总裁）、`IT_PROG`（程序员）、`SA_REP`（销售代表）。
+          schema:
+            type: string
+            example: IT_PROG
+        - name: q
+          in: query
+          description: |
+            关键字，对 `first_name`、`last_name`、`email` 做不区分大小写的模糊匹配。
+            例如 `King` 可命中 Steven King。
+          schema:
+            type: string
+            example: King
+      responses:
+        "200":
+          description: 员工分页列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeListResult"
+
+  /api/employees/{id}:
+    get:
+      tags: [employees]
+      summary: 按 ID 查询员工
+      operationId: getEmployee
+      parameters:
+        - $ref: "#/components/parameters/EmployeeId"
+      responses:
+        "200":
+          description: 员工信息
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [employees]
+      summary: 更新员工并刷新 Redis 缓存
+      operationId: updateEmployee
+      parameters:
+        - $ref: "#/components/parameters/EmployeeId"
+      requestBody:
+        required: true
+        description: |
+          部分更新。只提交要改的字段，未出现的列保持原值。
+          四个字段都省略会返回 400（no fields to update）。
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeUpdateRequest"
+      responses:
+        "200":
+          description: 更新后的员工（已写入实体缓存，列表缓存已清除）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: 外键等约束冲突
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResult"
+    delete:
+      tags: [employees]
+      summary: 删除员工并清除相关缓存
+      operationId: deleteEmployee
+      parameters:
+        - $ref: "#/components/parameters/EmployeeId"
+      responses:
+        "200":
+          description: 已删除
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResult"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: 外键等约束冲突
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResult"
+
+  /api/employees/{id}/details:
+    get:
+      tags: [employees]
+      summary: 员工详情（多表 JOIN）
+      operationId: getEmployeeDetails
+      parameters:
+        - $ref: "#/components/parameters/EmployeeId"
+      responses:
+        "200":
+          description: 含岗位、部门、地点、国家、地区
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeDetailResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/emp-details:
+    get:
+      tags: [employees]
+      summary: 员工详情视图 emp_details_view
+      operationId: listEmployeeDetails
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: 详情分页列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeDetailListResult"
+
+  /api/departments:
+    get:
+      tags: [departments]
+      summary: 全部部门
+      operationId: listDepartments
+      responses:
+        "200":
+          description: 部门列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentListResult"
+
+  /api/departments/{id}:
+    get:
+      tags: [departments]
+      summary: 按 ID 查询部门
+      operationId: getDepartment
+      parameters:
+        - $ref: "#/components/parameters/DepartmentId"
+      responses:
+        "200":
+          description: 部门信息
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/departments/{id}/employees:
+    get:
+      tags: [departments]
+      summary: 部门下的员工
+      operationId: listDepartmentEmployees
+      parameters:
+        - $ref: "#/components/parameters/DepartmentId"
+      responses:
+        "200":
+          description: 该部门员工
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeArrayResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/jobs:
+    get:
+      tags: [jobs]
+      summary: 全部岗位
+      operationId: listJobs
+      responses:
+        "200":
+          description: 岗位列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobListResult"
+
+  /api/locations:
+    get:
+      tags: [locations]
+      summary: 全部地点
+      operationId: listLocations
+      responses:
+        "200":
+          description: 地点列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocationListResult"
+
+  /api/countries:
+    get:
+      tags: [locations]
+      summary: 全部国家
+      operationId: listCountries
+      responses:
+        "200":
+          description: 国家列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CountryListResult"
+
+  /api/regions:
+    get:
+      tags: [locations]
+      summary: 全部地区
+      operationId: listRegions
+      responses:
+        "200":
+          description: 地区列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegionListResult"
+
+  /api/job-history:
+    get:
+      tags: [history]
+      summary: 任职历史
+      operationId: listJobHistory
+      responses:
+        "200":
+          description: 任职历史
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobHistoryListResult"
+
+  /api/job-grades:
+    get:
+      tags: [history]
+      summary: 薪资等级
+      operationId: listJobGrades
+      responses:
+        "200":
+          description: 薪资等级
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobGradeListResult"
+
+  /api/t-dept:
+    get:
+      tags: [wuxia]
+      summary: t_dept 门派
+      operationId: listTDept
+      responses:
+        "200":
+          description: 门派列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TDeptListResult"
+
+  /api/t-emp:
+    get:
+      tags: [wuxia]
+      summary: t_emp 人物
+      operationId: listTEmp
+      responses:
+        "200":
+          description: 人物列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TEmpListResult"
+
+  /api/orders:
+    get:
+      tags: [orders]
+      summary: 订单示例表
+      operationId: listOrders
+      responses:
+        "200":
+          description: 订单列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderListResult"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      description: |
+        每页返回条数。不传默认 50；小于 1 按 1 处理，大于 200 截断为 200。
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+        example: 20
+    Offset:
+      name: offset
+      in: query
+      description: |
+        跳过的记录数，从 0 开始。`limit=50&offset=50` 表示第二页。
+        不传默认 0；负数按 0 处理。
+      schema:
+        type: integer
+        format: int64
+        minimum: 0
+        default: 0
+        example: 0
+    EmployeeId:
+      name: id
+      in: path
+      required: true
+      description: |
+        员工主键 `employee_id`，必须是整数。
+        示例：`100` 为 Steven King。非数字返回 400，不存在返回 404。
+      schema:
+        type: integer
+        example: 100
+    DepartmentId:
+      name: id
+      in: path
+      required: true
+      description: |
+        部门主键 `department_id`，必须是整数。
+        示例：`90` 为 Executive。非数字返回 400，不存在返回 404。
+      schema:
+        type: integer
+        example: 90
+
+  responses:
+    BadRequest:
+      description: 请求参数无效
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiResult"
+          example:
+            code: 400
+            message: invalid employee id
+            data: null
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiResult"
+          example:
+            code: 404
+            message: employee not found
+            data: null
+
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: admin
+        password:
+          type: string
+          format: password
+          writeOnly: true
+    UserCreateRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          pattern: '^[a-zA-Z0-9._-]{3,64}$'
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 12
+          maxLength: 128
+        roleCode:
+          type: string
+          description: 已存在且启用的角色编码
+          default: READER
+    UserUpdateRequest:
+      type: object
+      properties:
+        roleCode:
+          type: string
+          description: 已存在且启用的角色编码
+        enabled:
+          type: boolean
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 12
+          maxLength: 128
+    ApiResult:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          description: 业务状态码。成功为 200，失败与 HTTP 状态码一致（400/404/409/500/503）。
+          example: 200
+        message:
+          type: string
+          description: 提示信息。成功一般为 ok 或 updated。
+          example: ok
+        data:
+          nullable: true
+          description: 业务数据。失败时为 null。
+    HealthResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/HealthDto"
+    OverviewResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/OverviewDto"
+    EmployeeResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/EmployeeDto"
+    EmployeeListResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/EmployeeList"
+    EmployeeArrayResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/EmployeeDto"
+    EmployeeDetailResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/EmployeeDetailDto"
+    EmployeeDetailListResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/EmployeeDetailList"
+    DepartmentResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/DepartmentDto"
+    DepartmentListResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/DepartmentDto"
+    JobListResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/JobDto"
+    LocationListResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/LocationDto"
+    CountryListResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/CountryDto"
+    RegionListResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/RegionDto"
+    JobHistoryListResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/JobHistoryDto"
+    JobGradeListResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/JobGradeDto"
+    TDeptListResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/TDeptDto"
+    TEmpListResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/TEmpDto"
+    OrderListResult:
+      allOf:
+        - $ref: "#/components/schemas/ApiResult"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/OrderDto"
+    OverviewDto:
+      type: object
+      required:
+        - fetchedWith
+        - elapsedMs
+        - employeeTotal
+        - departmentCount
+        - jobCount
+        - locationCount
+        - regionCount
+        - tEmpCount
+        - sampleEmployees
+        - departments
+        - regions
+      properties:
+        fetchedWith:
+          type: string
+          description: 并行实现方式，固定为 kotlinx.coroutines.async。
+          example: kotlinx.coroutines.async
+        elapsedMs:
+          type: integer
+          format: int64
+          description: 六路协程全部完成耗时（毫秒），含缓存命中。
+        employeeTotal:
+          type: integer
+          format: int64
+          description: employees 表总人数。
+        departmentCount:
+          type: integer
+          description: 部门数量。
+        jobCount:
+          type: integer
+          description: 岗位数量。
+        locationCount:
+          type: integer
+          description: 地点数量。
+        regionCount:
+          type: integer
+          description: 地区数量。
+        tEmpCount:
+          type: integer
+          description: t_emp 示例表人数。
+        sampleEmployees:
+          type: array
+          description: 员工样例（按 employee_id 前 5 条）。
+          items:
+            $ref: "#/components/schemas/EmployeeDto"
+        departments:
+          type: array
+          description: 全部部门。
+          items:
+            $ref: "#/components/schemas/DepartmentDto"
+        regions:
+          type: array
+          description: 全部地区。
+          items:
+            $ref: "#/components/schemas/RegionDto"
+    HealthDto:
+      type: object
+      required: [status, database, redis]
+      properties:
+        status:
+          type: string
+          description: 总体状态。MySQL 与 Redis 都通为 UP，否则 DOWN。
+          example: UP
+        database:
+          type: string
+          description: MySQL atguigudb 连通性，UP 或 DOWN。
+          example: UP
+        redis:
+          type: string
+          description: Redis PING 结果，UP 或 DOWN。
+          example: UP
+    EmployeeUpdateRequest:
+      type: object
+      description: 员工部分更新。全部字段可选，至少传一个。
+      properties:
+        salary:
+          type: number
+          format: double
+          nullable: true
+          description: 月薪。不传则不改。
+          example: 9000
+        departmentId:
+          type: integer
+          nullable: true
+          description: 所属部门 ID，对应 departments.department_id。不传则不改。
+          example: 60
+        jobId:
+          type: string
+          nullable: true
+          description: 岗位编码，对应 jobs.job_id，例如 IT_PROG。不传则不改。
+          example: IT_PROG
+        phoneNumber:
+          type: string
+          nullable: true
+          description: 电话。不传则不改。
+          example: "590.423.4567"
+    EmployeeDto:
+      type: object
+      required: [employeeId, lastName, email, hireDate, jobId]
+      properties:
+        employeeId:
+          type: integer
+          description: 员工主键 employee_id。
+          example: 100
+        firstName:
+          type: string
+          nullable: true
+          description: 名。
+          example: Steven
+        lastName:
+          type: string
+          description: 姓。
+          example: King
+        email:
+          type: string
+          description: 邮箱账号（库中无域名后缀），例如 SKING。
+          example: SKING
+        phoneNumber:
+          type: string
+          nullable: true
+          description: 电话。
+        hireDate:
+          type: string
+          description: 入职日期，ISO 格式 yyyy-MM-dd。
+          example: "1987-06-17"
+        jobId:
+          type: string
+          description: 岗位编码，对应 jobs.job_id。
+          example: AD_PRES
+        salary:
+          type: number
+          format: double
+          nullable: true
+          description: 月薪。
+          example: 24000
+        commissionPct:
+          type: number
+          format: double
+          nullable: true
+          description: 提成比例，销售类岗位才有，例如 0.2。
+        managerId:
+          type: integer
+          nullable: true
+          description: 直属经理的 employee_id。
+        departmentId:
+          type: integer
+          nullable: true
+          description: 所属部门 ID。
+          example: 90
+    EmployeeList:
+      type: object
+      required: [total, items]
+      properties:
+        total:
+          type: integer
+          format: int64
+          description: 符合筛选条件的总人数（不是当前页条数）。
+          example: 107
+        items:
+          type: array
+          description: 当前页员工。
+          items:
+            $ref: "#/components/schemas/EmployeeDto"
+    EmployeeDetailDto:
+      type: object
+      required: [employeeId, lastName, jobId, jobTitle, departmentName, city]
+      properties:
+        employeeId:
+          type: integer
+          description: 员工主键。
+        firstName:
+          type: string
+          nullable: true
+          description: 名。
+        lastName:
+          type: string
+          description: 姓。
+        email:
+          type: string
+          nullable: true
+          description: 邮箱账号。JOIN 详情有值；emp_details_view 没有此列。
+        phoneNumber:
+          type: string
+          nullable: true
+          description: 电话。视图接口可能为空。
+        hireDate:
+          type: string
+          nullable: true
+          description: 入职日期 yyyy-MM-dd。视图接口可能为空。
+        jobId:
+          type: string
+          description: 岗位编码。
+        jobTitle:
+          type: string
+          description: 岗位名称，来自 jobs.job_title。
+          example: President
+        salary:
+          type: number
+          format: double
+          nullable: true
+          description: 月薪。
+        commissionPct:
+          type: number
+          format: double
+          nullable: true
+          description: 提成比例。
+        managerId:
+          type: integer
+          nullable: true
+          description: 直属经理 ID。
+        departmentId:
+          type: integer
+          nullable: true
+          description: 部门 ID。
+        departmentName:
+          type: string
+          description: 部门名称。无部门时可能为空串。
+          example: Executive
+        locationId:
+          type: integer
+          nullable: true
+          description: 办公地点 ID。
+        city:
+          type: string
+          description: 城市。
+          example: Seattle
+        stateProvince:
+          type: string
+          nullable: true
+          description: 州/省。
+        countryId:
+          type: string
+          nullable: true
+          description: 国家编码，例如 US。
+        countryName:
+          type: string
+          nullable: true
+          description: 国家名称。
+        regionName:
+          type: string
+          nullable: true
+          description: 地区名称，例如 Americas。
+    EmployeeDetailList:
+      type: object
+      required: [total, items]
+      properties:
+        total:
+          type: integer
+          format: int64
+          description: 视图总行数。
+        items:
+          type: array
+          description: 当前页详情。
+          items:
+            $ref: "#/components/schemas/EmployeeDetailDto"
+    DepartmentDto:
+      type: object
+      required: [departmentId, departmentName]
+      properties:
+        departmentId:
+          type: integer
+          description: 部门主键 department_id。
+          example: 90
+        departmentName:
+          type: string
+          description: 部门名称。
+          example: Executive
+        managerId:
+          type: integer
+          nullable: true
+          description: 部门经理的 employee_id。
+        locationId:
+          type: integer
+          nullable: true
+          description: 部门所在地点 ID。
+    JobDto:
+      type: object
+      required: [jobId, jobTitle]
+      properties:
+        jobId:
+          type: string
+          description: 岗位编码，例如 AD_PRES、IT_PROG。
+        jobTitle:
+          type: string
+          description: 岗位名称。
+        minSalary:
+          type: integer
+          nullable: true
+          description: 该岗位薪资下限。
+        maxSalary:
+          type: integer
+          nullable: true
+          description: 该岗位薪资上限。
+    LocationDto:
+      type: object
+      required: [locationId, city]
+      properties:
+        locationId:
+          type: integer
+          description: 地点主键 location_id。
+        streetAddress:
+          type: string
+          nullable: true
+          description: 街道地址。
+        postalCode:
+          type: string
+          nullable: true
+          description: 邮编。
+        city:
+          type: string
+          description: 城市。
+        stateProvince:
+          type: string
+          nullable: true
+          description: 州/省。
+        countryId:
+          type: string
+          nullable: true
+          description: 国家编码，对应 countries.country_id。
+    CountryDto:
+      type: object
+      required: [countryId]
+      properties:
+        countryId:
+          type: string
+          description: 两位国家编码，例如 US、CN。
+          example: US
+        countryName:
+          type: string
+          nullable: true
+          description: 国家名称。
+        regionId:
+          type: integer
+          nullable: true
+          description: 所属地区 ID，对应 regions.region_id。
+    RegionDto:
+      type: object
+      required: [regionId]
+      properties:
+        regionId:
+          type: integer
+          description: 地区主键 region_id。
+        regionName:
+          type: string
+          nullable: true
+          description: 地区名称，例如 Europe、Americas。
+    JobHistoryDto:
+      type: object
+      required: [employeeId, startDate, endDate, jobId]
+      properties:
+        employeeId:
+          type: integer
+          description: 员工 ID。
+        startDate:
+          type: string
+          description: 该段任职开始日期 yyyy-MM-dd。
+        endDate:
+          type: string
+          description: 该段任职结束日期 yyyy-MM-dd。
+        jobId:
+          type: string
+          description: 当时的岗位编码。
+        departmentId:
+          type: integer
+          nullable: true
+          description: 当时的部门 ID。
+    JobGradeDto:
+      type: object
+      properties:
+        gradeLevel:
+          type: string
+          nullable: true
+          description: 薪资等级，例如 A、B、C。
+          example: A
+        lowestSal:
+          type: integer
+          nullable: true
+          description: 该等级最低薪。
+        highestSal:
+          type: integer
+          nullable: true
+          description: 该等级最高薪。
+    TDeptDto:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: integer
+          description: 门派主键。
+        deptName:
+          type: string
+          nullable: true
+          description: 门派名称。列名在库中为驼峰 deptName。
+          example: 华山
+        address:
+          type: string
+          nullable: true
+          description: 所在地。
+    TEmpDto:
+      type: object
+      required: [id, empno]
+      properties:
+        id:
+          type: integer
+          description: 主键。
+        name:
+          type: string
+          nullable: true
+          description: 姓名。
+          example: 令狐冲
+        age:
+          type: integer
+          nullable: true
+          description: 年龄。
+        deptId:
+          type: integer
+          nullable: true
+          description: 所属门派 ID，对应 t_dept.id。列名在库中为驼峰 deptId。
+        empno:
+          type: integer
+          description: 工号。
+    OrderDto:
+      type: object
+      properties:
+        orderId:
+          type: integer
+          nullable: true
+          description: 订单 ID。
+        orderName:
+          type: string
+          nullable: true
+          description: 订单名称。

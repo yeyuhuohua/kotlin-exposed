@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8"/>
+    <title>atguigudb HR API</title>
+    <link rel="stylesheet" href="/webjars/swagger-ui/5.32.13/swagger-ui.css"/>
+    <style>
+        body { margin: 0; }
+        .docs-switch {
+            position: fixed; z-index: 40; top: 10px; right: 16px; display: flex; gap: 8px;
+            font-family: ui-sans-serif, system-ui, sans-serif;
+        }
+        .docs-switch a {
+            color: #333; background: #fff; border: 1px solid #ccc; border-radius: 999px;
+            padding: 6px 12px; font-size: 12px; text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+<nav class="docs-switch">
+    <a href="/doc.html">Knife4j</a>
+    <a href="/swagger">Swagger</a>
+    <a href="/v3/api-docs">OpenAPI JSON</a>
+</nav>
+<div id="swagger-ui"></div>
+<script src="/webjars/swagger-ui/5.32.13/swagger-ui-bundle.js"></script>
+<script src="/webjars/swagger-ui/5.32.13/swagger-ui-standalone-preset.js"></script>
+<script>
+    window.ui = SwaggerUIBundle({
+        url: "/v3/api-docs",
+        dom_id: "#swagger-ui",
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+        layout: "StandaloneLayout",
+        deepLinking: true
+    });
+</script>
+</body>
+</html>
