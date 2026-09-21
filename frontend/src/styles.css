@@ -41,10 +41,10 @@
   font-size: 14px;
   /* 尺寸与别名：与明暗无关，或指向 html.light / html.dark 里的 token。
      颜色一律不放这里——只认 html.light 与 html.dark 两个主题块。 */
-  --el-border-radius-base: 6px;
+  --el-border-radius-base: 8px;
   --el-font-size-base: 13px;
-  --control-height: 39px;
-  --control-radius: 6px;
+  --control-height: 42px;
+  --control-radius: 8px;
   --control-border: var(--border-strong);
   --control-focus-ring: 0 0 0 3px var(--focus-ring);
   --control-text: var(--text);
@@ -457,7 +457,7 @@ input.el-input__inner,
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--control-text);
 }
@@ -592,10 +592,10 @@ input:is(:-webkit-autofill, :autofill):active {
   justify-content: center;
   gap: 8px;
   border: 1px solid transparent;
-  min-height: 38px;
-  padding: 9px 14px;
-  border-radius: 6px;
-  font-size: 12px;
+  min-height: 40px;
+  padding: 10px 16px;
+  border-radius: var(--control-radius);
+  font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
   transition: background 0.15s;
@@ -699,9 +699,9 @@ input:is(:-webkit-autofill, :autofill):active {
 }
 
 .heading-actions .el-button {
-  min-height: 38px;
-  padding: 0 14px;
-  font-size: 12px;
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: 13px;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -820,7 +820,7 @@ input:is(:-webkit-autofill, :autofill):active {
    ══════════════════════════════════════════════════════════════════ */
 
 .modal-body {
-  padding: 25px;
+  padding: 26px;
 }
 
 .modal-body > p {
@@ -832,7 +832,7 @@ input:is(:-webkit-autofill, :autofill):active {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding: 17px 24px;
+  padding: 16px 26px;
   background: var(--surface-subtle);
   border-top: 1px solid var(--border);
   position: sticky;
@@ -845,9 +845,9 @@ input:is(:-webkit-autofill, :autofill):active {
 }
 
 .modal-footer .el-button {
-  min-height: 38px;
-  padding: 0 15px;
-  font-size: 12px;
+  min-height: 40px;
+  padding: 0 18px;
+  font-size: 13px;
   border-radius: var(--control-radius);
 }
 
@@ -923,11 +923,11 @@ input:is(:-webkit-autofill, :autofill):active {
 .el-select__wrapper,
 .el-textarea__inner {
   min-height: var(--control-height);
-  padding: 1px 12px;
+  padding: 2px 14px;
   border-radius: var(--control-radius);
   background: var(--surface);
   box-shadow: 0 0 0 1px var(--control-border) inset;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--control-text);
   transition:
     box-shadow 0.15s,
@@ -974,8 +974,8 @@ input:is(:-webkit-autofill, :autofill):active {
 
 .el-select__wrapper .el-select__selected-item,
 .el-select__wrapper .el-select__placeholder {
-  font-size: 12px;
-  line-height: 22px;
+  font-size: 13px;
+  line-height: 24px;
 }
 
 .el-select__wrapper .el-select__placeholder,
@@ -984,7 +984,7 @@ input:is(:-webkit-autofill, :autofill):active {
 }
 
 .el-select__wrapper .el-select__input {
-  height: 22px;
+  height: 24px;
 }
 
 .el-form-item .el-input,
@@ -1001,14 +1001,14 @@ input:is(:-webkit-autofill, :autofill):active {
 }
 
 .el-input-number.is-controls-right .el-input__wrapper {
-  padding-left: 12px;
-  padding-right: 34px;
+  padding-left: 14px;
+  padding-right: 40px;
 }
 
 .el-input-number.is-controls-right .el-input-number__increase,
 .el-input-number.is-controls-right .el-input-number__decrease {
-  --el-input-number-controls-height: 18px;
-  width: 22px;
+  --el-input-number-controls-height: 20px;
+  width: 26px;
   border-left: 1px solid var(--border);
   background: var(--surface-subtle);
   color: var(--text-dim);
@@ -1016,12 +1016,12 @@ input:is(:-webkit-autofill, :autofill):active {
 }
 
 .el-input-number.is-controls-right .el-input-number__increase {
-  border-radius: 0 5px 0 0;
+  border-radius: 0 calc(var(--control-radius) - 1px) 0 0;
 }
 
 .el-input-number.is-controls-right .el-input-number__decrease {
   border-top: 1px solid var(--border);
-  border-radius: 0 0 5px 0;
+  border-radius: 0 0 calc(var(--control-radius) - 1px) 0;
 }
 
 .el-input-number.is-controls-right .el-input-number__increase:hover,
@@ -1035,14 +1035,14 @@ input:is(:-webkit-autofill, :autofill):active {
 }
 
 .el-form-item__label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--label-text);
   line-height: 1.5;
 }
 
 .el-form--label-top .el-form-item__label {
-  margin-bottom: 7px;
+  margin-bottom: 9px;
 }
 
 .el-form-item.is-required:not(.is-no-asterisk).asterisk-left > .el-form-item__label::before {
@@ -1051,9 +1051,9 @@ input:is(:-webkit-autofill, :autofill):active {
 }
 
 .el-form-item__error {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
-  padding-top: 3px;
+  padding-top: 5px;
   color: var(--error-text);
 }
 
@@ -1093,12 +1093,12 @@ input:is(:-webkit-autofill, :autofill):active {
 }
 
 .el-select-dropdown__item {
-  height: 32px;
-  line-height: 32px;
+  height: 34px;
+  line-height: 34px;
   margin: 1px 5px;
   padding: 0 30px 0 12px;
-  border-radius: 5px;
-  font-size: 12px;
+  border-radius: 6px;
+  font-size: 13px;
   color: var(--text-body);
 }
 
@@ -1125,7 +1125,7 @@ input:is(:-webkit-autofill, :autofill):active {
 
 .el-select-dropdown__empty {
   padding: 12px 0;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 
@@ -1245,9 +1245,9 @@ input:is(:-webkit-autofill, :autofill):active {
     gap: 8px;
   }
   .button {
-    font-size: 11px;
-    padding: 8px 11px;
-    min-height: 36px;
+    font-size: 12px;
+    padding: 9px 13px;
+    min-height: 38px;
   }
   .eyebrow {
     font-size: 8px;

@@ -164,7 +164,7 @@ onMounted(load)
   gap: 14px;
   align-items: center;
   flex-wrap: wrap;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 
@@ -174,7 +174,7 @@ onMounted(load)
 
 .permission-impact {
   margin: 20px 0;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   color: var(--muted);
 }
@@ -200,7 +200,7 @@ onMounted(load)
 
 .permission-group legend {
   padding-top: 14px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-medium);
 }
@@ -209,7 +209,7 @@ onMounted(load)
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 0;
+  padding: 12px 0;
 }
 
 .permission-item > input {
@@ -224,7 +224,7 @@ onMounted(load)
 .permission-item strong {
   display: block;
   font-weight: 500;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .permission-item code {
@@ -248,12 +248,12 @@ onMounted(load)
 }
 
 .alert {
-  padding: 11px 13px;
+  padding: 12px 14px;
   border: 1px solid var(--danger-soft);
   background: var(--danger-tint);
   color: var(--danger);
-  border-radius: 5px;
-  font-size: 12px;
+  border-radius: var(--control-radius);
+  font-size: 13px;
   line-height: 1.7;
   margin: 14px 0;
   overflow-wrap: anywhere;
@@ -283,7 +283,7 @@ onMounted(load)
   height: auto;
   width: 100%;
   margin: 0;
-  padding: 10px 0;
+  padding: 12px 0;
   white-space: normal;
 }
 

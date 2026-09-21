@@ -1,17 +1,30 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowRight, LockKeyhole, Moon, Sun, Users } from '@lucide/vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useAuth } from '../stores/auth'
 import { useTheme } from '../stores/theme'
+import { clearCredentials, readCredentials, saveCredentials } from '../lib/credentials'
 
 /** 登录页只接收账号凭据，Token 保存和失效处理统一交给认证状态模块。 */
 const auth = useAuth()
 const theme = useTheme()
 const router = useRouter()
 const route = useRoute()
-const form = reactive({ username: '', password: '' })
+const form = reactive({ username: '', password: '', remember: false })
+const remembered = readCredentials()
+if (remembered) {
+  form.username = remembered.username
+  form.password = remembered.password
+  form.remember = true
+}
+watch(
+  () => form.remember,
+  (remember) => {
+    if (!remember) clearCredentials()
+  },
+)
 const formRef = ref<FormInstance>()
 const busy = ref(false)
 const error = ref('')
@@ -25,6 +38,8 @@ async function submit() {
   error.value = ''
   try {
     await auth.login(form.username.trim(), form.password)
+    if (form.remember) saveCredentials(form.username.trim(), form.password)
+    else clearCredentials()
     form.password = ''
     const target = typeof route.query.redirect === 'string' ? route.query.redirect : auth.home
     // 不跳转到外部地址，也不返回已失去页面权限的旧地址。
@@ -101,6 +116,9 @@ async function submit() {
             :disabled="busy"
           />
         </el-form-item>
+        <div class="login-remember">
+          <el-checkbox v-model="form.remember" :disabled="busy">记住密码</el-checkbox>
+        </div>
         <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
         <el-button native-type="submit" type="primary" class="login-submit" :loading="busy">
           登录
@@ -301,6 +319,19 @@ async function submit() {
 
 .login-form :deep(.el-form-item) {
   margin-bottom: 22px;
+}
+
+.login-remember {
+  margin: -12px 0 2px;
+}
+
+.login-remember :deep(.el-checkbox) {
+  height: auto;
+}
+
+.login-remember :deep(.el-checkbox__label) {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .login-panel :deep(.el-input__wrapper) {

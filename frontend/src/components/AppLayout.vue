@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronRight, LogOut, Menu, Moon, PanelLeftClose, Sun } from '@lucide/vue'
+import { ChevronRight, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun } from '@lucide/vue'
 import SidebarNav from './SidebarNav.vue'
 import { useAuth } from '../stores/auth'
 import { useNotices } from '../stores/notices'
@@ -18,6 +18,7 @@ const theme = useTheme()
 const route = useRoute()
 const router = useRouter()
 const mobileOpen = ref(false)
+const collapsed = ref(false)
 const signingOut = ref(false)
 const health = ref<Health>()
 watch(
@@ -47,7 +48,7 @@ async function logout() {
 </script>
 <template>
   <div class="app-shell">
-    <aside class="sidebar desktop-sidebar"><SidebarNav /></aside>
+    <aside class="sidebar desktop-sidebar" :class="{ collapsed }"><SidebarNav /></aside>
     <el-drawer
       v-model="mobileOpen"
       direction="ltr"
@@ -58,14 +59,24 @@ async function logout() {
     >
       <SidebarNav mobile @navigate="mobileOpen = false" />
     </el-drawer>
-    <div class="workspace">
+    <div class="workspace" :class="{ collapsed }">
       <header class="topbar">
-        <el-button text class="mobile-menu" :icon="Menu" aria-label="打开导航" @click="mobileOpen = true" />
-        <div class="breadcrumbs">
-          <PanelLeftClose :size="17" />
-          <span>工作空间</span>
-          <ChevronRight :size="14" />
-          <strong>{{ route.meta.title }}</strong>
+        <div class="topbar-left">
+          <el-button text class="mobile-menu" :icon="Menu" aria-label="打开导航" @click="mobileOpen = true" />
+          <el-tooltip :content="collapsed ? '展开导航' : '收起导航'">
+            <el-button
+              text
+              class="icon-button sidebar-toggle"
+              :icon="collapsed ? PanelLeftOpen : PanelLeftClose"
+              :aria-label="collapsed ? '展开导航' : '收起导航'"
+              @click="collapsed = !collapsed"
+            />
+          </el-tooltip>
+          <div class="breadcrumbs">
+            <span>工作空间</span>
+            <ChevronRight :size="14" />
+            <strong>{{ route.meta.title }}</strong>
+          </div>
         </div>
         <div class="topbar-actions">
           <RouterLink
@@ -124,6 +135,11 @@ async function logout() {
   display: flex;
   flex-direction: column;
   z-index: 30;
+  transition: transform 0.25s ease;
+}
+
+.sidebar.collapsed {
+  transform: translateX(-100%);
 }
 
 .workspace {
@@ -131,6 +147,11 @@ async function logout() {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  transition: margin-left 0.25s ease;
+}
+
+.workspace.collapsed {
+  margin-left: 0;
 }
 
 .topbar {
@@ -148,6 +169,13 @@ async function logout() {
   backdrop-filter: blur(12px);
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
 .breadcrumbs {
   display: flex;
   gap: 14px;
@@ -155,11 +183,6 @@ async function logout() {
   font-size: 11px;
   color: var(--text-faint);
   white-space: nowrap;
-}
-
-.breadcrumbs > svg:first-child {
-  margin-right: 8px;
-  color: var(--text-dim);
 }
 
 .breadcrumbs strong {
@@ -215,6 +238,12 @@ async function logout() {
 .mobile-menu,
 .mobile-close {
   display: none !important;
+}
+
+@media (max-width: 680px) {
+  .sidebar-toggle {
+    display: none !important;
+  }
 }
 
 @media (min-width: 1500px) {

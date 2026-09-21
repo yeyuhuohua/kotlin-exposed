@@ -276,7 +276,7 @@ async function save() {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
-  gap: 18px 16px;
+  gap: 22px 18px;
 }
 
 @media (max-width: 680px) {
@@ -310,7 +310,7 @@ async function save() {
 
 .form-grid > :deep(.el-form-item:has(.el-switch):not(:first-child)) {
   border-top: 1px solid var(--border);
-  padding-top: 15px;
+  padding-top: 18px;
 }
 
 .form-grid > :deep(.el-form-item:has(.el-switch) > .el-form-item__label) {

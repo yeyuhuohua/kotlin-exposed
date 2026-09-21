@@ -7,7 +7,7 @@ const emit = defineEmits<{ close: [] }>()
   <el-dialog
     :model-value="true"
     :title="title"
-    :width="wide ? 'min(800px, calc(100vw - 24px))' : 'min(570px, calc(100vw - 24px))'"
+    :width="wide ? 'min(820px, calc(100vw - 24px))' : 'min(600px, calc(100vw - 24px))'"
     class="app-dialog"
     append-to-body
     destroy-on-close
@@ -25,13 +25,13 @@ const emit = defineEmits<{ close: [] }>()
 /* 本组件样式：颜色只用 styles.css 里的语义 token。 */
 .app-dialog.el-dialog {
   padding: 0;
-  border-radius: 8px;
+  border-radius: 12px;
   box-shadow: 0 22px 90px var(--shadow-modal);
 }
 
 .app-dialog :deep(.el-dialog__header) {
   margin: 0;
-  padding: 19px 48px 18px 23px;
+  padding: 21px 56px 20px 26px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -42,8 +42,8 @@ const emit = defineEmits<{ close: [] }>()
 }
 
 .app-dialog :deep(.el-dialog__headerbtn) {
-  top: 9px;
-  right: 10px;
+  top: 12px;
+  right: 13px;
 }
 
 .app-dialog :deep(.el-dialog__body) {

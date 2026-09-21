@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** 复用业务目录页面，区分服务端分页与本地分页，并只暴露后端支持的管理操作。 */
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { ArrowUpRight, Pencil, Plus, RefreshCw, Search, ShieldCheck, Trash2 } from '@lucide/vue'
 import { api, query } from '../lib/api'
 import { money } from '../lib/format'
@@ -17,6 +18,7 @@ import RolePermissionEditor from '../components/RolePermissionEditor.vue'
 import type { Page, Resource, Row } from '../types'
 const props = defineProps<{ resource: Resource }>()
 const auth = useAuth()
+const router = useRouter()
 const notices = useNotices()
 const page = ref(1)
 const pageSize = ref(20)
@@ -155,6 +157,14 @@ function saved() {
         </el-button>
       </div>
     </header>
+    <el-tabs
+      v-if="resource.key === 'emp-details'"
+      model-value="details"
+      @tab-change="(name) => name === 'directory' && router.push('/employees')"
+    >
+      <el-tab-pane v-if="auth.canPage('employees')" name="directory" label="员工名录" />
+      <el-tab-pane name="details" label="详情视图" />
+    </el-tabs>
     <el-alert
       v-if="resource.key === 'roles'"
       title="同一角色的用户共享页面与接口权限；修改角色权限会要求该角色下所有账号重新登录。"
