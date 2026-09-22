@@ -24,7 +24,7 @@ ktor-server-test-host = { module = "io.ktor:ktor-server-test-host-jvm", version.
 ktor-server-routing-openapi = { module = "io.ktor:ktor-server-routing-openapi-jvm", version.ref = "ktor" }
 ktor-openapi-schema = { module = "io.ktor:ktor-openapi-schema", version.ref = "ktor" }
 knife4j-ui = { module = "com.github.xiaoymin:knife4j-openapi3-ui", version = "4.5.0" }
-swagger-ui = { module = "org.webjars:swagger-ui", version = "5.32.13" }
+swagger-ui = { module = "org.webjars:swagger-ui", version = "5.32.15" }
 
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
 exposed-r2dbc = { module = "org.jetbrains.exposed:exposed-r2dbc", version.ref = "exposed" }
