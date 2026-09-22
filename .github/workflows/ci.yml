@@ -17,7 +17,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       # 后端单元测试不依赖 MySQL/Redis，直接在 CI 运行。
       - name: Backend tests
         run: ./gradlew test
