@@ -2,11 +2,20 @@
 /** 根据接口真实统计结果绘制图表，并在数据变化或组件销毁时释放 Chart 实例。 */
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Chart, ArcElement, DoughnutController, Tooltip } from 'chart.js'
+import { useTheme } from '../stores/theme'
 Chart.register(ArcElement, DoughnutController, Tooltip)
 const props = defineProps<{ entries: { label: string; count: number }[]; total: number }>()
+const theme = useTheme()
 const canvas = ref<HTMLCanvasElement>()
 let chart: Chart | undefined
-const colors = ['#177653', '#83bd97', '#487ab1', '#d5ab54', '#8b84ac', '#ced4d7']
+/** canvas 读不了 CSS 变量，从语义 token 取值，保证暗色主题下颜色同步切换。 */
+function cssToken(name: string) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
+const colors = ref<string[]>([])
+function readPalette() {
+  colors.value = ['--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5', '--chart-6'].map(cssToken)
+}
 function draw() {
   chart?.destroy()
   if (!canvas.value) return
@@ -17,8 +26,8 @@ function draw() {
       datasets: [
         {
           data: props.entries.map((item) => item.count),
-          backgroundColor: colors,
-          borderColor: '#fff',
+          backgroundColor: colors.value,
+          borderColor: cssToken('--surface'),
           borderWidth: 4,
           hoverOffset: 4,
         },
@@ -33,8 +42,18 @@ function draw() {
     },
   })
 }
-onMounted(draw)
+onMounted(() => {
+  readPalette()
+  draw()
+})
 watch(() => props.entries, draw)
+watch(
+  () => theme.theme,
+  () => {
+    readPalette()
+    draw()
+  },
+)
 onBeforeUnmount(() => chart?.destroy())
 </script>
 <template>

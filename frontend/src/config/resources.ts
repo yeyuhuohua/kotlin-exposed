@@ -253,7 +253,14 @@ export const resources: Resource[] = [
       { key: 'enabled', label: '账号状态', kind: 'status' },
     ],
     fields: [
-      { ...text('username', '用户名', true, 64), minLength: 3, createOnly: true },
+      {
+        ...text('username', '用户名', true, 64),
+        minLength: 3,
+        createOnly: true,
+        // 与后端 AuthService 的 [a-z0-9._-]{3,64} 保持一致。
+        pattern: /^[a-z0-9._-]{3,64}$/,
+        patternMessage: '用户名须为 3-64 位小写字母、数字或 . _ -',
+      },
       { key: 'password', label: '密码', type: 'password', minLength: 8, maxLength: 128 },
       { key: 'roleCode', label: '角色', type: 'select', lookup: 'roles', required: true, default: 'READER' },
       { key: 'enabled', label: '启用账号', type: 'checkbox', default: true },
@@ -273,7 +280,14 @@ export const resources: Resource[] = [
       { key: 'enabled', label: '角色状态', kind: 'status' },
     ],
     fields: [
-      { ...text('code', '角色编码', true, 20), minLength: 2, createOnly: true },
+      {
+        ...text('code', '角色编码', true, 20),
+        minLength: 2,
+        createOnly: true,
+        // 与后端 AuthService 的 [A-Z][A-Z0-9_]{1,19} 保持一致（后端会先转大写）。
+        pattern: /^[A-Za-z][A-Za-z0-9_]{1,19}$/,
+        patternMessage: '角色编码须为 2-20 位字母、数字或下划线，首字符必须是字母',
+      },
       text('name', '角色名称', true, 50),
       { key: 'enabled', label: '启用角色', type: 'checkbox', default: true },
     ],

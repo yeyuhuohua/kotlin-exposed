@@ -39,6 +39,8 @@ import io.ktor.server.config.ApplicationConfig
 import io.ktor.server.auth.authenticate
 import io.ktor.server.netty.EngineMain
 import io.ktor.server.plugins.calllogging.CallLogging
+import io.ktor.server.plugins.callid.CallId
+import io.ktor.server.plugins.callid.callId
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.BadRequestException
@@ -54,6 +56,7 @@ import io.ktor.server.routing.routing
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import org.slf4j.event.Level
+import java.util.UUID
 
 /** 由 application.yaml 启动 Netty，入口类为 io.ktor.server.netty.EngineMain。 */
 fun main(args: Array<String>) = EngineMain.main(args)
@@ -85,6 +88,13 @@ fun Application.module() {
     install(CallLogging) {
         level = Level.INFO
         filter { call -> call.request.path().startsWith("/api") }
+        // 关联同一次请求的所有日志；值由 CallId 插件生成或从 X-Request-Id 透传。
+        mdc("requestId") { call -> call.callId }
+    }
+    install(CallId) {
+        retrieveFromHeader(HttpHeaders.XRequestId)
+        generate { UUID.randomUUID().toString().replace("-", "").take(10) }
+        replyToHeader(HttpHeaders.XRequestId)
     }
     install(createApplicationPlugin("ApiSecurityHeaders") {
         onCall { call ->

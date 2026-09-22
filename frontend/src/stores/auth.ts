@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 /** 认证状态只信任后端用户信息；登录、刷新身份和退出共同维护当前会话。 */
 import { defineStore } from 'pinia'
 import { authPaths } from '../api/paths'
-import { api } from '../lib/api'
+import { api, ApiError } from '../lib/api'
 import { clearSession, readSession, saveSession } from '../lib/session'
 import type { LoginResult, User } from '../types'
 import { canApi as allowsApi, canPage as allowsPage, homePath } from '../lib/permissions'
@@ -42,8 +42,10 @@ export const useAuth = defineStore('auth', () => {
           user.value = await api<User>(authPaths.me)
           refreshedAt = Date.now()
           scheduleExpiry()
-        } catch {
-          clear()
+        } catch (error) {
+          // 只有 401 说明会话真的失效；网络抖动或后端重启时保留会话，允许下次导航重试。
+          if (error instanceof ApiError && error.status === 401) return clear()
+          initialized = undefined
         }
       })()
     await initialized
@@ -67,8 +69,9 @@ export const useAuth = defineStore('auth', () => {
     try {
       user.value = await api<User>(authPaths.me)
       refreshedAt = Date.now()
-    } catch {
-      clear()
+    } catch (error) {
+      // 401 由 hr:unauthorized 事件统一登出；网络错误保留现有用户，下个周期再试。
+      if (error instanceof ApiError && error.status === 401) clear()
     }
   }
   async function logout() {

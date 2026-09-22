@@ -33,7 +33,7 @@
 这样可以随时打断点。需要后端在线时先探测 `http://127.0.0.1:8080/api/health`，如果没起来就请使用者用 Debug 启动，
 不要用 `./gradlew run` 占用端口。文档入口包括 `/doc.html`、`/swagger` 和 `/v3/api-docs`。
 
-本地运行需要已具备 `atguigudb` 库及对应表结构的 MySQL，以及 Redis；连接参数在 `application.yaml` 中配置。
+本地运行需要已具备 `atguigudb` 库及对应表结构的 MySQL，以及 Redis；连接参数在 `application.yaml` 中配置。Redis 暂时不可用时服务也能启动（缓存旁路，健康检查触发重连），MySQL 不可用则无法正常工作。
 
 ## 代码风格与命名规范
 
@@ -45,17 +45,17 @@
 
 ## 测试规范
 
-后端单元测试放在 `backend/src/test/kotlin/`，在 `backend/` 下用 `./gradlew test` 运行，要求不依赖 MySQL/Redis（权限目录、密码哈希、限流、参数解析这类纯逻辑必须覆盖）。涉及数据库的集成验证仍在目标环境手工执行，项目不使用内存 H2。
+后端单元测试放在 `backend/src/test/kotlin/`，在 `backend/` 下用 `./gradlew test` 运行，要求不依赖 MySQL/Redis（权限目录、密码哈希、限流、参数解析这类纯逻辑必须覆盖）。鉴权拦截这类 HTTP 层行为用 `ktor-server-test-host` 的 `testApplication` 固定，同样不连真实服务。涉及数据库的集成验证仍在目标环境手工执行，项目不使用内存 H2。
 
 前端单元测试在 `frontend/` 下用 `pnpm test` 运行，`pnpm typecheck` 与 `pnpm build` 必须通过。
 
 ## 提交与合并请求规范
 
-使用简短、以动作开头的提交标题，例如 `修复员工缓存失效逻辑`。合并请求应说明行为变化、关联问题、测试结果及运行所需服务；API 变更附请求与响应示例，文档界面变更附截图。
+使用简短、以动作开头的提交标题，例如 `修复员工缓存失效逻辑`。合并请求应说明行为变化、关联问题、测试结果及运行所需服务；API 变更附请求与响应示例，文档界面变更附截图。推送与合并请求会触发 `.github/workflows/ci.yml`（后端测试、前端 typecheck/test/build），合并前必须全绿。
 
 ## 安全与智能体临时文件
 
 禁止提交凭据或敏感日志。部署密钥不得存放在版本控制跟踪的配置文件中。
 `backend/src/main/resources/application.yaml` 和 `backend/gradle.properties` 仅供本机使用；仓库提交对应的无密钥示例，不提交本机连接密码或绝对 JDK 路径。
 
-创建临时文件前，使用 `git rev-parse --show-toplevel` 确认项目根目录；若不是 Git 仓库，则使用当前项目目录。检查 `.gitignore`，确保包含精确的 `.debug/` 条目，补充时保留原有内容。临时测试、脚本、预览等统一存放于 `.debug/<task>/`，禁止使用系统临时目录。任务完成并验证后清理对应文件，目录为空时删除 `.debug/`；最终交付文件放在该目录之外的用户指定位置。
+创建临时文件前，使用 `git rev-parse --show-toplevel` 确认项目根目录；若不是 Git 仓库，则使用当前项目目录。检查 `.gitignore`，确保包含精确的 `.debug/` 条目，补充时保留原有内容。临时测试、脚本、预览等统一存放于 `.debug/<task>/`（不存在则创建），禁止使用系统临时目录。任务完成并验证后删除这些临时文件，但保留 `.debug/` 目录本身；最终交付文件放在该目录之外的用户指定位置。

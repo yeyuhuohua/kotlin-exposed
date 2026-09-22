@@ -17,6 +17,7 @@ frontend/                Vue 3 / TypeScript / Vite / Element Plus 前端
 
 需要 Java 21、Node.js 22.12 或更高版本、pnpm，以及现有 Docker 中的 MySQL 和 Redis。
 后端仍使用已有的 `atguigudb` 数据库；目录迁移不会移动、重建或重置数据库。
+Redis 暂时不可用时后端也能启动：缓存自动旁路，健康检查会持续尝试重连，恢复后缓存自动生效。
 
 首次克隆仓库后，在仓库根目录准备本地配置：
 
@@ -128,8 +129,10 @@ cd backend
 前端构建产物位于 `frontend/dist/`，后端 JAR 位于 `backend/build/libs/`。
 前端依赖统一使用 pnpm 管理，不要生成 npm 或 Yarn 锁文件。
 前端组件测试使用 Vitest、Vue Test Utils 和内存 DOM，不连接真实后端；`pnpm typecheck` 与 `pnpm build` 必须通过。
-后端单元测试覆盖权限目录与路由匹配、密码哈希、登录限流、PATCH 参数解析、缓存分组映射和约束冲突识别，不依赖 MySQL/Redis，也不使用内存 H2。
+后端单元测试覆盖权限目录与路由匹配、密码哈希、登录限流、PATCH 参数解析、缓存分组映射和约束冲突识别，
+并用 `ktor-server-test-host` 固定鉴权拦截的 HTTP 行为（403/401 后路由 handler 不得执行），不依赖 MySQL/Redis，也不使用内存 H2。
 需要真实数据库的集成验证仍在目标环境手工执行。
+以上检查全部由 `.github/workflows/ci.yml` 在推送与合并请求时自动执行。
 
 ## 已知限制
 
@@ -140,6 +143,8 @@ cd backend
 - **文档入口**：`/doc.html`、`/swagger` 默认公开，不希望对外暴露时应在网关限制。
 - **删除不可撤销**：账号与角色是物理删除，没有软删除或回收站；角色仍有账号引用时需先把账号改到其它角色。
 - **缓存一致性**：写库与删缓存不在同一事务，进程在提交后崩溃时脏数据最多保留到 Redis TTL（默认 600 秒）。
+  Redis 不可用时服务照常运行、缓存旁路，健康检查会触发重连。
+- **请求关联**：`/api` 日志带 `X-Request-Id`（请求未携带时由后端生成并回写响应头），网关转发时请透传该头。
 
 ## 提交忽略规则
 
@@ -157,6 +162,9 @@ Gradle Wrapper、`pnpm-lock.yaml`、源码、文档和无密钥的示例配置�
 将 `/api`、`/swagger`、`/swagger-resources`、`/v3`、`/webjars` 和 `/doc.html` 反向代理到后端。
 Vite 的开发代理不会被打包进生产构建产物。
 如果 API 使用独立域名或端口，请在构建时设置 `VITE_API_BASE_URL`，并为该部署配置后端 CORS 和文档链接。
+
+后端可以直接运行 `./gradlew buildFatJar` 的产物（`build/libs/kotlin-exposed-all.jar`），
+也可以用 `backend/Dockerfile` 构建镜像（多阶段构建，运行阶段只含 JRE 21）。
 
 生产环境应使用 HTTPS，并在网关配置登录限流。
 登录页背景使用 Unsplash 的外部办公空间图片，字体无法加载时会使用本地系统字体。

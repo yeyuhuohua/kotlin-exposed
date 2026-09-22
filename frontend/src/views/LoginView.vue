@@ -15,9 +15,9 @@ const route = useRoute()
 const form = reactive({ username: '', password: '', remember: false })
 const remembered = readCredentials()
 if (remembered) {
+  // 预填凭据但不自动勾选"记住密码"：每次登录都是一次明确的授权选择。
   form.username = remembered.username
   form.password = remembered.password
-  form.remember = true
 }
 watch(
   () => form.remember,
@@ -64,6 +64,7 @@ async function submit() {
       class="login-background"
       src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&amp;fit=crop&amp;w=2400&amp;q=85"
       alt="明亮的开放式办公空间"
+      referrerpolicy="no-referrer"
     />
     <div class="login-shade"></div>
     <el-tooltip :content="theme.isDark ? '切换到白天模式' : '切换到夜间模式'">
@@ -118,6 +119,9 @@ async function submit() {
         </el-form-item>
         <div class="login-remember">
           <el-checkbox v-model="form.remember" :disabled="busy">记住密码</el-checkbox>
+          <p v-if="form.remember" class="remember-hint">
+            密码仅做 Base64 编码保存在此浏览器，公共设备请勿使用
+          </p>
         </div>
         <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
         <el-button native-type="submit" type="primary" class="login-submit" :loading="busy">
@@ -332,6 +336,12 @@ async function submit() {
 .login-remember :deep(.el-checkbox__label) {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.remember-hint {
+  font-size: 10px;
+  color: var(--text-faint);
+  margin: 6px 0 0 24px;
 }
 
 .login-panel :deep(.el-input__wrapper) {

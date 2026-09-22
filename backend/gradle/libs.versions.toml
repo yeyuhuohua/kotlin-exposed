@@ -19,6 +19,8 @@ ktor-server-config-yaml = { module = "io.ktor:ktor-server-config-yaml-jvm", vers
 ktor-server-cors = { module = "io.ktor:ktor-server-cors-jvm", version.ref = "ktor" }
 ktor-server-auth = { module = "io.ktor:ktor-server-auth-jvm", version.ref = "ktor" }
 ktor-server-auth-jwt = { module = "io.ktor:ktor-server-auth-jwt-jvm", version.ref = "ktor" }
+ktor-server-call-id = { module = "io.ktor:ktor-server-call-id-jvm", version.ref = "ktor" }
+ktor-server-test-host = { module = "io.ktor:ktor-server-test-host-jvm", version.ref = "ktor" }
 ktor-server-routing-openapi = { module = "io.ktor:ktor-server-routing-openapi-jvm", version.ref = "ktor" }
 ktor-openapi-schema = { module = "io.ktor:ktor-openapi-schema", version.ref = "ktor" }
 knife4j-ui = { module = "com.github.xiaoymin:knife4j-openapi3-ui", version = "4.5.0" }

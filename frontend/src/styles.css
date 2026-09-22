@@ -109,6 +109,8 @@ html.light {
   --chart-2: #59a078;
   --chart-3: #72ab86;
   --chart-4: #84b598;
+  --chart-5: #487ab1;
+  --chart-6: #d5ab54;
   --chart-track: #edf1ef;
   --status-up: #57a376;
   --status-up-soft: #ecf4ee;
@@ -235,6 +237,8 @@ html.dark {
   --chart-2: #54b98a;
   --chart-3: #69c295;
   --chart-4: #7fc9a3;
+  --chart-5: #6a90c0;
+  --chart-6: #c9a45c;
   --chart-track: #262d2b;
   --status-up: #4bbd85;
   --status-up-soft: #22322b;

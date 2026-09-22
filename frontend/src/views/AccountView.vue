@@ -19,7 +19,9 @@ const auth = useAuth()
         <span class="avatar large">{{ initials(auth.user?.username || '') }}</span>
         <div>
           <h2>{{ auth.user?.username }}</h2>
-          <el-tag type="success" size="small">已启用</el-tag>
+          <el-tag :type="auth.user?.enabled ? 'success' : 'info'" size="small">
+            {{ auth.user?.enabled ? '已启用' : '已停用' }}
+          </el-tag>
         </div>
       </div>
       <dl class="detail-grid">

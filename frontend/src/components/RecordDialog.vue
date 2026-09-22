@@ -98,6 +98,8 @@ const rules = computed<FormRules>(() =>
                 return done(new Error(`${field.label}至少 ${field.minLength} 个字符`))
               if (field.maxLength !== undefined && value.length > field.maxLength)
                 return done(new Error(`${field.label}最多 ${field.maxLength} 个字符`))
+              if (field.pattern && !field.pattern.test(value))
+                return done(new Error(field.patternMessage || `${field.label}格式不正确`))
             }
             done()
           },
@@ -167,6 +169,8 @@ async function save() {
     await api(path, { method, body: payload })
     notices.show(props.original ? '修改已保存' : '记录已创建')
     if (self.value) {
+      // 先给出原因再清会话：App 的 expired 处理在 user 为空时不会再弹提示。
+      notices.show('账号信息已修改，请重新登录', true)
       auth.clear()
       window.dispatchEvent(new Event('hr:unauthorized'))
     }

@@ -34,6 +34,7 @@ dependencies {
     implementation(libs.ktor.server.cors)
     implementation(libs.ktor.server.auth)
     implementation(libs.ktor.server.auth.jwt)
+    implementation(libs.ktor.server.call.id)
     implementation(libs.ktor.server.routing.openapi)
     implementation(libs.ktor.openapi.schema)
     implementation(libs.knife4j.ui)
@@ -50,6 +51,7 @@ dependencies {
     implementation(libs.logback.classic)
 
     testImplementation(kotlin("test"))
+    testImplementation(libs.ktor.server.test.host)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 

@@ -5,7 +5,10 @@ export interface RememberedCredentials {
   password: string
 }
 function encode(value: string): string {
-  return btoa(String.fromCharCode(...new TextEncoder().encode(value)))
+  // 逐字节拼接而不是 spread：输入变长时 String.fromCharCode(...bytes) 会栈溢出。
+  let binary = ''
+  for (const byte of new TextEncoder().encode(value)) binary += String.fromCharCode(byte)
+  return btoa(binary)
 }
 function decode(value: string): string {
   return new TextDecoder().decode(Uint8Array.from(atob(value), (char) => char.charCodeAt(0)))

@@ -115,6 +115,9 @@ export interface Field {
   step?: string
   options?: Option[]
   lookup?: string
+  /** 文本格式校验，与后端约束保持一致（如用户名、角色编码的字符集）。 */
+  pattern?: RegExp
+  patternMessage?: string
   /** 允许清空为 null（需要后端支持 PATCH 语义）。 */
   clearable?: boolean
   default?: string | number | boolean

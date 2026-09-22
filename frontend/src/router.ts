@@ -52,7 +52,8 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuth()
   await auth.restore()
-  if (auth.user && !to.meta.public) await auth.refreshUser()
+  // 后台刷新即可：权限回收由 hr:unauthorized / hr:forbidden 事件兜底，导航不被 /auth/me 阻塞。
+  if (auth.user && !to.meta.public) void auth.refreshUser()
   if (!to.meta.public && !auth.user) return { name: 'login', query: { redirect: to.fullPath } }
   if (to.meta.adminOnly && !auth.isAdmin) return '/forbidden'
   if (typeof to.meta.page === 'string' && !auth.canPage(to.meta.page)) return '/forbidden'

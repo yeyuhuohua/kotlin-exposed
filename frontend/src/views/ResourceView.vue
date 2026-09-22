@@ -77,7 +77,9 @@ async function confirmDelete() {
     })
     notices.show(`${recordNoun.value}已删除`)
     deleting.value = undefined
-    await refresh()
+    // 删掉的是当前页最后一条时先退页，由页码 watcher 触发刷新，避免 refresh 与页码钳制各发一次请求。
+    if (props.resource.paginated && rows.value.length === 1 && page.value > 1) page.value -= 1
+    else await refresh()
   } catch (cause) {
     deleteError.value = cause instanceof Error ? cause.message : '删除失败'
   } finally {
