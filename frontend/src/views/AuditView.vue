@@ -121,7 +121,7 @@ watch([callPage, callPageSize], () => void calls.refresh())
           <el-input
             v-model="loginUsername"
             class="filter-input"
-            placeholder="按用户名过滤"
+            placeholder="用户名模糊搜索"
             aria-label="按用户名过滤"
             clearable
             @keyup.enter="applyLoginFilters"
@@ -183,7 +183,7 @@ watch([callPage, callPageSize], () => void calls.refresh())
           <el-input
             v-model="callUsername"
             class="filter-input"
-            placeholder="按用户名过滤"
+            placeholder="用户名模糊搜索"
             aria-label="按用户名过滤"
             clearable
             @keyup.enter="applyCallFilters"

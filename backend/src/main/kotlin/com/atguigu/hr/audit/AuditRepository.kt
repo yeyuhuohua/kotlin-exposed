@@ -74,7 +74,7 @@ object AuditRepository {
         success: Boolean?,
     ): ApiList<LoginRecordDto> = dbQuery {
         val query = LoginRecords.selectAll()
-        username?.takeIf { it.isNotBlank() }?.let { query.andWhere { LoginRecords.username eq it.trim() } }
+        username?.takeIf { it.isNotBlank() }?.let { query.andWhere { LoginRecords.username like "%${it.trim()}%" } }
         success?.let { query.andWhere { LoginRecords.success eq it } }
         val total = query.count()
         val items = query
@@ -94,7 +94,7 @@ object AuditRepository {
         path: String?,
     ): ApiList<ApiCallRecordDto> = dbQuery {
         val query = ApiCallRecords.selectAll()
-        username?.takeIf { it.isNotBlank() }?.let { query.andWhere { ApiCallRecords.username eq it.trim() } }
+        username?.takeIf { it.isNotBlank() }?.let { query.andWhere { ApiCallRecords.username like "%${it.trim()}%" } }
         method?.takeIf { it.isNotBlank() }?.let { query.andWhere { ApiCallRecords.method eq it.trim().uppercase() } }
         // 路径前缀匹配（如 /api/employees），可以走 (method, path) 索引方向
         path?.takeIf { it.isNotBlank() }?.let { query.andWhere { ApiCallRecords.path like "${it.trim()}%" } }

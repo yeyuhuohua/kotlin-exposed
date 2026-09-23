@@ -24,7 +24,7 @@ fun Route.auditRoutes() {
         parameters {
             query("limit") { description = "每页条数，默认 50，最大 200" }
             query("offset") { description = "跳过条数，默认 0" }
-            query("username") { description = "按用户名精确过滤，例如 admin" }
+            query("username") { description = "按用户名模糊过滤（包含匹配），例如 adm" }
             query("success") { description = "按结果过滤：true=仅成功，false=仅失败" }
         }
         responseExamples(ApiList(total = 2, items = listOf(sampleLoginRecord, sampleLoginRecordFailed)))
@@ -44,7 +44,7 @@ fun Route.auditRoutes() {
         parameters {
             query("limit") { description = "每页条数，默认 50，最大 200" }
             query("offset") { description = "跳过条数，默认 0" }
-            query("username") { description = "按用户名精确过滤" }
+            query("username") { description = "按用户名模糊过滤（包含匹配）" }
             query("method") { description = "按 HTTP 方法过滤，例如 GET" }
             query("path") { description = "按路径前缀过滤，例如 /api/employees" }
         }
