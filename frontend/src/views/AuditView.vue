@@ -30,7 +30,9 @@ const logins = useResource((signal) =>
 )
 function applyLoginFilters() {
   loginFilters.value = { username: loginUsername.value.trim(), success: loginSuccess.value }
-  loginPage.value = 1
+  // 页码为 1 时 watch 不会触发，必须手动刷新
+  if (loginPage.value === 1) void logins.refresh()
+  else loginPage.value = 1
 }
 
 // ── 接口调用记录 ────────────────────────────────────────────
@@ -58,7 +60,9 @@ function applyCallFilters() {
     method: callMethod.value,
     path: callPath.value.trim(),
   }
-  callPage.value = 1
+  // 页码为 1 时 watch 不会触发，必须手动刷新
+  if (callPage.value === 1) void calls.refresh()
+  else callPage.value = 1
 }
 
 const methodOptions = ['', 'GET', 'POST', 'PUT', 'PATCH', 'DELETE']
