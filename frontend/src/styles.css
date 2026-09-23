@@ -1,11 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* 全局样式。这里只放三类东西：
      1. 主题 token（html.light / html.dark）与基础元素重置；
      2. 跨页面复用的基础件（按钮、徽标、头像、页头、状态块、表格、弹窗骨架）；
      3. Element Plus 覆盖与响应式规则。
    页面与组件自己的样式写在对应 .vue 的 <style scoped> 里；颜色一律用 var(--token)，
-   禁止写死色值。目录：
+   禁止写死色值。设计基调：暖纸中性底 + 墨色主按钮 + 翡翠点睛。
+   文字最小 11px（脚注除外），层级靠字重和字号对比。
 
      1. 主题 token          :root / html.light / html.dark
      2. 基础重置
@@ -25,7 +26,7 @@
 
 :root {
   font-family:
-    'DM Sans',
+    'Inter',
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
@@ -41,146 +42,175 @@
   font-size: 14px;
   /* 尺寸与别名：与明暗无关，或指向 html.light / html.dark 里的 token。
      颜色一律不放这里——只认 html.light 与 html.dark 两个主题块。 */
-  --el-border-radius-base: 8px;
-  --el-font-size-base: 13px;
-  --control-height: 42px;
-  --control-radius: 8px;
+  --el-border-radius-base: 10px;
+  --el-font-size-base: 14px;
+  --control-height: 40px;
+  --control-radius: 10px;
   --control-border: var(--border-strong);
   --control-focus-ring: 0 0 0 3px var(--focus-ring);
   --control-text: var(--text);
   --control-disabled-bg: var(--surface-sunken);
   --error-text: var(--danger);
-  --popper-radius: 8px;
-  --popper-shadow: 0 14px 38px var(--shadow-popper);
+  --popper-radius: 12px;
+  --popper-shadow: 0 12px 40px var(--shadow-popper);
+  --card-radius: 16px;
 }
 
 html.light {
-  --green: #177653;
-  --green-dark: #10593e;
-  --border: #e8ebeb;
-  --muted: #899195;
-  --surface: #fff;
-  --el-color-primary: #177653;
-  --el-color-primary-light-3: #5d9f84;
-  --el-color-primary-light-5: #8bbba4;
-  --el-color-primary-light-7: #bed7cb;
-  --el-color-primary-light-8: #d5e6dd;
-  --el-color-primary-light-9: #edf5f0;
-  --el-color-primary-dark-2: #10593e;
-  --control-border-hover: #c6d5cd;
-  --control-focus: #549d7d;
-  --control-placeholder: #929a9e;
-  --control-disabled-text: #909797;
-  --label-text: #596b60;
-  --bg-page: #f8f9fa;
-  --surface-subtle: #fbfcfb;
-  --surface-header: #fafbfc;
-  --surface-hover: #f5f7f6;
-  --surface-sunken: #f2f4f4;
-  --surface-input: #f8faf9;
-  --surface-neutral: #f0f2f3;
-  --border-soft: #eff1f2;
-  --border-strong: #dfe4e3;
-  --border-input: #dce1e2;
-  --border-green: #dce9df;
-  --border-green-strong: #b2c9bb;
-  --text-strong: #232a2c;
-  --text: #30383a;
-  --text-body: #4b5756;
-  --text-soft: #596b60;
-  --text-medium: #677e71;
-  --text-nav: #697378;
-  --text-muted: #7c8988;
-  --text-dim: #87958e;
-  --text-faint: #98a2a3;
-  --text-pale: #a3acaf;
-  --text-green-dark: #253c31;
+  /* 强调色：翡翠绿，只用于链接、选中态、状态与品牌 */
+  --green: #0d7a5f;
+  --green-dark: #0a5c48;
+  --green-deep: #3d6b5c;
+  --green-mid: #3d9a7d;
+  --green-light: #6fbfa4;
+  --green-pale: #bfe3d5;
+  --green-soft: #e6f3ee;
+  --green-soft-hover: #edf5f1;
+  --green-text: #2e7a62;
+  --green-text-light: #64a28d;
+  --green-tint: #eff6f3;
+  --text-green-dark: #1e3d33;
   --on-accent: #ffffff;
-  --green-deep: #52705f;
-  --green-mid: #5d9f84;
-  --green-light: #8bbba4;
-  --green-pale: #bed7cb;
-  --green-soft: #ebf4ed;
-  --green-soft-hover: #edf2ef;
-  --green-text: #568766;
-  --green-text-light: #7ba085;
-  --green-tint: #edf5ef;
-  --chart-1: #287c56;
-  --chart-2: #59a078;
-  --chart-3: #72ab86;
-  --chart-4: #84b598;
-  --chart-5: #487ab1;
-  --chart-6: #d5ab54;
-  --chart-track: #edf1ef;
-  --status-up: #57a376;
-  --status-up-soft: #ecf4ee;
-  --status-down: #c5a761;
-  --danger: #b45e52;
-  --danger-strong: #b94742;
-  --danger-soft: #f0d6d2;
-  --danger-tint: #fff5f3;
-  --danger-hover: #fbebeb;
-  --error-soft: #fae9e8;
-  --warn: #a67c45;
-  --warn-strong: #ab8c60;
-  --warn-soft: #f0dcc3;
-  --warn-tint: #fff4e9;
-  --amber-soft: #faf5e9;
-  --amber-tint: #f7eee2;
-  --info: #6992b0;
-  --info-soft: #edf4f8;
-  --info-deep: #6580ac;
-  --violet: #9684b2;
-  --violet-soft: #f4f0f8;
-  --tone-0-bg: #e5eee9;
-  --tone-0-text: #607e6b;
-  --tone-1-bg: #edf0f8;
-  --tone-1-text: #7884a1;
-  --tone-2-bg: #f7eee2;
-  --tone-2-text: #ab8c60;
-  --tone-3-bg: #f1eaf1;
-  --tone-3-text: #977594;
-  --shadow-button: #125c3510;
-  --shadow-toast: #142d1c14;
-  --shadow-card: #142a2614;
-  --shadow-popper: #142a2624;
-  --shadow-modal: #142a2630;
-  --shadow-login: #203c2520;
-  --overlay-backdrop: #172c2859;
-  --overlay-scrim: #14261f55;
-  --overlay-login-shade: #f0f5f15c;
-  --focus-ring: #17765310;
-  --error-ring: #b45e5214;
-  --focus-outline: #82bca3;
-  --surface-translucent: #ffffffee;
-  --surface-hairline: #ffffffa0;
-  --neutral: #79858a;
-  --brand-blue: #6992b0;
-  --login-bg: #e4e9e7;
-  --avatar-bg: #e5efe8;
-  --avatar-text: #5a7963;
-  --status-ok-text: #4d805b;
+  /* 主按钮：近墨色，与翡翠点缀形成对比 */
+  --ink: #1f2328;
+  --ink-hover: #363c43;
+  --on-ink: #faf9f6;
+  --el-color-primary: #0d7a5f;
+  --el-color-primary-light-3: #4b9e87;
+  --el-color-primary-light-5: #86c1ae;
+  --el-color-primary-light-7: #bcdccf;
+  --el-color-primary-light-8: #d3e8df;
+  --el-color-primary-light-9: #e9f4ef;
+  --el-color-primary-dark-2: #0a5c48;
+  /* 中性面与线：暖纸色系 */
+  --bg-page: #f6f5f2;
+  --surface: #ffffff;
+  --surface-subtle: #faf9f6;
+  --surface-header: #faf9f6;
+  --surface-hover: #f3f1ec;
+  --surface-sunken: #f1efea;
+  --surface-input: #fbfaf7;
+  --surface-neutral: #efece6;
+  --border: #e7e4de;
+  --border-soft: #efece6;
+  --border-strong: #d9d5cc;
+  --border-input: #d5d1c8;
+  --border-green: #cfe3da;
+  --border-green-strong: #a9cbbd;
+  /* 墨色文字阶 */
+  --text-strong: #1c1b18;
+  --text: #292724;
+  --text-body: #413e38;
+  --text-soft: #55524b;
+  --text-medium: #6b675e;
+  --text-nav: #5d5951;
+  --text-muted: #807b71;
+  --text-dim: #948f84;
+  --text-faint: #a7a296;
+  --text-pale: #bab5a8;
+  /* 控件辅助 */
+  --muted: #8a857a;
+  --control-border-hover: #c3beb2;
+  --control-focus: #3d9a7d;
+  --control-placeholder: #a3a091;
+  --control-disabled-text: #96917f;
+  --label-text: #55524b;
+  /* 状态与语义色 */
+  --chart-1: #0d7a5f;
+  --chart-2: #3d9a7d;
+  --chart-3: #71bda1;
+  --chart-4: #a5d9c6;
+  --chart-5: #4a7fb5;
+  --chart-6: #cfa355;
+  --chart-track: #edebe5;
+  --status-up: #35a06f;
+  --status-up-soft: #e2f2ea;
+  --status-down: #c7a24f;
+  --status-ok-text: #2e7a58;
+  --danger: #c05346;
+  --danger-strong: #b34136;
+  --danger-soft: #f4d9d5;
+  --danger-tint: #fdf1ef;
+  --danger-hover: #f9e7e4;
+  --error-soft: #f7e6e4;
+  --warn: #a97e3f;
+  --warn-strong: #b08a4f;
+  --warn-soft: #f2e2c8;
+  --warn-tint: #fdf6ea;
+  --amber-soft: #f8f3e6;
+  --amber-tint: #f5eddb;
+  --info: #5d89a8;
+  --info-soft: #ecf3f7;
+  --info-deep: #5f7ba6;
+  --violet: #8a7aae;
+  --violet-soft: #f2eef7;
+  --tone-0-bg: #e0ede6;
+  --tone-0-text: #4a7a64;
+  --tone-1-bg: #e8ecf6;
+  --tone-1-text: #6b7699;
+  --tone-2-bg: #f5ecdc;
+  --tone-2-text: #9a7c4b;
+  --tone-3-bg: #f1e9f0;
+  --tone-3-text: #8e6f8c;
+  /* 投影与遮罩：低透明度、大扩散 */
+  --shadow-button: #1c1b1812;
+  --shadow-toast: #1c1b1814;
+  --shadow-card: #1c1b1810;
+  --shadow-popper: #1c1b1822;
+  --shadow-modal: #1c1b1830;
+  --shadow-login: #1c1b1826;
+  --overlay-backdrop: #1c1b1859;
+  --overlay-scrim: #14120f55;
+  --overlay-login-shade: #f4f2ec66;
+  --focus-ring: #0d7a5f1f;
+  --error-ring: #c0534622;
+  --focus-outline: #7fbba6;
+  --surface-translucent: #fffffff2;
+  --surface-hairline: #ffffffb3;
+  --neutral: #7a766c;
+  --brand-blue: #5d89a8;
+  --login-bg: #e9e6de;
+  --avatar-bg: #e4efe9;
+  --avatar-text: #4a7a64;
 }
 
 html.dark {
   color-scheme: dark;
   /* 项目原有的控件 token（浅色模式里已别名化，这里只覆盖没有别名的） */
-  --muted: #8d9a96;
-  --control-border-hover: #4a5450;
-  --control-focus: #5fb08c;
-  --control-placeholder: #7c8783;
-  --control-disabled-text: #77817d;
-  --label-text: #adb9b3;
-  --popper-shadow: 0 14px 38px var(--shadow-popper);
+  --muted: #848b93;
+  --control-border-hover: #454a52;
+  --control-focus: #4aa888;
+  --control-placeholder: #6f767e;
+  --control-disabled-text: #6a7178;
+  --label-text: #a3a9b0;
+  --popper-shadow: 0 12px 40px var(--shadow-popper);
+  /* 强调色：夜间提亮的翡翠 */
+  --green: #3cb88c;
+  --green-dark: #2f9a74;
+  --green-deep: #7cc7a8;
+  --green-mid: #4aa888;
+  --green-light: #79c9ab;
+  --green-pale: #2c4a3e;
+  --green-soft: #1c2f28;
+  --green-soft-hover: #22382e;
+  --green-text: #5cc79c;
+  --green-text-light: #74cfa9;
+  --green-tint: #1e2b26;
+  --text-green-dark: #b8dcd0;
+  --on-accent: #f2f7f4;
+  /* 主按钮：夜间反转为亮面 */
+  --ink: #e8eaed;
+  --ink-hover: #f5f6f7;
+  --on-ink: #17191d;
   /* Element Plus 品牌色在夜间要提亮，否则深绿在暗底上看不清 */
-  --el-color-primary: #3fae7f;
-  --el-color-primary-light-3: #348f68;
-  --el-color-primary-light-5: #2b7254;
-  --el-color-primary-light-7: #235741;
-  --el-color-primary-light-8: #1f4a38;
-  --el-color-primary-light-9: #1b3a2d;
-  --el-color-primary-dark-2: #5cc296;
-  --el-mask-color: #0f1413cc;
+  --el-color-primary: #3cb88c;
+  --el-color-primary-light-3: #319873;
+  --el-color-primary-light-5: #28795c;
+  --el-color-primary-light-7: #1f5b45;
+  --el-color-primary-light-8: #1a4a39;
+  --el-color-primary-light-9: #16392d;
+  --el-color-primary-dark-2: #5fcba2;
+  --el-mask-color: #0b0d0fcc;
   /* 让组件库的基础底色/文字跟项目 token 对齐，避免弹窗是中性灰、卡片是墨绿 */
   --el-bg-color: var(--surface);
   --el-bg-color-page: var(--bg-page);
@@ -190,85 +220,77 @@ html.dark {
   --el-text-color-placeholder: var(--control-placeholder);
   --el-disabled-bg-color: var(--surface-sunken);
   --el-fill-color-blank: var(--surface);
-  --el-border-color: #3d4644;
-  --el-border-color-light: #333b39;
-  --el-border-color-lighter: #2b3230;
-  --el-fill-color-light: #252c2a;
-  --el-fill-color-blank: #1a1f1e;
-  --el-bg-color-overlay: #202625;
-  --bg-page: #0f1413;
-  --surface: #1a1f1e;
-  --surface-subtle: #202625;
-  --surface-header: #232928;
-  --surface-hover: #252c2a;
-  --surface-sunken: #161b1a;
-  --surface-input: #202625;
-  --surface-neutral: #262c2b;
-  --border: #333b39;
-  --border-soft: #2b3230;
-  --border-strong: #3d4644;
-  --border-input: #3d4644;
-  --border-green: #31513f;
-  --border-green-strong: #43604f;
-  --text-strong: #eef2f0;
-  --text: #dde3e0;
-  --text-body: #c2cbc7;
-  --text-soft: #adb9b3;
-  --text-medium: #9dada6;
-  --text-nav: #9aa6a2;
-  --text-muted: #8d9a96;
-  --text-dim: #85948d;
-  --text-faint: #77837f;
-  --text-pale: #6a7573;
-  --text-green-dark: #cfe6da;
-  --on-accent: #f2f7f4;
-  --green: #3fae7f;
-  --green-dark: #2f8f66;
-  --green-deep: #7fb79c;
-  --green-mid: #4fa383;
-  --green-light: #6fb595;
-  --green-pale: #3a5a4c;
-  --green-soft: #23342c;
-  --green-soft-hover: #28362f;
-  --green-text: #6cbb92;
-  --green-text-light: #7cc39c;
-  --green-tint: #22322b;
-  --chart-1: #3fae7f;
-  --chart-2: #54b98a;
-  --chart-3: #69c295;
-  --chart-4: #7fc9a3;
-  --chart-5: #6a90c0;
-  --chart-6: #c9a45c;
-  --chart-track: #262d2b;
+  --el-border-color: #32363d;
+  --el-border-color-light: #26292f;
+  --el-border-color-lighter: #212429;
+  --el-fill-color-light: #212429;
+  --el-fill-color-blank: #17191d;
+  --el-bg-color-overlay: #1b1e22;
+  /* 中性面与线：石墨色系 */
+  --bg-page: #0f1113;
+  --surface: #17191d;
+  --surface-subtle: #1b1e22;
+  --surface-header: #1d2025;
+  --surface-hover: #212429;
+  --surface-sunken: #121518;
+  --surface-input: #1a1d21;
+  --surface-neutral: #202327;
+  --border: #26292f;
+  --border-soft: #212429;
+  --border-strong: #32363d;
+  --border-input: #33373e;
+  --border-green: #2a4a3e;
+  --border-green-strong: #3a6152;
+  /* 文字阶 */
+  --text-strong: #eceef1;
+  --text: #d6dade;
+  --text-body: #b9bec4;
+  --text-soft: #a3a9b0;
+  --text-medium: #9097a0;
+  --text-nav: #9aa0a8;
+  --text-muted: #848b93;
+  --text-dim: #757c85;
+  --text-faint: #686f77;
+  --text-pale: #585f67;
+  /* 状态与语义色 */
+  --chart-1: #3cb88c;
+  --chart-2: #5cc7a0;
+  --chart-3: #7fd6b5;
+  --chart-4: #a3e4cb;
+  --chart-5: #6f9cc4;
+  --chart-6: #c9a75c;
+  --chart-track: #202327;
   --status-up: #4bbd85;
-  --status-up-soft: #22322b;
-  --status-down: #d2b273;
-  --danger: #e08b7f;
-  --danger-strong: #e2706a;
-  --danger-soft: #4a2f2b;
-  --danger-tint: #2e1f1d;
-  --danger-hover: #3a2422;
-  --error-soft: #3a2422;
-  --warn: #d9ab6b;
-  --warn-strong: #d7b487;
-  --warn-soft: #4a3a24;
-  --warn-tint: #2f2618;
-  --amber-soft: #332c1f;
-  --amber-tint: #332b21;
-  --info: #7fb0d0;
-  --info-soft: #222e36;
-  --info-deep: #8ea6d0;
-  --violet: #ab9ac7;
-  --violet-soft: #2b2735;
-  --tone-0-bg: #26332d;
-  --tone-0-text: #9dc3ac;
-  --tone-1-bg: #262b36;
-  --tone-1-text: #a3aecb;
-  --tone-2-bg: #332b21;
-  --tone-2-text: #d3b184;
-  --tone-3-bg: #312833;
-  --tone-3-text: #c39cc0;
-  --shadow-button: #00000040;
+  --status-up-soft: #1d2f27;
+  --status-down: #c9a75c;
+  --status-ok-text: #6fd3a4;
+  --danger: #d97f72;
+  --danger-strong: #dd6f63;
+  --danger-soft: #402622;
+  --danger-tint: #241715;
+  --danger-hover: #311d1b;
+  --error-soft: #311d1b;
+  --warn: #cfa35e;
+  --warn-strong: #d4b183;
+  --warn-soft: #3d2f1c;
+  --warn-tint: #241d10;
+  --amber-soft: #2b251a;
+  --amber-tint: #2a241b;
+  --info: #7ba9c6;
+  --info-soft: #1e2830;
+  --info-deep: #8ba3c9;
+  --violet: #a493c4;
+  --violet-soft: #262231;
+  --tone-0-bg: #213329;
+  --tone-0-text: #8fc7a9;
+  --tone-1-bg: #222734;
+  --tone-1-text: #97a3c6;
+  --tone-2-bg: #2e2617;
+  --tone-2-text: #c9a76c;
+  --tone-3-bg: #2c2530;
+  --tone-3-text: #b795b6;
+  /* 投影与遮罩 */
+  --shadow-button: #0000004d;
   --shadow-toast: #00000066;
   --shadow-card: #00000059;
   --shadow-popper: #000000a6;
@@ -276,18 +298,17 @@ html.dark {
   --shadow-login: #000000a6;
   --overlay-backdrop: #000000a6;
   --overlay-scrim: #0000008c;
-  --overlay-login-shade: #0b0f0e8c;
-  --focus-ring: #3fae7f26;
-  --error-ring: #e08b7f26;
-  --focus-outline: #5fb08c;
-  --surface-translucent: #1a1f1ee6;
-  --surface-hairline: #ffffff1f;
-  --neutral: #9aa6a3;
-  --brand-blue: #7fb0d0;
-  --login-bg: #0d1211;
-  --avatar-bg: #26332d;
-  --avatar-text: #9dc3ac;
-  --status-ok-text: #7fd0a5;
+  --overlay-login-shade: #0b0d0f8c;
+  --focus-ring: #3cb88c33;
+  --error-ring: #d97f7233;
+  --focus-outline: #4aa888;
+  --surface-translucent: #17191df2;
+  --surface-hairline: #ffffff14;
+  --neutral: #8b9199;
+  --brand-blue: #7ba9c6;
+  --login-bg: #0c0e10;
+  --avatar-bg: #213329;
+  --avatar-text: #8fc7a9;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -349,7 +370,7 @@ select:not([class*='el-']) {
   border-radius: var(--control-radius);
   background: var(--surface);
   min-height: var(--control-height);
-  padding: 9px 12px;
+  padding: 9px 14px;
   color: var(--control-text);
   max-width: 100%;
   min-width: 0;
@@ -391,9 +412,10 @@ p {
 }
 
 h1 {
-  font-size: 27px;
-  line-height: 1.4;
-  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.35;
+  font-weight: 650;
+  letter-spacing: -0.02em;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -403,6 +425,7 @@ h2 {
   font-size: 16px;
   line-height: 1.5;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 h3 {
@@ -414,30 +437,32 @@ svg {
 }
 
 small {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 11px;
+  font-size: 13px;
   text-align: left;
 }
 
 th {
-  font-weight: 500;
-  color: var(--text-dim);
-  background: var(--surface-header);
-  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-faint);
+  background: transparent;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   white-space: nowrap;
-  padding: 13px 16px;
+  padding: 12px 18px;
   border-bottom: 1px solid var(--border);
 }
 
 td {
-  padding: 14px 16px;
+  padding: 15px 18px;
   border-bottom: 1px solid var(--border-soft);
-  color: var(--text-nav);
+  color: var(--text-body);
   line-height: 1.6;
   max-width: 350px;
   overflow-wrap: anywhere;
@@ -461,7 +486,7 @@ input.el-input__inner,
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--control-text);
 }
@@ -507,37 +532,39 @@ input:is(:-webkit-autofill, :autofill):active {
 .brand-icon {
   background: var(--green);
   color: var(--on-accent);
-  width: 37px;
-  height: 37px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
+  border-radius: 11px;
   flex-shrink: 0;
 }
 
 .avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
   background: var(--avatar-bg);
   color: var(--avatar-text);
   display: grid;
   place-items: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   flex-shrink: 0;
 }
 
 .avatar.small {
-  width: 31px;
-  height: 31px;
-  font-size: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  font-size: 11px;
 }
 
 .avatar.large {
-  width: 62px;
-  height: 62px;
-  font-size: 21px;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  font-size: 22px;
 }
 
 .tone-0 {
@@ -565,22 +592,24 @@ input:is(:-webkit-autofill, :autofill):active {
   justify-content: space-between;
   gap: 20px;
   align-items: center;
-  margin: 2px 0 27px;
+  margin: 4px 0 30px;
   min-height: 70px;
 }
 
 .eyebrow {
-  font-size: 9px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--text-faint);
-  margin-bottom: 7px;
+  margin-bottom: 8px;
 }
 
 .page-subtitle {
-  font-size: 11px;
-  color: var(--text-faint);
-  margin-top: 6px;
-  line-height: 1.8;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 7px;
+  line-height: 1.7;
 }
 
 .heading-actions {
@@ -597,23 +626,23 @@ input:is(:-webkit-autofill, :autofill):active {
   gap: 8px;
   border: 1px solid transparent;
   min-height: 40px;
-  padding: 10px 16px;
+  padding: 10px 18px;
   border-radius: var(--control-radius);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 550;
   white-space: nowrap;
   transition: background 0.15s;
 }
 
 .button.primary {
-  background: var(--green);
-  color: var(--on-accent);
-  border-color: var(--green);
-  box-shadow: 0 2px 3px var(--shadow-button);
+  background: var(--ink);
+  color: var(--on-ink);
+  border-color: var(--ink);
+  box-shadow: 0 1px 2px var(--shadow-button);
 }
 
 .button.primary:hover:not(:disabled) {
-  background: var(--green-dark);
+  background: var(--ink-hover);
 }
 
 .button.secondary {
@@ -637,17 +666,17 @@ input:is(:-webkit-autofill, :autofill):active {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 31px;
-  height: 31px;
-  border-radius: 5px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   color: var(--text-muted);
   padding: 0;
   flex-shrink: 0;
 }
 
 .icon-button:hover:not(:disabled) {
-  background: var(--green-soft-hover);
-  color: var(--green);
+  background: var(--surface-hover);
+  color: var(--text-strong);
 }
 
 .icon-button.outlined {
@@ -667,7 +696,8 @@ input:is(:-webkit-autofill, :autofill):active {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 550;
   color: var(--green);
   border: 0;
   background: transparent;
@@ -680,14 +710,14 @@ input:is(:-webkit-autofill, :autofill):active {
 }
 
 .state-block {
-  min-height: 250px;
+  min-height: 260px;
   display: flex;
   justify-content: center;
   align-items: center;
   flex-direction: column;
   gap: 15px;
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 13px;
   padding: 30px;
   text-align: center;
 }
@@ -704,7 +734,7 @@ input:is(:-webkit-autofill, :autofill):active {
 
 .heading-actions .el-button {
   min-height: 40px;
-  padding: 0 16px;
+  padding: 0 18px;
   font-size: 13px;
 }
 
@@ -713,7 +743,7 @@ input:is(:-webkit-autofill, :autofill):active {
    ══════════════════════════════════════════════════════════════════ */
 
 .salary {
-  font-weight: 500;
+  font-weight: 550;
   color: var(--text-body);
   font-variant-numeric: tabular-nums;
 }
@@ -727,18 +757,17 @@ input:is(:-webkit-autofill, :autofill):active {
 }
 
 .person strong {
-  font-size: 11px;
-  color: var(--text-body);
-  font-weight: 500;
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 550;
   display: block;
-  white-space: nowrap;
   white-space: normal;
   overflow-wrap: anywhere;
 }
 
 .person small {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-faint);
   margin-top: 3px;
 }
@@ -793,22 +822,25 @@ input:is(:-webkit-autofill, :autofill):active {
 }
 
 .data-table.el-table {
-  --el-table-header-bg-color: var(--surface-header);
+  --el-table-header-bg-color: transparent;
   --el-table-border-color: var(--border);
   --el-table-row-hover-bg-color: var(--green-tint);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .data-table.el-table td.el-table__cell {
-  padding: 13px 0;
+  padding: 14px 0;
   max-width: none;
 }
 
 .data-table.el-table th.el-table__cell {
   padding: 12px 0;
-  font-size: 12px;
-  color: var(--text-muted);
-  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  font-weight: 600;
+  background: transparent;
 }
 
 .data-table .cell {
@@ -824,7 +856,7 @@ input:is(:-webkit-autofill, :autofill):active {
    ══════════════════════════════════════════════════════════════════ */
 
 .modal-body {
-  padding: 26px;
+  padding: 28px;
 }
 
 .modal-body > p {
@@ -836,7 +868,7 @@ input:is(:-webkit-autofill, :autofill):active {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding: 16px 26px;
+  padding: 16px 28px;
   background: var(--surface-subtle);
   border-top: 1px solid var(--border);
   position: sticky;
@@ -856,7 +888,7 @@ input:is(:-webkit-autofill, :autofill):active {
 }
 
 .modal-footer .el-button--primary {
-  box-shadow: 0 2px 3px var(--shadow-button);
+  box-shadow: 0 1px 2px var(--shadow-button);
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -866,37 +898,40 @@ input:is(:-webkit-autofill, :autofill):active {
 .profile-heading {
   display: flex;
   align-items: center;
-  gap: 17px;
-  padding: 4px 0 24px;
+  gap: 18px;
+  padding: 4px 0 26px;
 }
 
 .profile-heading h2 {
   font-size: 22px;
+  letter-spacing: -0.02em;
   margin-bottom: 4px;
 }
 
 .profile-heading p {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-faint);
 }
 
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 22px;
-  padding: 24px 0 5px;
+  gap: 24px;
+  padding: 26px 0 5px;
   border-top: 1px solid var(--border);
   margin: 0;
 }
 
 .detail-grid dt {
   font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--text-faint);
   margin-bottom: 8px;
 }
 
 .detail-grid dd {
-  font-size: 12px;
+  font-size: 13px;
   margin: 0;
   color: var(--text-soft);
   overflow-wrap: anywhere;
@@ -923,6 +958,24 @@ input:is(:-webkit-autofill, :autofill):active {
   gap: 6px;
 }
 
+/* 主按钮统一为墨色面，翡翠只留在链接、选中态与状态上 */
+.el-button--primary {
+  --el-button-bg-color: var(--ink);
+  --el-button-border-color: var(--ink);
+  --el-button-text-color: var(--on-ink);
+  --el-button-hover-bg-color: var(--ink-hover);
+  --el-button-hover-border-color: var(--ink-hover);
+  --el-button-hover-text-color: var(--on-ink);
+  --el-button-active-bg-color: var(--ink-hover);
+  --el-button-active-border-color: var(--ink-hover);
+}
+
+.el-button {
+  --el-button-size: var(--control-height);
+  border-radius: var(--control-radius);
+  font-weight: 550;
+}
+
 .el-input__wrapper,
 .el-select__wrapper,
 .el-textarea__inner {
@@ -931,7 +984,7 @@ input:is(:-webkit-autofill, :autofill):active {
   border-radius: var(--control-radius);
   background: var(--surface);
   box-shadow: 0 0 0 1px var(--control-border) inset;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--control-text);
   transition:
     box-shadow 0.15s,
@@ -978,7 +1031,7 @@ input:is(:-webkit-autofill, :autofill):active {
 
 .el-select__wrapper .el-select__selected-item,
 .el-select__wrapper .el-select__placeholder {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 24px;
 }
 
@@ -1040,7 +1093,7 @@ input:is(:-webkit-autofill, :autofill):active {
 
 .el-form-item__label {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 550;
   color: var(--label-text);
   line-height: 1.5;
 }
@@ -1093,28 +1146,28 @@ input:is(:-webkit-autofill, :autofill):active {
 }
 
 .el-select-dropdown__list {
-  padding: 5px 0;
+  padding: 6px;
 }
 
 .el-select-dropdown__item {
-  height: 34px;
-  line-height: 34px;
-  margin: 1px 5px;
+  height: 36px;
+  line-height: 36px;
+  margin: 1px 0;
   padding: 0 30px 0 12px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 13px;
   color: var(--text-body);
 }
 
 .el-select-dropdown__item.is-hovering {
-  background: var(--surface-sunken);
-  color: var(--text-green-dark);
+  background: var(--surface-hover);
+  color: var(--text-strong);
 }
 
 .el-select-dropdown__item.is-selected {
   background: var(--green-soft);
   color: var(--green);
-  font-weight: 500;
+  font-weight: 550;
 }
 
 .el-select-dropdown__item.is-selected::after {
@@ -1138,19 +1191,19 @@ input:is(:-webkit-autofill, :autofill):active {
 }
 
 .el-date-picker__header {
-  padding: 10px 10px 0;
+  padding: 12px 12px 0;
 }
 
 .el-date-picker__header-label {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 550;
   color: var(--text-body);
 }
 
 .el-picker-panel__icon-btn {
   margin-top: 6px;
   padding: 4px;
-  border-radius: 5px;
+  border-radius: 6px;
   color: var(--text-muted);
 }
 
@@ -1161,7 +1214,7 @@ input:is(:-webkit-autofill, :autofill):active {
 
 .el-date-table th {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 550;
   color: var(--text-faint);
 }
 
@@ -1170,10 +1223,10 @@ input:is(:-webkit-autofill, :autofill):active {
 }
 
 .el-date-table td .el-date-table-cell .el-date-table-cell__text {
-  width: 26px;
-  height: 26px;
-  line-height: 26px;
-  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  border-radius: 8px;
   font-size: 12px;
 }
 
@@ -1189,20 +1242,29 @@ input:is(:-webkit-autofill, :autofill):active {
 .el-date-table td.current:not(.disabled) .el-date-table-cell__text {
   background: var(--green);
   color: var(--on-accent);
-  font-weight: 500;
+  font-weight: 550;
 }
 
 .el-picker-panel__footer {
-  padding: 6px 10px;
+  padding: 8px 12px;
   background: var(--surface-subtle);
   border-top: 1px solid var(--border);
   border-radius: 0 0 var(--popper-radius) var(--popper-radius);
 }
 
 .el-picker-panel__footer .el-button {
-  height: 30px;
+  height: 32px;
   padding: 0 12px;
   font-size: 12px;
+}
+
+/* 消息与头像统一成圆角矩形语言 */
+.el-message {
+  border-radius: 12px;
+}
+
+.el-avatar {
+  border-radius: 9px;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -1212,23 +1274,23 @@ input:is(:-webkit-autofill, :autofill):active {
 
 @media (min-width: 1500px) {
   td {
-    padding: 17px 20px;
+    padding: 17px 22px;
   }
 }
 
 @media (max-width: 900px) {
   .brand-icon {
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
   }
   .table-toolbar {
     flex-wrap: wrap;
   }
   h1 {
-    font-size: 24px;
+    font-size: 20px;
   }
   .page-heading {
-    margin-bottom: 23px;
+    margin-bottom: 24px;
   }
 }
 
@@ -1236,31 +1298,28 @@ input:is(:-webkit-autofill, :autofill):active {
   .page-heading {
     gap: 12px;
     min-height: 60px;
-    margin: 0 0 24px;
+    margin: 0 0 22px;
   }
   .page-subtitle {
-    font-size: 10px;
+    font-size: 12px;
   }
   .heading-actions {
     gap: 8px;
   }
   h1 {
-    font-size: 23px;
+    font-size: 19px;
     gap: 8px;
   }
   .button {
     font-size: 12px;
-    padding: 9px 13px;
+    padding: 9px 14px;
     min-height: 38px;
-  }
-  .eyebrow {
-    font-size: 8px;
   }
   .table-toolbar {
     gap: 10px;
   }
   .modal-body {
-    padding: 21px;
+    padding: 22px;
   }
   .modal-footer {
     padding: 15px 20px;

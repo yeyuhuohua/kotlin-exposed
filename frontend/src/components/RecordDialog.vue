@@ -279,14 +279,8 @@ async function save() {
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 18px;
   align-items: start;
-  gap: 22px 18px;
-}
-
-@media (max-width: 680px) {
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .form-grid :deep(.el-form-item) {
@@ -294,30 +288,31 @@ async function save() {
   min-width: 0;
 }
 
-.form-grid {
-  padding-bottom: 4px;
-}
-
 /* 字段数为奇数时最后一个占满整行，避免右侧空出一块。 */
 .form-grid > :deep(.el-form-item:last-child:nth-child(odd)) {
   grid-column: 1 / -1;
 }
 
-/* 开关字段单独成行：左侧标签、右侧开关，与项目的状态行一致。 */
+/* 开关字段做成整行状态条：沉底面板衬底，标签在左、开关在右。 */
 .form-grid > :deep(.el-form-item:has(.el-switch)) {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  padding: 13px 16px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--control-radius);
 }
 
-.form-grid > :deep(.el-form-item:has(.el-switch):not(:first-child)) {
-  border-top: 1px solid var(--border);
-  padding-top: 18px;
-}
-
-.form-grid > :deep(.el-form-item:has(.el-switch) > .el-form-item__label) {
+.form-grid > :deep(.el-form-item:has(.el-switch) .el-form-item__label) {
   margin-bottom: 0;
+}
+
+@media (max-width: 680px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

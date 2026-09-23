@@ -1,13 +1,13 @@
 <script setup lang="ts">
 /** 编辑角色共享的页面与接口授权；版本号用于阻止覆盖其他管理员的新配置。 */
 import { computed, onMounted, ref } from 'vue'
-import { LoaderCircle, Save, RefreshCw, ShieldCheck } from '@lucide/vue'
+import { LoaderCircle, RefreshCw, Save, ShieldCheck } from '@lucide/vue'
 import Modal from './Modal.vue'
 import StateBlock from './StateBlock.vue'
 import { fillTemplate, rolesPaths } from '../api/paths'
 import { api } from '../lib/api'
 import { useNotices } from '../stores/notices'
-import type { PermissionDefinition, Row, RolePermissions } from '../types'
+import type { PermissionDefinition, RolePermissions, Row } from '../types'
 
 const props = defineProps<{ role: Row }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
@@ -89,16 +89,16 @@ onMounted(load)
 </script>
 <template>
   <Modal :title="`角色权限 · ${role.name}`" wide :busy="busy" @close="emit('close')">
-    <div class="modal-body permission-editor">
+    <div class="modal-body">
       <StateBlock :loading="loading" :error="error" @retry="load" />
       <template v-if="current && !loading && !error">
         <div class="permission-summary">
-          <el-tag type="primary" effect="plain">
+          <el-tag type="primary" effect="plain" class="role-chip">
             <ShieldCheck :size="13" />
             {{ current.role.code }}
           </el-tag>
-          <span>{{ pages }} 个页面 · {{ apis }} 个接口</span>
-          <span>版本 {{ current.revision }}</span>
+          <span class="summary-stats">{{ pages }} 个页面 · {{ apis }} 个接口</span>
+          <span class="summary-revision">版本 {{ current.revision }}</span>
         </div>
         <p class="permission-impact">保存后将同时影响此角色下的所有账号，并要求它们重新登录。</p>
         <el-alert v-if="locked" title="ADMIN 角色保留全部权限，不允许修改。" type="info" :closable="false" />
@@ -123,7 +123,7 @@ onMounted(load)
                 :value="permission.code"
                 :disabled="busy || locked || !allowed(permission)"
               >
-                <span>
+                <span class="permission-text">
                   <strong>{{ permission.label }}</strong>
                   <code>{{ permission.method ? `${permission.method} ` : '' }}{{ permission.path }}</code>
                 </span>
@@ -132,7 +132,7 @@ onMounted(load)
             </fieldset>
           </el-checkbox-group>
         </div>
-        <p v-if="saveError" class="alert" role="alert">
+        <p v-if="saveError" class="save-error" role="alert">
           {{ saveError }}
           <el-button text class="text-button" :disabled="busy" @click="load">
             <RefreshCw :size="13" />
@@ -142,13 +142,8 @@ onMounted(load)
       </template>
     </div>
     <footer class="modal-footer">
-      <el-button class="button secondary" :disabled="busy" @click="emit('close')">取消</el-button>
-      <el-button
-        type="primary"
-        class="button primary"
-        :disabled="busy || loading || !!error || !current || locked"
-        @click="save"
-      >
+      <el-button :disabled="busy" @click="emit('close')">取消</el-button>
+      <el-button type="primary" :disabled="busy || loading || !!error || !current || locked" @click="save">
         <LoaderCircle v-if="busy" :size="16" class="spin" />
         <Save v-else :size="16" />
         保存权限
@@ -161,106 +156,37 @@ onMounted(load)
 /* 本组件样式：颜色只用 styles.css 里的语义 token。 */
 .permission-summary {
   display: flex;
-  gap: 14px;
   align-items: center;
+  gap: 14px;
   flex-wrap: wrap;
+  padding: 13px 16px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--control-radius);
   font-size: 13px;
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
-.permission-summary > span:last-child {
+.role-chip {
+  flex-shrink: 0;
+}
+
+.summary-stats {
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-revision {
   margin-left: auto;
+  font-size: 12px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
 }
 
 .permission-impact {
-  margin: 20px 0;
-  font-size: 13px;
+  margin: 16px 2px 18px;
+  font-size: 12px;
   line-height: 1.7;
-  color: var(--muted);
-}
-
-.permission-actions {
-  display: flex;
-  gap: 5px;
-}
-
-.permission-list {
-  max-height: 48dvh;
-  overflow-y: auto;
-  padding-right: 8px;
-}
-
-.permission-group {
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  margin: 0;
-  padding: 12px 0;
-  min-width: 0;
-}
-
-.permission-group legend {
-  padding-top: 14px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-medium);
-}
-
-.permission-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-}
-
-.permission-item > input {
-  flex-shrink: 0;
-}
-
-.permission-item > span:nth-child(2) {
-  min-width: 0;
-  flex: 1;
-}
-
-.permission-item strong {
-  display: block;
-  font-weight: 500;
-  font-size: 13px;
-}
-
-.permission-item code {
-  display: block;
-  font-size: 11px;
   color: var(--text-dim);
-  margin-top: 5px;
-  overflow-wrap: anywhere;
-}
-
-.permission-item > .badge {
-  flex-shrink: 0;
-}
-
-.permission-item:has(input:disabled) {
-  color: var(--text-dim);
-}
-
-.spin {
-  animation: spin 0.8s linear infinite;
-}
-
-.alert {
-  padding: 12px 14px;
-  border: 1px solid var(--danger-soft);
-  background: var(--danger-tint);
-  color: var(--danger);
-  border-radius: var(--control-radius);
-  font-size: 13px;
-  line-height: 1.7;
-  margin: 14px 0;
-  overflow-wrap: anywhere;
-}
-
-.alert .text-button {
-  margin-left: 8px;
 }
 
 .permission-toolbar {
@@ -278,13 +204,50 @@ onMounted(load)
   margin-bottom: 0;
 }
 
+.permission-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.permission-list {
+  max-height: 46dvh;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.permission-group {
+  border: 0;
+  margin: 0;
+  padding: 8px 0 12px;
+  min-width: 0;
+}
+
+.permission-group:not(:last-child) {
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.permission-group legend {
+  padding: 12px 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
 .permission-item.el-checkbox {
   display: flex;
-  height: auto;
+  align-items: center;
   width: 100%;
+  height: auto;
   margin: 0;
-  padding: 12px 0;
+  padding: 9px 10px;
+  border-radius: var(--control-radius);
   white-space: normal;
+}
+
+.permission-item.el-checkbox:hover {
+  background: var(--surface-subtle);
 }
 
 .permission-item :deep(.el-checkbox__label) {
@@ -296,12 +259,52 @@ onMounted(load)
   white-space: normal;
 }
 
-.permission-item :deep(.el-checkbox__label > span:first-child) {
+.permission-text {
   flex: 1;
   min-width: 0;
 }
 
-.permission-item code {
+.permission-text strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--text);
+}
+
+.permission-text code {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
   white-space: normal;
+}
+
+.permission-item.is-disabled .permission-text strong {
+  color: var(--text-dim);
+}
+
+.permission-item.is-disabled .permission-text code {
+  color: var(--text-pale);
+}
+
+.save-error {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--danger-soft);
+  background: var(--danger-tint);
+  color: var(--danger);
+  border-radius: var(--control-radius);
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.save-error .text-button {
+  margin-left: 8px;
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
 }
 </style>

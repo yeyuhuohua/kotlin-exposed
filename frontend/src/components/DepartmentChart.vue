@@ -103,12 +103,15 @@ onBeforeUnmount(() => chart?.destroy())
 
 .donut-center strong {
   font-size: 30px;
-  font-weight: 600;
-  color: var(--text);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
 }
 
 .donut-center span {
-  font-size: 9px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   color: var(--text-faint);
   margin-top: 4px;
 }
@@ -124,17 +127,17 @@ onBeforeUnmount(() => chart?.destroy())
 .chart-legend li {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin: 15px 0;
-  font-size: 10px;
+  gap: 9px;
+  margin: 14px 0;
+  font-size: 12px;
   color: var(--text-muted);
   min-width: 0;
 }
 
 .chart-legend i {
-  width: 6px;
-  height: 6px;
-  border-radius: 1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 2.5px;
   flex-shrink: 0;
 }
 
@@ -147,17 +150,15 @@ onBeforeUnmount(() => chart?.destroy())
 .chart-legend strong {
   margin-left: auto;
   color: var(--text-soft);
-  font-size: 10px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (min-width: 1500px) {
   .distribution {
     gap: 35px;
   }
-}
-
-@media (min-width: 1500px) {
   .donut-wrap {
     width: 210px;
     height: 210px;
@@ -170,25 +171,16 @@ onBeforeUnmount(() => chart?.destroy())
     flex-direction: column;
     align-items: stretch;
   }
-}
-
-@media (max-width: 1200px) {
   .donut-wrap {
     width: 155px;
     height: 155px;
     align-self: center;
   }
-}
-
-@media (max-width: 1200px) {
   .chart-legend {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0 14px;
   }
-}
-
-@media (max-width: 1200px) {
   .chart-legend li {
     margin: 6px 0;
   }
@@ -201,15 +193,9 @@ onBeforeUnmount(() => chart?.destroy())
     padding: 5px 15px;
     min-height: 180px;
   }
-}
-
-@media (max-width: 900px) {
   .chart-legend {
     display: block;
   }
-}
-
-@media (max-width: 900px) {
   .chart-legend li {
     margin: 13px 0;
   }
@@ -220,18 +206,12 @@ onBeforeUnmount(() => chart?.destroy())
     gap: 21px;
     padding: 4px 0;
   }
-}
-
-@media (max-width: 680px) {
   .donut-wrap {
     width: 156px;
     height: 156px;
   }
-}
-
-@media (max-width: 680px) {
   .chart-legend li {
-    font-size: 9px;
+    font-size: 11px;
   }
 }
 </style>

@@ -72,7 +72,7 @@ const demos = computed(() =>
 <template>
   <div class="sidebar-content">
     <RouterLink :to="auth.home" class="brand" @click="emit('navigate')">
-      <span class="brand-icon"><Users :size="23" /></span>
+      <span class="brand-icon"><Users :size="22" /></span>
       <span>
         人事工作台
         <small>HR WORKSPACE</small>
@@ -86,14 +86,6 @@ const demos = computed(() =>
       aria-label="关闭导航"
       @click="emit('navigate')"
     />
-    <div class="workspace-label">
-      <span class="workspace-symbol">H</span>
-      <div>
-        HR 组织空间
-        <small>atguigudb</small>
-      </div>
-      <span class="workspace-dot"></span>
-    </div>
     <nav class="main-nav" aria-label="主导航">
       <el-menu
         :default-active="route.path"
@@ -140,66 +132,37 @@ const demos = computed(() =>
 
 <style scoped>
 /* 本组件样式：颜色只用 styles.css 里的语义 token。 */
+.sidebar-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 27px 23px 25px;
-  font-size: 18px;
+  gap: 12px;
+  padding: 24px 20px 26px;
+  font-size: 17px;
   font-weight: 650;
+  letter-spacing: -0.01em;
   white-space: nowrap;
 }
 
 .brand small {
   display: block;
-  font-size: 9px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
   color: var(--text-faint);
   margin-top: 3px;
   font-weight: 500;
 }
 
-.workspace-label {
-  margin: 0 16px 18px;
-  padding: 11px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  display: flex;
-  gap: 9px;
-  align-items: center;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.workspace-symbol {
-  width: 29px;
-  height: 29px;
-  background: var(--green-soft-hover);
-  display: grid;
-  place-items: center;
-  border-radius: 4px;
-  color: var(--text-soft);
-  font-size: 14px;
-}
-
-.workspace-label small {
-  display: block;
-  color: var(--text-dim);
-  font-size: 10px;
-  margin-top: 2px;
-}
-
-.workspace-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--green-mid);
-  margin-left: auto;
-}
-
 .main-nav {
   overflow-y: auto;
   flex: 1;
-  padding: 0 12px 10px;
+  padding: 0 14px 12px;
   scrollbar-width: thin;
 }
 
@@ -209,10 +172,10 @@ const demos = computed(() =>
   gap: 11px;
   padding: 10px 12px;
   margin: 3px 0;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-nav);
-  min-height: 37px;
-  border-radius: 5px;
+  min-height: 40px;
+  border-radius: 10px;
   transition:
     background 0.15s,
     color 0.15s;
@@ -224,32 +187,24 @@ const demos = computed(() =>
 
 .nav-link:hover {
   background: var(--surface-hover);
-  color: var(--text-green-dark);
-}
-
-.nav-link.active {
-  color: var(--green);
-  background: var(--green-soft);
-  font-weight: 600;
-}
-
-.nav-link.active svg {
-  color: var(--green);
+  color: var(--text-strong);
 }
 
 .sidebar-bottom {
-  padding: 10px 16px 0;
+  padding: 10px 14px 0;
   border-top: 1px solid var(--border);
 }
 
 .sidebar-footnote {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 9px;
+  gap: 7px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--text-pale);
   border-top: 1px solid var(--border);
-  padding: 17px 0;
+  padding: 16px 2px;
   margin-top: 8px;
 }
 
@@ -261,68 +216,62 @@ const demos = computed(() =>
   height: 6px;
   width: 6px;
   background: var(--green-text-light);
-  border-radius: 1px;
-}
-
-@media (max-width: 1200px) {
-  .brand {
-    padding-left: 19px;
-    font-size: 16px;
-    gap: 8px;
-  }
-}
-
-@media (max-width: 900px) {
-  .brand {
-    padding: 24px 15px;
-    font-size: 15px;
-  }
-}
-
-@media (max-width: 900px) {
-  .sidebar-footnote {
-    font-size: 8px;
-  }
-}
-
-.sidebar-content {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  position: relative;
+  border-radius: 2px;
 }
 
 .workspace-menu.el-menu {
   border: 0;
   --el-menu-bg-color: transparent;
-  --el-menu-hover-bg-color: var(--green-tint);
+  --el-menu-hover-bg-color: var(--surface-hover);
   --el-menu-active-color: var(--green);
 }
 
 .workspace-menu :deep(.el-menu-item),
 .workspace-menu :deep(.el-sub-menu__title) {
-  height: 39px;
-  line-height: 39px;
+  height: 40px;
+  line-height: 40px;
   gap: 11px;
-  border-radius: 5px;
-  margin: 3px 0;
-  font-size: 12px;
+  border-radius: 10px;
+  margin: 2px 0;
+  font-size: 13px;
+  color: var(--text-nav);
+}
+
+.workspace-menu :deep(.el-menu-item:hover),
+.workspace-menu :deep(.el-sub-menu__title:hover) {
+  color: var(--text-strong);
 }
 
 .workspace-menu :deep(.el-menu-item.is-active) {
   background: var(--green-soft);
+  color: var(--green);
   font-weight: 600;
 }
 
 .workspace-menu :deep(.el-menu-item-group__title) {
   font-size: 10px;
-  color: var(--text-dim);
-  padding-top: 15px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 18px 12px 6px;
+}
+
+.workspace-menu :deep(.el-sub-menu .el-menu-item) {
+  min-width: 0;
 }
 
 .drawer-close.el-button {
   position: absolute;
-  top: 27px;
-  right: 6px;
+  top: 26px;
+  right: 8px;
+}
+
+@media (max-width: 1200px) {
+  .brand {
+    padding-left: 16px;
+    font-size: 16px;
+    gap: 10px;
+  }
 }
 </style>

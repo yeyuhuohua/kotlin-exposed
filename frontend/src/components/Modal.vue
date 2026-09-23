@@ -25,25 +25,40 @@ const emit = defineEmits<{ close: [] }>()
 /* 本组件样式：颜色只用 styles.css 里的语义 token。 */
 .app-dialog.el-dialog {
   padding: 0;
-  border-radius: 12px;
+  border-radius: var(--card-radius);
   box-shadow: 0 22px 90px var(--shadow-modal);
 }
 
 .app-dialog :deep(.el-dialog__header) {
   margin: 0;
-  padding: 21px 56px 20px 26px;
+  padding: 20px 56px 19px 26px;
   border-bottom: 1px solid var(--border);
 }
 
 .app-dialog :deep(.el-dialog__title) {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-strong);
   overflow-wrap: anywhere;
 }
 
 .app-dialog :deep(.el-dialog__headerbtn) {
-  top: 12px;
+  top: 13px;
   right: 13px;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  color: var(--text-muted);
+}
+
+.app-dialog :deep(.el-dialog__headerbtn:hover) {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.app-dialog :deep(.el-dialog__close) {
+  color: inherit;
 }
 
 .app-dialog :deep(.el-dialog__body) {
@@ -53,6 +68,9 @@ const emit = defineEmits<{ close: [] }>()
 }
 
 @media (max-width: 680px) {
+  .app-dialog :deep(.el-dialog__header) {
+    padding: 18px 52px 17px 22px;
+  }
   .app-dialog :deep(.el-dialog__body) {
     max-height: 77dvh;
   }

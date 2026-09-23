@@ -153,7 +153,15 @@ function saved() {
         </h1>
       </div>
       <div class="heading-actions">
-        <el-button :icon="RefreshCw" :loading="loading" aria-label="刷新列表" @click="refresh" />
+        <el-button
+          text
+          class="icon-button outlined"
+          aria-label="刷新列表"
+          :disabled="loading"
+          @click="refresh"
+        >
+          <RefreshCw :size="17" :class="{ spin: loading }" />
+        </el-button>
         <el-button v-if="canCreate" type="primary" :icon="Plus" @click="edit()">
           {{ resource.key === 'users' ? '新增用户' : resource.key === 'roles' ? '新增角色' : '新增记录' }}
         </el-button>
@@ -175,129 +183,132 @@ function saved() {
       show-icon
       class="role-notice"
     />
-    <div class="table-toolbar">
-      <el-input
-        v-if="!resource.paginated"
-        v-model="search"
-        class="search-control"
-        aria-label="搜索当前列表"
-        placeholder="搜索当前列表…"
-        clearable
-      >
-        <template #prefix><Search :size="17" /></template>
-      </el-input>
-      <span v-else class="table-caption">{{ resource.key === 'users' ? '组织账号' : '员工关联档案' }}</span>
-      <span class="table-caption">{{ canEdit || canCreate ? '全部记录' : '只读记录' }}</span>
-    </div>
-    <StateBlock
-      :loading="loading"
-      :error="error"
-      :empty="!loading && !error && rows.length === 0"
-      @retry="refresh"
-    />
-    <el-table v-if="!loading && !error && rows.length" :data="rows" class="data-table">
-      <el-table-column
-        v-for="column in resource.columns"
-        :key="column.key"
-        :prop="column.key"
-        :label="column.label"
-        :min-width="column.kind === 'id' ? 110 : 155"
-        :align="column.kind === 'money' ? 'right' : 'left'"
-      >
-        <template #default="{ row }">
-          <el-tag
-            v-if="column.kind === 'status'"
-            :type="row[column.key] ? 'success' : 'info'"
-            effect="light"
-            size="small"
-          >
-            {{ row[column.key] ? '已启用' : '已停用' }}
-          </el-tag>
-          <el-tag
-            v-else-if="column.kind === 'role'"
-            :type="row[column.key] === 'ADMIN' ? 'primary' : 'info'"
-            effect="plain"
-            size="small"
-          >
-            {{
-              row[column.key] === 'ADMIN'
-                ? '管理员'
-                : row[column.key] === 'READER'
-                  ? '普通用户'
-                  : row[column.key]
-            }}
-          </el-tag>
-          <span v-else-if="column.kind === 'money'">{{ money(row[column.key]) }}</span>
-          <span v-else>{{ row[column.key] ?? '—' }}</span>
-          <el-tag
-            v-if="resource.key === 'users' && column.key === 'username' && row.id === auth.user?.id"
-            type="success"
-            size="small"
-            class="self-label"
-          >
-            我
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column
-        v-if="hasActions"
-        label="操作"
-        :width="canDelete ? 150 : 125"
-        align="right"
-        fixed="right"
-      >
-        <template #default="{ row }">
-          <div class="row-actions">
-            <RouterLink v-if="canLinkEmployees" :to="`/employees?departmentId=${row.departmentId}`">
-              <el-button link :icon="ArrowUpRight" aria-label="查看部门员工" title="查看部门员工" />
-            </RouterLink>
-            <el-button
-              v-if="canEdit"
-              link
-              :icon="Pencil"
-              :disabled="resource.key === 'roles' && isProtectedRole(row.code)"
-              :aria-label="`编辑 ${row[resource.id]}`"
-              title="编辑记录"
-              @click="edit(row)"
-            />
-            <el-tooltip v-if="canDelete" :content="protectedRow(row) ? protectedReason(row) : '删除记录'">
-              <span>
-                <el-button
-                  link
-                  type="danger"
-                  :icon="Trash2"
-                  :disabled="protectedRow(row)"
-                  :aria-label="`删除 ${recordLabel(row)}`"
-                  @click="deleting = row"
-                />
-              </span>
-            </el-tooltip>
-            <el-tooltip
-              v-if="canManagePermissions"
-              :content="isProtectedRole(row.code) ? 'ADMIN 角色权限不可修改' : '配置角色的页面与接口权限'"
+    <section class="data-card">
+      <div class="table-toolbar">
+        <el-input
+          v-if="!resource.paginated"
+          v-model="search"
+          class="search-control"
+          aria-label="搜索当前列表"
+          placeholder="搜索当前列表…"
+          clearable
+        >
+          <template #prefix><Search :size="17" /></template>
+        </el-input>
+        <span v-else class="table-caption">{{ resource.key === 'users' ? '组织账号' : '员工关联档案' }}</span>
+        <span class="table-caption">{{ canEdit || canCreate ? '全部记录' : '只读记录' }}</span>
+      </div>
+      <StateBlock
+        :loading="loading"
+        :error="error"
+        :empty="!loading && !error && rows.length === 0"
+        @retry="refresh"
+      />
+      <el-table v-if="!loading && !error && rows.length" :data="rows" class="data-table">
+        <el-table-column
+          v-for="column in resource.columns"
+          :key="column.key"
+          :prop="column.key"
+          :label="column.label"
+          :min-width="column.kind === 'id' ? 110 : 155"
+          :align="column.kind === 'money' ? 'right' : 'left'"
+        >
+          <template #default="{ row }">
+            <el-tag
+              v-if="column.kind === 'status'"
+              :type="row[column.key] ? 'success' : 'info'"
+              effect="light"
+              size="small"
             >
-              <span>
-                <el-button
-                  link
-                  :icon="ShieldCheck"
-                  :disabled="isProtectedRole(row.code)"
-                  :aria-label="`角色权限 ${row.code}`"
-                  @click="permissionTarget = row"
-                />
-              </span>
-            </el-tooltip>
-          </div>
-        </template>
-      </el-table-column>
-    </el-table>
-    <Pagination
-      :page="page"
-      :page-size="pageSize"
-      :total="total"
-      :disabled="loading"
-      @update:page="page = $event"
-      @update:page-size="setPageSize"
-    />
+              {{ row[column.key] ? '已启用' : '已停用' }}
+            </el-tag>
+            <el-tag
+              v-else-if="column.kind === 'role'"
+              :type="row[column.key] === 'ADMIN' ? 'primary' : 'info'"
+              effect="plain"
+              size="small"
+            >
+              {{
+                row[column.key] === 'ADMIN'
+                  ? '管理员'
+                  : row[column.key] === 'READER'
+                    ? '普通用户'
+                    : row[column.key]
+              }}
+            </el-tag>
+            <span v-else-if="column.kind === 'money'">{{ money(row[column.key]) }}</span>
+            <span v-else>{{ row[column.key] ?? '—' }}</span>
+            <el-tag
+              v-if="resource.key === 'users' && column.key === 'username' && row.id === auth.user?.id"
+              type="success"
+              size="small"
+              class="self-label"
+            >
+              我
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          v-if="hasActions"
+          label="操作"
+          :width="canDelete ? 150 : 125"
+          align="right"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <div class="row-actions">
+              <RouterLink v-if="canLinkEmployees" :to="`/employees?departmentId=${row.departmentId}`">
+                <el-button link :icon="ArrowUpRight" aria-label="查看部门员工" title="查看部门员工" />
+              </RouterLink>
+              <el-button
+                v-if="canEdit"
+                link
+                :icon="Pencil"
+                :disabled="resource.key === 'roles' && isProtectedRole(row.code)"
+                :aria-label="`编辑 ${row[resource.id]}`"
+                title="编辑记录"
+                @click="edit(row)"
+              />
+              <el-tooltip v-if="canDelete" :content="protectedRow(row) ? protectedReason(row) : '删除记录'">
+                <span>
+                  <el-button
+                    link
+                    type="danger"
+                    :icon="Trash2"
+                    :disabled="protectedRow(row)"
+                    :aria-label="`删除 ${recordLabel(row)}`"
+                    @click="deleting = row"
+                  />
+                </span>
+              </el-tooltip>
+              <el-tooltip
+                v-if="canManagePermissions"
+                :content="isProtectedRole(row.code) ? 'ADMIN 角色权限不可修改' : '配置角色的页面与接口权限'"
+              >
+                <span>
+                  <el-button
+                    link
+                    :icon="ShieldCheck"
+                    :disabled="isProtectedRole(row.code)"
+                    :aria-label="`角色权限 ${row.code}`"
+                    @click="permissionTarget = row"
+                  />
+                </span>
+              </el-tooltip>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+      <Pagination
+        class="card-pagination"
+        :page="page"
+        :page-size="pageSize"
+        :total="total"
+        :disabled="loading"
+        @update:page="page = $event"
+        @update:page-size="setPageSize"
+      />
+    </section>
     <RecordDialog
       v-if="open && resource.fields"
       :title="`${editing ? '编辑' : '新增'}${resource.key === 'users' ? '用户' : resource.key === 'roles' ? '角色' : '记录'}`"
@@ -310,20 +321,18 @@ function saved() {
       @saved="saved"
     />
     <Modal v-if="deleting" :title="`删除${recordNoun}`" :busy="deleteBusy" @close="deleting = undefined">
-      <div class="modal-body">
-        <p>
-          确定删除「{{ recordLabel(deleting) }}」？该操作不可撤销。
-          <template v-if="resource.key === 'roles'">仍在使用的角色需要先移除其下所有账号。</template>
-        </p>
-        <el-alert v-if="deleteError" :title="deleteError" type="error" :closable="false" show-icon />
-      </div>
-      <footer class="modal-footer">
+      <p>
+        确定删除「{{ recordLabel(deleting) }}」？该操作不可撤销。
+        <template v-if="resource.key === 'roles'">仍在使用的角色需要先移除其下所有账号。</template>
+      </p>
+      <el-alert v-if="deleteError" :title="deleteError" type="error" :closable="false" show-icon />
+      <template #footer>
         <el-button :disabled="deleteBusy" @click="deleting = undefined">取消</el-button>
         <el-button type="danger" :loading="deleteBusy" @click="confirmDelete">
           <Trash2 v-if="!deleteBusy" :size="16" />
           删除
         </el-button>
-      </footer>
+      </template>
     </Modal>
     <RolePermissionEditor
       v-if="permissionTarget"
@@ -336,9 +345,30 @@ function saved() {
 
 <style scoped>
 /* 本组件样式：颜色只用 styles.css 里的语义 token。 */
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+.data-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  padding: 24px 26px;
+  min-width: 0;
+}
+
+.data-card .table-toolbar {
+  margin-bottom: 16px;
+}
+
+/* 分页与表格之间用一条分隔线收进同一张卡片。 */
+.card-pagination {
+  border-top: 1px solid var(--border);
+}
+
 .self-label {
   display: inline-flex;
-  font-size: 9px;
+  font-size: 10px;
   color: var(--green-text-light);
   background: var(--green-tint);
   border-radius: 3px;
@@ -351,9 +381,21 @@ function saved() {
   color: var(--text-faint);
 }
 
+@media (max-width: 1200px) {
+  .data-card {
+    padding: 20px;
+  }
+}
+
 @media (max-width: 900px) {
   .table-caption {
     font-size: 10px;
+  }
+}
+
+@media (max-width: 680px) {
+  .data-card {
+    padding: 18px;
   }
 }
 

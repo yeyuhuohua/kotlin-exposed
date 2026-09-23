@@ -11,7 +11,6 @@
  * - `{参数}` 是后端路由模板：发请求用 `fillPath`/`fillTemplate` 填充，判断权限直接把模板交给 `canApi`，
  *   这样实际请求地址与权限码永远来自同一个字符串。
  * - 页面路由（Vue Router 的 path、权限码 `page:<key>`）不在这里，见 `config/resources.ts`。
- * - 目录与页面的对应关系由 `tests/paths.test.ts` 守着，对不上会直接测试失败。
  */
 export * from './auth'
 export * from './dashboard'

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronRight, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun } from '@lucide/vue'
+import { LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun } from '@lucide/vue'
 import SidebarNav from './SidebarNav.vue'
 import { useAuth } from '../stores/auth'
 import { useNotices } from '../stores/notices'
@@ -72,11 +72,7 @@ async function logout() {
               @click="collapsed = !collapsed"
             />
           </el-tooltip>
-          <div class="breadcrumbs">
-            <span>工作空间</span>
-            <ChevronRight :size="14" />
-            <strong>{{ route.meta.title }}</strong>
-          </div>
+          <h1 class="page-title">{{ route.meta.title }}</h1>
         </div>
         <div class="topbar-actions">
           <RouterLink
@@ -124,10 +120,11 @@ async function logout() {
 /* 本组件样式：颜色只用 styles.css 里的语义 token。 */
 .app-shell {
   min-height: 100vh;
+  background: var(--bg-page);
 }
 
 .sidebar {
-  width: 226px;
+  width: 240px;
   position: fixed;
   inset: 0 auto 0 0;
   background: var(--surface);
@@ -143,7 +140,7 @@ async function logout() {
 }
 
 .workspace {
-  margin-left: 226px;
+  margin-left: 240px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -155,18 +152,18 @@ async function logout() {
 }
 
 .topbar {
-  height: 73px;
+  height: 64px;
   background: var(--surface-translucent);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 33px;
+  padding: 0 32px;
   gap: 18px;
   position: sticky;
   top: 0;
   z-index: 20;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
 }
 
 .topbar-left {
@@ -176,18 +173,13 @@ async function logout() {
   min-width: 0;
 }
 
-.breadcrumbs {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  font-size: 11px;
-  color: var(--text-faint);
+.page-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-strong);
   white-space: nowrap;
-}
-
-.breadcrumbs strong {
-  font-weight: 500;
-  color: var(--text-body);
+  display: block;
 }
 
 .topbar-actions {
@@ -197,7 +189,7 @@ async function logout() {
 }
 
 .topbar-divider {
-  height: 25px;
+  height: 24px;
   width: 1px;
   background: var(--border);
   margin: 0 1px;
@@ -205,34 +197,42 @@ async function logout() {
 
 .account-link {
   display: flex;
-  gap: 9px;
+  gap: 10px;
   align-items: center;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
+  color: var(--text);
+  padding: 5px 8px 5px 5px;
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+
+.account-link:hover {
+  background: var(--surface-hover);
 }
 
 .account-link small {
   display: block;
   color: var(--text-faint);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 400;
-  margin-top: 3px;
+  margin-top: 2px;
 }
 
 .main-content {
-  padding: 32px 34px 38px;
-  max-width: 1700px;
+  padding: 36px 40px 44px;
+  max-width: 1500px;
   width: 100%;
   margin: 0 auto;
   flex: 1;
 }
 
 .workspace-footer {
-  padding: 0 34px 19px;
+  padding: 0 40px 22px;
   display: flex;
   justify-content: space-between;
   color: var(--text-pale);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .mobile-menu,
@@ -248,66 +248,38 @@ async function logout() {
 
 @media (min-width: 1500px) {
   .main-content {
-    padding: 40px 50px;
+    padding: 44px 56px;
   }
 }
 
 @media (max-width: 1200px) {
   .sidebar {
-    width: 206px;
+    width: 220px;
   }
-}
-
-@media (max-width: 1200px) {
   .workspace {
-    margin-left: 206px;
+    margin-left: 220px;
   }
-}
-
-@media (max-width: 1200px) {
   .main-content {
-    padding: 28px 25px;
+    padding: 30px 28px;
   }
-}
-
-@media (max-width: 1200px) {
   .topbar {
-    padding: 0 25px;
+    padding: 0 26px;
   }
 }
 
 @media (max-width: 900px) {
   .sidebar {
-    width: 190px;
+    width: 200px;
   }
-}
-
-@media (max-width: 900px) {
   .workspace {
-    margin-left: 190px;
+    margin-left: 200px;
   }
-}
-
-@media (max-width: 900px) {
   .main-content {
-    padding: 25px 21px;
+    padding: 26px 22px;
   }
-}
-
-@media (max-width: 900px) {
   .topbar {
     padding: 0 20px;
   }
-}
-
-@media (max-width: 900px) {
-  .breadcrumbs > span,
-  .breadcrumbs > svg {
-    display: none;
-  }
-}
-
-@media (max-width: 900px) {
   .topbar-actions {
     gap: 10px;
   }
@@ -319,69 +291,36 @@ async function logout() {
     transition: transform 0.2s;
     width: 236px;
   }
-}
-
-@media (max-width: 680px) {
   .sidebar.open {
     transform: translateX(0);
   }
-}
-
-@media (max-width: 680px) {
   .mobile-menu {
     display: inline-flex !important;
   }
-}
-
-@media (max-width: 680px) {
   .workspace {
     margin-left: 0;
   }
-}
-
-@media (max-width: 680px) {
   .topbar {
-    height: 62px;
-    padding: 0 15px;
+    height: 58px;
+    padding: 0 16px;
     gap: 9px;
   }
-}
-
-@media (max-width: 680px) {
   .topbar-actions {
     gap: 7px;
     margin-left: auto;
   }
-}
-
-@media (max-width: 680px) {
-  .breadcrumbs {
-    font-size: 11px;
-  }
-}
-
-@media (max-width: 680px) {
   .topbar-divider {
     display: none;
   }
-}
-
-@media (max-width: 680px) {
   .account-link > span:last-child {
     display: none;
   }
-}
-
-@media (max-width: 680px) {
   .main-content {
-    padding: 23px 17px;
+    padding: 22px 18px;
   }
-}
-
-@media (max-width: 680px) {
   .workspace-footer {
-    padding: 0 17px 19px;
-    font-size: 9px;
+    padding: 0 18px 20px;
+    font-size: 10px;
   }
 }
 
@@ -393,6 +332,7 @@ async function logout() {
   background: var(--green-soft);
   color: var(--green-deep);
   font-size: 11px;
+  font-weight: 600;
 }
 
 @media (max-width: 680px) {
@@ -400,30 +340,35 @@ async function logout() {
     display: none;
   }
 }
+
 .connection-status {
   display: flex;
-  gap: 7px;
+  gap: 8px;
   align-items: center;
   color: var(--text-medium);
-  font-size: 10px;
+  font-size: 12px;
   white-space: nowrap;
 }
+
 .connection-status > span {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--status-up);
   box-shadow: 0 0 0 3px var(--status-up-soft);
 }
+
 .connection-status.down > span {
   background: var(--status-down);
   box-shadow: none;
 }
+
 @media (max-width: 900px) {
   .connection-status {
-    font-size: 9px;
+    font-size: 11px;
   }
 }
+
 @media (max-width: 680px) {
   .connection-status {
     display: none;

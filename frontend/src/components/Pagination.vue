@@ -24,30 +24,14 @@ defineEmits<{ 'update:page': [value: number]; 'update:pageSize': [value: number]
 /* 本组件样式：颜色只用 styles.css 里的语义 token。 */
 .pagination {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 16px;
-  padding: 20px 0;
-  font-size: 10px;
+  margin-top: 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
   color: var(--text-faint);
-}
-
-.pagination .icon-button {
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  width: 28px;
-  height: 28px;
-}
-
-@media (max-width: 680px) {
-  .pagination {
-    font-size: 9px;
-    gap: 5px;
-  }
-}
-
-.pagination {
-  justify-content: flex-end;
 }
 
 .pagination :deep(.el-pagination) {
@@ -56,21 +40,35 @@ defineEmits<{ 'update:page': [value: number]; 'update:pageSize': [value: number]
   gap: 8px;
 }
 
-/* 分页按钮和每页条数下拉统一成项目的描边小按钮，不再是 2px 圆角的灰色方块。 */
+/* 分页按钮与每页条数下拉统一成项目的描边小按钮语言，翡翠只落在选中态上。 */
 .pagination :deep(.el-pagination.is-background .btn-prev),
 .pagination :deep(.el-pagination.is-background .btn-next),
 .pagination :deep(.el-pagination.is-background .el-pager li) {
-  min-width: 28px;
-  height: 28px;
+  min-width: 30px;
+  height: 30px;
   line-height: 28px;
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--surface);
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 550;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
 }
 
-.pagination :deep(.el-pagination.is-background .el-pager li.is-active) {
+.pagination :deep(.el-pagination.is-background .btn-prev:hover:not(:disabled)),
+.pagination :deep(.el-pagination.is-background .btn-next:hover:not(:disabled)),
+.pagination :deep(.el-pagination.is-background .el-pager li:hover) {
+  color: var(--green);
+  border-color: var(--border-green-strong);
+  background: var(--green-soft-hover);
+}
+
+.pagination :deep(.el-pagination.is-background .el-pager li.is-active),
+.pagination :deep(.el-pagination.is-background .el-pager li.is-active:hover) {
   border-color: var(--green);
   background: var(--green);
   color: var(--on-accent);
@@ -83,22 +81,22 @@ defineEmits<{ 'update:page': [value: number]; 'update:pageSize': [value: number]
 }
 
 .pagination :deep(.el-pagination__sizes .el-select__wrapper) {
-  min-height: 28px;
-  padding: 1px 8px;
+  min-height: 30px;
+  padding: 1px 10px;
 }
 
 .pagination :deep(.el-pagination__sizes .el-select__wrapper .el-select__selected-item) {
-  font-size: 11px;
-  line-height: 20px;
+  font-size: 12px;
+  line-height: 22px;
 }
 
 @media (max-width: 680px) {
+  .pagination {
+    gap: 8px;
+  }
   .pagination :deep(.el-pagination) {
     justify-content: center;
   }
-}
-
-@media (max-width: 680px) {
   .pagination :deep(.el-pagination__total) {
     display: none;
   }

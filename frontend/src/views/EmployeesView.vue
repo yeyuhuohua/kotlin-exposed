@@ -164,148 +164,159 @@ async function remove() {
       <el-tab-pane name="directory" label="员工名录" />
       <el-tab-pane v-if="auth.canPage('emp-details')" name="details" label="详情视图" />
     </el-tabs>
-    <div class="table-toolbar">
-      <el-input
-        v-model="search"
-        class="search-control"
-        aria-label="搜索员工"
-        placeholder="搜索姓名或邮箱…"
-        clearable
-        @keyup.enter="applySearch"
-        @clear="applySearch"
-      >
-        <template #prefix><Search :size="17" /></template>
-        <template #append><el-button :icon="Search" aria-label="执行搜索" @click="applySearch" /></template>
-      </el-input>
-      <div class="filters">
-        <el-select
-          v-model="departmentId"
-          placeholder="全部部门"
-          aria-label="部门筛选"
+    <section class="data-card">
+      <div class="table-toolbar">
+        <el-input
+          v-model="search"
+          class="search-control"
+          aria-label="搜索员工"
+          placeholder="搜索姓名或邮箱…"
           clearable
-          filterable
-          @change="page = 1"
+          @keyup.enter="applySearch"
+          @clear="applySearch"
         >
-          <el-option
-            v-for="department in departments"
-            :key="department.departmentId"
-            :value="String(department.departmentId)"
-            :label="department.departmentName"
-          />
-        </el-select>
-        <el-select
-          v-model="jobId"
-          placeholder="全部岗位"
-          aria-label="岗位筛选"
-          clearable
-          filterable
-          @change="page = 1"
-        >
-          <el-option v-for="job in jobs" :key="job.jobId" :value="job.jobId" :label="job.jobTitle" />
-        </el-select>
-        <el-button v-if="filtered" :icon="X" aria-label="清除筛选" @click="resetFilters" />
-      </div>
-    </div>
-    <el-alert v-if="lookupError" :title="lookupError" type="error" :closable="false" show-icon />
-    <StateBlock
-      :loading="loading"
-      :error="error"
-      :empty="!loading && !error && data?.items.length === 0"
-      @retry="refresh"
-    />
-    <el-table
-      v-if="data?.items.length && !loading && !error"
-      :data="data.items"
-      row-key="employeeId"
-      class="data-table"
-    >
-      <el-table-column label="员工" min-width="250">
-        <template #default="{ row }">
-          <el-button
-            link
-            class="person person-button"
-            :disabled="!canDetail"
-            @click="detailId = row.employeeId"
+          <template #prefix><Search :size="17" /></template>
+          <template #append>
+            <el-button :icon="Search" aria-label="执行搜索" @click="applySearch" />
+          </template>
+        </el-input>
+        <div class="filters">
+          <el-select
+            v-model="departmentId"
+            placeholder="全部部门"
+            aria-label="部门筛选"
+            clearable
+            filterable
+            @change="page = 1"
           >
-            <span class="avatar" :class="`tone-${row.employeeId % 4}`">
-              {{ initials(fullName(row as Employee)) }}
-            </span>
-            <span>
-              <strong>{{ fullName(row as Employee) }}</strong>
-              <small>{{ row.email }} · #{{ row.employeeId }}</small>
-            </span>
-          </el-button>
-        </template>
-      </el-table-column>
-      <el-table-column label="部门" min-width="170">
-        <template #default="{ row }">
-          {{
-            departments.find((item) => item.departmentId === row.departmentId)?.departmentName ||
-            row.departmentId ||
-            '未分配'
-          }}
-        </template>
-      </el-table-column>
-      <el-table-column label="岗位" min-width="190">
-        <template #default="{ row }">
-          <span class="job-name">
-            {{ jobs.find((item) => item.jobId === row.jobId)?.jobTitle || row.jobId }}
-          </span>
-          <small class="cell-subtitle">{{ row.jobId }}</small>
-        </template>
-      </el-table-column>
-      <el-table-column prop="hireDate" label="入职日期" width="125" />
-      <el-table-column label="月薪" width="115" align="right">
-        <template #default="{ row }">{{ money(row.salary) }}</template>
-      </el-table-column>
-      <el-table-column
-        v-if="
-          canDetail || auth.canApi('PUT', employeesPaths.item) || auth.canApi('DELETE', employeesPaths.item)
-        "
-        label="操作"
-        width="135"
-        align="right"
-        fixed="right"
+            <el-option
+              v-for="department in departments"
+              :key="department.departmentId"
+              :value="String(department.departmentId)"
+              :label="department.departmentName"
+            />
+          </el-select>
+          <el-select
+            v-model="jobId"
+            placeholder="全部岗位"
+            aria-label="岗位筛选"
+            clearable
+            filterable
+            @change="page = 1"
+          >
+            <el-option v-for="job in jobs" :key="job.jobId" :value="job.jobId" :label="job.jobTitle" />
+          </el-select>
+          <el-button v-if="filtered" :icon="X" aria-label="清除筛选" @click="resetFilters" />
+        </div>
+      </div>
+      <el-alert
+        v-if="lookupError"
+        class="lookup-alert"
+        :title="lookupError"
+        type="error"
+        :closable="false"
+        show-icon
+      />
+      <StateBlock
+        :loading="loading"
+        :error="error"
+        :empty="!loading && !error && data?.items.length === 0"
+        @retry="refresh"
+      />
+      <el-table
+        v-if="data?.items.length && !loading && !error"
+        :data="data.items"
+        row-key="employeeId"
+        class="data-table"
       >
-        <template #default="{ row }">
-          <div class="row-actions">
-            <el-tooltip v-if="canDetail" content="查看档案">
-              <el-button
-                link
-                :icon="Eye"
-                :aria-label="`查看 ${fullName(row as Employee)}`"
-                @click="detailId = row.employeeId"
-              />
-            </el-tooltip>
-            <el-tooltip v-if="auth.canApi('PUT', employeesPaths.item)" content="编辑员工">
-              <el-button
-                link
-                :icon="Pencil"
-                :aria-label="`编辑 ${fullName(row as Employee)}`"
-                @click="edit(row as Employee)"
-              />
-            </el-tooltip>
-            <el-tooltip v-if="auth.canApi('DELETE', employeesPaths.item)" content="删除员工">
-              <el-button
-                link
-                type="danger"
-                :icon="Trash2"
-                :aria-label="`删除 ${fullName(row as Employee)}`"
-                @click="confirmDelete(row as Employee)"
-              />
-            </el-tooltip>
-          </div>
-        </template>
-      </el-table-column>
-    </el-table>
-    <Pagination
-      :page="page"
-      :page-size="pageSize"
-      :total="data?.total || 0"
-      :disabled="loading"
-      @update:page="page = $event"
-      @update:page-size="setPageSize"
-    />
+        <el-table-column label="员工" min-width="250">
+          <template #default="{ row }">
+            <el-button
+              link
+              class="person person-button"
+              :disabled="!canDetail"
+              @click="detailId = row.employeeId"
+            >
+              <span class="avatar" :class="`tone-${row.employeeId % 4}`">
+                {{ initials(fullName(row as Employee)) }}
+              </span>
+              <span>
+                <strong>{{ fullName(row as Employee) }}</strong>
+                <small>{{ row.email }} · #{{ row.employeeId }}</small>
+              </span>
+            </el-button>
+          </template>
+        </el-table-column>
+        <el-table-column label="部门" min-width="170">
+          <template #default="{ row }">
+            {{
+              departments.find((item) => item.departmentId === row.departmentId)?.departmentName ||
+              row.departmentId ||
+              '未分配'
+            }}
+          </template>
+        </el-table-column>
+        <el-table-column label="岗位" min-width="190">
+          <template #default="{ row }">
+            <span class="job-name">
+              {{ jobs.find((item) => item.jobId === row.jobId)?.jobTitle || row.jobId }}
+            </span>
+            <small class="cell-subtitle">{{ row.jobId }}</small>
+          </template>
+        </el-table-column>
+        <el-table-column prop="hireDate" label="入职日期" width="125" />
+        <el-table-column label="月薪" width="115" align="right">
+          <template #default="{ row }">{{ money(row.salary) }}</template>
+        </el-table-column>
+        <el-table-column
+          v-if="
+            canDetail || auth.canApi('PUT', employeesPaths.item) || auth.canApi('DELETE', employeesPaths.item)
+          "
+          label="操作"
+          width="135"
+          align="right"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <div class="row-actions">
+              <el-tooltip v-if="canDetail" content="查看档案">
+                <el-button
+                  link
+                  :icon="Eye"
+                  :aria-label="`查看 ${fullName(row as Employee)}`"
+                  @click="detailId = row.employeeId"
+                />
+              </el-tooltip>
+              <el-tooltip v-if="auth.canApi('PUT', employeesPaths.item)" content="编辑员工">
+                <el-button
+                  link
+                  :icon="Pencil"
+                  :aria-label="`编辑 ${fullName(row as Employee)}`"
+                  @click="edit(row as Employee)"
+                />
+              </el-tooltip>
+              <el-tooltip v-if="auth.canApi('DELETE', employeesPaths.item)" content="删除员工">
+                <el-button
+                  link
+                  type="danger"
+                  :icon="Trash2"
+                  :aria-label="`删除 ${fullName(row as Employee)}`"
+                  @click="confirmDelete(row as Employee)"
+                />
+              </el-tooltip>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+      <Pagination
+        :page="page"
+        :page-size="pageSize"
+        :total="data?.total || 0"
+        :disabled="loading"
+        @update:page="page = $event"
+        @update:page-size="setPageSize"
+      />
+    </section>
     <RecordDialog
       v-if="formOpen"
       :title="editing ? '编辑员工' : '新增员工'"
@@ -338,6 +349,29 @@ async function remove() {
 
 <style scoped>
 /* 本组件样式：颜色只用 styles.css 里的语义 token。 */
+.data-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  padding: 24px 26px;
+  min-width: 0;
+}
+
+.data-card > .table-toolbar {
+  margin-bottom: 16px;
+}
+
+.lookup-alert {
+  margin-bottom: 16px;
+}
+
+/* 分页收进卡片，与表格之间用一条分隔线断开。 */
+.data-card :deep(.pagination) {
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+  padding: 18px 2px 2px;
+}
+
 .person-button {
   border: 0;
   background: transparent;
@@ -352,7 +386,7 @@ async function remove() {
 .cell-subtitle {
   display: block;
   color: var(--text-faint);
-  font-size: 9px;
+  font-size: 11px;
   margin-top: 2px;
 }
 
@@ -365,12 +399,6 @@ async function remove() {
   align-items: center;
   gap: 9px;
   min-width: 0;
-}
-
-@media (max-width: 900px) {
-  .filters {
-    width: 100%;
-  }
 }
 
 .filters :deep(.el-select) {
@@ -396,7 +424,22 @@ async function remove() {
   min-width: 0;
 }
 
+@media (max-width: 1200px) {
+  .data-card {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 900px) {
+  .filters {
+    width: 100%;
+  }
+}
+
 @media (max-width: 680px) {
+  .data-card {
+    padding: 16px;
+  }
   .filters :deep(.el-select) {
     flex: 1;
     min-width: 0;

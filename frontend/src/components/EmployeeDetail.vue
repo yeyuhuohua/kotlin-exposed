@@ -46,6 +46,12 @@ const entries = computed(() =>
       ]
     : [],
 )
+// 档案分组只改变展示结构，条目与顺序与上面的 entries 完全一致。
+const groups = computed(() => [
+  { title: '基本档案', items: entries.value.slice(0, 4) },
+  { title: '薪酬与汇报', items: entries.value.slice(4, 7) },
+  { title: '地域归属', items: entries.value.slice(7) },
+])
 </script>
 <template>
   <Modal title="员工档案" @close="$emit('close')">
@@ -53,10 +59,14 @@ const entries = computed(() =>
       <StateBlock :loading="loading" :error="error" @retry="refresh" />
       <template v-if="data && !loading">
         <div class="profile-heading">
-          <span class="avatar large" :class="`tone-${id % 4}`">{{ initials(fullName(data.employee)) }}</span>
-          <div>
+          <span class="avatar large" :class="`tone-${id % 4}`">
+            {{ initials(fullName(data.employee)) }}
+          </span>
+          <div class="profile-title">
             <h2>{{ fullName(data.employee) }}</h2>
-            <p>{{ data.detail.jobTitle }}</p>
+            <el-tag v-if="data.detail.jobTitle" class="job-chip" type="info" effect="plain">
+              {{ data.detail.jobTitle }}
+            </el-tag>
           </div>
         </div>
         <div v-if="data.hasDetail" class="profile-tags">
@@ -69,12 +79,15 @@ const entries = computed(() =>
             {{ data.detail.city || '未分配地点' }}
           </span>
         </div>
-        <dl class="detail-grid">
-          <div v-for="[label, value] in entries" :key="String(label)">
-            <dt>{{ label }}</dt>
-            <dd>{{ value ?? '—' }}</dd>
-          </div>
-        </dl>
+        <section v-for="group in groups" :key="group.title" class="profile-group">
+          <h3 class="group-title">{{ group.title }}</h3>
+          <dl class="detail-grid">
+            <div v-for="[label, value] in group.items" :key="String(label)">
+              <dt>{{ label }}</dt>
+              <dd>{{ value ?? '—' }}</dd>
+            </div>
+          </dl>
+        </section>
       </template>
     </div>
     <footer class="modal-footer">
@@ -94,18 +107,55 @@ const entries = computed(() =>
 
 <style scoped>
 /* 本组件样式：颜色只用 styles.css 里的语义 token。 */
+.profile-title {
+  min-width: 0;
+}
+
+.job-chip {
+  margin-top: 4px;
+}
+
 .profile-tags {
   display: flex;
-  gap: 20px;
-  font-size: 12px;
-  color: var(--text-muted);
+  gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 25px;
+  margin-bottom: 22px;
 }
 
 .profile-tags > span {
   display: flex;
   align-items: center;
   gap: 7px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.profile-tags svg {
+  color: var(--text-faint);
+}
+
+.profile-group {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.profile-group + .profile-group {
+  margin-top: 22px;
+}
+
+.group-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.profile-group .detail-grid {
+  border-top: 0;
+  padding: 14px 0 4px;
 }
 </style>

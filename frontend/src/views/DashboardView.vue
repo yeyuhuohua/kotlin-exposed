@@ -8,7 +8,6 @@ import {
   ArrowRight,
   BriefcaseBusiness,
   Building2,
-  CalendarDays,
   MapPin,
   RefreshCw,
   Users,
@@ -38,6 +37,14 @@ const today = new Intl.DateTimeFormat('zh-CN', {
   day: 'numeric',
   weekday: 'long',
 }).format(new Date())
+const greeting = computed(() => {
+  const hour = new Date().getHours()
+  if (hour < 6) return '夜深了'
+  if (hour < 12) return '早上好'
+  if (hour < 14) return '中午好'
+  if (hour < 18) return '下午好'
+  return '晚上好'
+})
 const metrics = computed(() =>
   data.value
     ? [
@@ -108,18 +115,11 @@ function departmentName(id: number | null) {
   <section>
     <header class="page-heading">
       <div>
-        <p class="eyebrow">WORKSPACE OVERVIEW</p>
-        <h1>
-          工作概览
-          <span class="heading-dot"></span>
-        </h1>
-        <p class="page-subtitle">人力资源 · 组织运营</p>
+        <p class="eyebrow">{{ today }}</p>
+        <h1>{{ greeting }}，{{ auth.user?.username }}</h1>
+        <p class="page-subtitle">这是你的组织今天的最新状态</p>
       </div>
       <div class="heading-actions">
-        <span class="date-label">
-          <CalendarDays :size="16" />
-          {{ today }}
-        </span>
         <el-button
           text
           class="icon-button outlined"
@@ -157,7 +157,7 @@ function departmentName(id: number | null) {
         </component>
       </div>
       <div v-if="data.hasRoster" class="analytics-grid">
-        <section class="analytics-section">
+        <section class="analytics-card">
           <header class="section-heading">
             <div>
               <h2>部门人员分布</h2>
@@ -194,7 +194,7 @@ function departmentName(id: number | null) {
           </div>
           <StateBlock v-else empty />
         </section>
-        <section class="analytics-section composition">
+        <section class="analytics-card composition">
           <header class="section-heading">
             <div>
               <h2>组织构成</h2>
@@ -212,7 +212,7 @@ function departmentName(id: number | null) {
           </div>
         </section>
       </div>
-      <section class="data-section">
+      <section class="data-card">
         <header class="section-heading">
           <div>
             <h2>员工速览</h2>
@@ -268,20 +268,8 @@ function departmentName(id: number | null) {
 
 <style scoped>
 /* 本组件样式：颜色只用 styles.css 里的语义 token。 */
-.heading-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--green-light);
-  margin-top: 3px;
-}
-
-.date-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-muted);
-  font-size: 10px;
+.spin {
+  animation: spin 0.8s linear infinite;
 }
 
 .badge {
@@ -289,10 +277,10 @@ function departmentName(id: number | null) {
   align-items: center;
   gap: 5px;
   max-width: 100%;
-  padding: 4px 7px;
-  font-size: 10px;
-  font-weight: 500;
-  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 550;
+  border-radius: 8px;
   line-height: 1.35;
   white-space: nowrap;
 }
@@ -320,23 +308,25 @@ function departmentName(id: number | null) {
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 30px;
+  gap: 18px;
+  margin-bottom: 22px;
 }
 
 .metric {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 7px;
-  padding: 17px 19px 12px;
+  border-radius: var(--card-radius);
+  padding: 20px 22px 14px;
   min-width: 0;
   transition:
     border-color 0.15s,
+    box-shadow 0.15s,
     transform 0.15s;
 }
 
 .metric:hover {
   border-color: var(--border-green-strong);
+  box-shadow: 0 10px 28px var(--shadow-card);
   transform: translateY(-2px);
 }
 
@@ -345,15 +335,16 @@ function departmentName(id: number | null) {
   justify-content: space-between;
   align-items: center;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 550;
 }
 
 .metric-icon {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  border-radius: 5px;
+  border-radius: 9px;
 }
 
 .metric-icon.green {
@@ -377,24 +368,27 @@ function departmentName(id: number | null) {
 }
 
 .metric-value {
-  font-size: 32px;
-  font-weight: 600;
-  margin: 9px 0 16px;
+  font-size: 34px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  margin: 10px 0 16px;
   font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
 }
 
 .metric-value > span {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-faint);
   margin-left: 8px;
   font-weight: 400;
+  letter-spacing: 0;
 }
 
 .metric-foot {
   border-top: 1px solid var(--border-soft);
-  padding-top: 11px;
+  padding-top: 12px;
   color: var(--text-faint);
-  font-size: 10px;
+  font-size: 11px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -407,19 +401,17 @@ function departmentName(id: number | null) {
 .analytics-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-  gap: 33px;
-  padding: 0 0 28px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 25px;
+  gap: 22px;
+  margin-bottom: 22px;
 }
 
-.analytics-section {
+.analytics-card,
+.data-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  padding: 24px 26px;
   min-width: 0;
-}
-
-.analytics-section.composition {
-  border-left: 1px solid var(--border);
-  padding-left: 31px;
 }
 
 .section-heading {
@@ -427,18 +419,19 @@ function departmentName(id: number | null) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 .section-heading h2 {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .section-heading > div > span {
   display: block;
   color: var(--text-pale);
-  font-size: 8px;
-  margin-top: 4px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  margin-top: 5px;
 }
 
 .bar-chart {
@@ -446,20 +439,23 @@ function departmentName(id: number | null) {
 }
 
 .bar-row {
-  margin-bottom: 17px;
+  margin-bottom: 18px;
 }
 
 .bar-row > div:first-child {
   display: flex;
   align-items: center;
-  font-size: 11px;
+  font-size: 13px;
   margin-bottom: 8px;
   gap: 11px;
 }
 
 .rank {
-  font-size: 9px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
 }
 
 .bar-row a {
@@ -469,31 +465,37 @@ function departmentName(id: number | null) {
   white-space: nowrap;
 }
 
+.bar-row a:hover {
+  color: var(--green);
+}
+
 .bar-row strong {
   margin-left: auto;
   color: var(--text-soft);
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
 }
 
 .bar-row strong small {
   color: var(--text-faint);
-  font-size: 9px;
+  font-size: 11px;
+  font-weight: 400;
   margin-left: 5px;
 }
 
 .bar-track {
-  height: 7px;
+  height: 8px;
   background: var(--chart-track);
-  border-radius: 2px;
+  border-radius: 99px;
   overflow: hidden;
-  margin-left: 23px;
+  margin-left: 24px;
 }
 
 .bar-track > div {
   height: 100%;
   background: var(--chart-4);
-  border-radius: 2px;
+  border-radius: 99px;
 }
 
 .bar-row:first-child .bar-track > div {
@@ -513,104 +515,45 @@ function departmentName(id: number | null) {
   justify-content: space-between;
   align-items: center;
   border-top: 1px solid var(--border);
-  padding-top: 14px;
-  margin-top: 17px;
-  font-size: 11px;
+  padding-top: 16px;
+  margin-top: 18px;
+  font-size: 12px;
   color: var(--text-dim);
 }
 
-.salary-summary small {
-  font-size: 8px;
-  color: var(--text-faint);
-  margin-left: 5px;
-}
-
 .salary-summary strong {
-  font-size: 19px;
-  font-weight: 500;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
   color: var(--green-deep);
-}
-
-.data-section {
-  background: none;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (min-width: 1500px) {
   .metrics-grid {
-    gap: 23px;
+    gap: 24px;
   }
-}
-
-@media (min-width: 1500px) {
   .metric {
-    padding: 22px 25px 15px;
+    padding: 24px 26px 16px;
   }
-}
-
-@media (min-width: 1500px) {
-  .analytics-grid {
-    gap: 45px;
-    padding-top: 7px;
-  }
-}
-
-@media (min-width: 1500px) {
-  .analytics-section.composition {
-    padding-left: 45px;
-  }
-}
-
-@media (min-width: 1500px) {
-  .bar-row {
-    margin-bottom: 21px;
-  }
-}
-
-@media (min-width: 1500px) {
   .metric-value {
-    font-size: 38px;
+    font-size: 40px;
   }
-}
-
-@media (max-width: 1200px) {
-  .salary-summary {
-    margin-top: 12px;
-  }
-}
-
-@media (max-width: 1200px) {
-  .date-label {
-    font-size: 9px;
-  }
-}
-
-@media (max-width: 1200px) {
-  .analytics-grid {
-    gap: 23px;
-  }
-}
-
-@media (max-width: 1200px) {
-  .analytics-section.composition {
-    padding-left: 23px;
-  }
-}
-
-@media (max-width: 1200px) {
-  .metric {
-    padding: 14px;
+  .bar-row {
+    margin-bottom: 22px;
   }
 }
 
 @media (max-width: 1200px) {
   .metrics-grid {
-    gap: 12px;
+    gap: 14px;
   }
-}
-
-@media (max-width: 900px) {
-  .date-label {
-    display: none;
+  .metric {
+    padding: 16px;
+  }
+  .analytics-card,
+  .data-card {
+    padding: 20px;
   }
 }
 
@@ -618,20 +561,8 @@ function departmentName(id: number | null) {
   .metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-
-@media (max-width: 900px) {
   .analytics-grid {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 900px) {
-  .analytics-section.composition {
-    border-left: 0;
-    padding-left: 0;
-    border-top: 1px solid var(--border);
-    padding-top: 23px;
   }
 }
 
@@ -639,49 +570,15 @@ function departmentName(id: number | null) {
   .metric-value {
     font-size: 30px;
   }
-}
-
-@media (max-width: 680px) {
   .metric {
-    padding: 14px;
+    padding: 16px;
   }
-}
-
-@media (max-width: 680px) {
-  .metric-label {
-    font-size: 10px;
-  }
-}
-
-@media (max-width: 680px) {
   .metrics-grid {
-    gap: 11px;
-    margin-bottom: 26px;
+    gap: 12px;
   }
-}
-
-@media (max-width: 680px) {
   .metric-icon {
-    width: 26px;
-    height: 26px;
-  }
-}
-
-@media (max-width: 680px) {
-  .metric-foot {
-    font-size: 9px;
-  }
-}
-
-@media (max-width: 680px) {
-  .section-heading h2 {
-    font-size: 14px;
-  }
-}
-
-@media (max-width: 680px) {
-  .section-heading .text-button {
-    font-size: 10px;
+    width: 28px;
+    height: 28px;
   }
 }
 </style>
