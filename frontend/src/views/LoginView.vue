@@ -15,9 +15,10 @@ const route = useRoute()
 const form = reactive({ username: '', password: '', remember: false })
 const remembered = readCredentials()
 if (remembered) {
-  // 预填凭据但不自动勾选"记住密码"：每次登录都是一次明确的授权选择。
+  // 存有凭据说明上次明确勾选过，勾选状态一并恢复；主动取消勾选会立即清除存储。
   form.username = remembered.username
   form.password = remembered.password
+  form.remember = true
 }
 watch(
   () => form.remember,
