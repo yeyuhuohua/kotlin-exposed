@@ -17,6 +17,7 @@ export * from './dashboard'
 export * from './employees'
 export * from './system'
 export * from './docs'
+export * from './audit'
 export * from './resources'
 
 /** 用路径参数填充模板：fillPath('/employees/{id}', { id: 100 }) → '/employees/100'。 */

@@ -318,6 +318,7 @@ export const staticPages: PageDefinition[] = [
   { key: 'overview', title: '工作概览', path: '/' },
   { key: 'employees', title: '员工管理', path: '/employees' },
   { key: 'system', title: '系统状态', path: '/system' },
+  { key: 'audit', title: '审计日志', path: '/audit', adminOnly: true },
 ]
 
 /** 全部可授权的业务页面，资源页面的 key 与 path 一律取资源定义。 */

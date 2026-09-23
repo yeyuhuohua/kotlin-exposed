@@ -98,6 +98,29 @@ export interface Health {
   database: string
   redis: string
 }
+export interface LoginRecord {
+  id: number
+  username: string
+  userId: number | null
+  ip: string
+  userAgent: string | null
+  success: boolean
+  errorCode: string | null
+  createdAt: string
+}
+export interface ApiCallRecord {
+  id: number
+  userId: number | null
+  username: string | null
+  method: string
+  path: string
+  queryString: string | null
+  statusCode: number
+  durationMs: number
+  ip: string
+  userAgent: string | null
+  createdAt: string
+}
 export interface Option {
   value: string | number
   label: string

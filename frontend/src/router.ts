@@ -10,6 +10,7 @@ const pageComponents: Record<string, LazyView> = {
   overview: () => import('./views/DashboardView.vue'),
   employees: () => import('./views/EmployeesView.vue'),
   system: () => import('./views/SystemView.vue'),
+  audit: () => import('./views/AuditView.vue'),
 }
 
 export const router = createRouter({
@@ -29,7 +30,7 @@ export const router = createRouter({
           path: page.path === '/' ? '' : page.path.slice(1),
           name: page.key,
           component: pageComponents[page.key]!,
-          meta: { title: page.title, page: page.key },
+          meta: { title: page.title, adminOnly: page.adminOnly, page: page.key },
         })),
         ...resources.map((resource) => ({
           path: resource.key,

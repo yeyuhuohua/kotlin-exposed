@@ -1,5 +1,9 @@
 package com.atguigu.hr
 
+import com.atguigu.hr.audit.ApiCallAudit
+import com.atguigu.hr.audit.AuditRepository
+import com.atguigu.hr.audit.AuditService
+import com.atguigu.hr.audit.auditRoutes
 import com.atguigu.hr.auth.AuthSettings
 import com.atguigu.hr.auth.LoginThrottle
 import com.atguigu.hr.auth.TokenService
@@ -67,12 +71,16 @@ fun Application.module() {
     DatabaseFactory.connect(environment.config)
     // Complete schema/bootstrap work before accepting authenticated requests.
     val authService = runBlocking { createAuthService(environment.config, DatabaseFactory.database, tokens) }
+    if (environment.config.propertyOrNull("auth.initializeSchema")?.getString()?.toBooleanStrict() != false) {
+        runBlocking { AuditRepository.initialize() }
+    }
     installTokenAuthentication(authService, tokens)
     RedisFactory.connect(environment.config)
     val loginThrottle = loginThrottle(environment.config)
     // 进程退出时关掉 Lettuce 连接和 client
     monitor.subscribe(ApplicationStopped) {
         RedisFactory.shutdown()
+        AuditService.shutdown()
     }
 
     install(ContentNegotiation) {
@@ -165,6 +173,7 @@ fun Application.module() {
     routing {
         docsRoutes()
         route("/api") {
+            install(ApiCallAudit)
             healthRoutes()
             authPublicRoutes(authService, loginThrottle)
             authenticate("auth-jwt") {
@@ -203,6 +212,7 @@ internal fun Route.businessRoutes() {
     tDeptRoutes()
     tEmpRoutes()
     orderRoutes()
+    auditRoutes()
 }
 
 /** 本机开发来源：http(s)://localhost、127.0.0.1 或 ::1，端口不限。 */

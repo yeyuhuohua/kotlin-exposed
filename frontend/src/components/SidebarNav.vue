@@ -12,6 +12,7 @@ import {
   Globe2,
   LayoutDashboard,
   MapPin,
+  ScrollText,
   ShieldCheck,
   Users,
   X,
@@ -53,6 +54,7 @@ const groups = computed(() =>
             items: [
               { to: '/users', label: '用户管理', icon: ShieldCheck },
               { to: '/roles', label: '角色权限', icon: ShieldCheck },
+              { to: '/audit', label: '审计日志', icon: ScrollText },
             ],
           },
         ]

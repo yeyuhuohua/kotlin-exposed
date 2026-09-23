@@ -1,5 +1,6 @@
 package com.atguigu.hr.auth
 
+import com.atguigu.hr.audit.AuditService
 import com.atguigu.hr.common.api.ApiList
 import com.atguigu.hr.common.api.respondFail
 import com.atguigu.hr.common.api.respondOk
@@ -12,6 +13,7 @@ import io.ktor.server.application.install
 import io.ktor.server.auth.principal
 import io.ktor.server.plugins.origin
 import io.ktor.server.request.receive
+import io.ktor.server.request.userAgent
 import io.ktor.server.response.header
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
@@ -21,6 +23,7 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
+import java.util.Locale
 
 /** 注册认证、用户和角色管理接口，管理路由统一启用 ADMIN 限制。 */
 
@@ -30,7 +33,12 @@ fun Route.authPublicRoutes(service: AuthService, throttle: LoginThrottle) {
         call.response.header("Cache-Control", "no-store")
         val body = call.receive<LoginRequest>()
         val remoteHost = call.request.origin.remoteHost
+        val auditIp = AuditService.clientIp(call)
+        val auditUserAgent = call.request.userAgent()
+        // 记录用与登录校验相同的归一化形式，但不做合法性校验（非法用户名也要留痕）。
+        val auditUsername = body.username.trim().lowercase(Locale.ROOT).take(64)
         throttle.blockedSeconds(remoteHost, body.username)?.let { retryAfter ->
+            AuditService.recordLogin(auditUsername, null, auditIp, auditUserAgent, success = false, errorCode = "rate_limited")
             call.response.header(HttpHeaders.RetryAfter, retryAfter.toString())
             return@post call.respondFail(
                 HttpStatusCode.TooManyRequests,
@@ -40,9 +48,11 @@ fun Route.authPublicRoutes(service: AuthService, throttle: LoginThrottle) {
         try {
             val token = service.login(body)
             throttle.recordSuccess(body.username)
+            AuditService.recordLogin(auditUsername, token.user.id, auditIp, auditUserAgent, success = true, errorCode = null)
             call.respondOk(token)
         } catch (cause: AuthException) {
             throttle.recordFailure(remoteHost, body.username)
+            AuditService.recordLogin(auditUsername, null, auditIp, auditUserAgent, success = false, errorCode = "invalid_credentials")
             throw cause
         }
     }.describe {

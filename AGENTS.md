@@ -13,7 +13,7 @@
 - `src/main/kotlin/com/atguigu/hr/Application.kt`：装配插件并注册文档路由与 `/api` 下各业务路由。
 - `config/`：MySQL、Redis 连接。`DatabaseFactory.ping()` 做库连通探测。
 - `common/`：无业务含义的复用代码。`api` 为统一信封、错误码与响应扩展，`cache` 为通用 Redis 工具，`database` 为主键分配。禁止笼统的 `Utils.kt`。
-- 业务包（如 `employee/`、`department/`、`job/`、`location/`、`geography/`、`jobhistory/`、`jobgrade/`、`demo/tdept/`、`demo/temp/`、`demo/order/`、`overview/`、`health/`）：Routes → Service → Repository；缓存 key 与失效在本模块 `*Cache`；跨业务 JOIN 可引用其它包的表定义；跨业务读取调对方 Service（其内部自带缓存），不要直接用对方 Repository；需要失效/广播时只调对方 `*Cache`。
+- 业务包（如 `employee/`、`department/`、`job/`、`location/`、`geography/`、`jobhistory/`、`jobgrade/`、`demo/tdept/`、`demo/temp/`、`demo/order/`、`overview/`、`health/`、`audit/`）：Routes → Service → Repository；缓存 key 与失效在本模块 `*Cache`；跨业务 JOIN 可引用其它包的表定义；跨业务读取调对方 Service（其内部自带缓存），不要直接用对方 Repository；需要失效/广播时只调对方 `*Cache`。`audit/` 是例外：登录与接口调用日志 fire-and-forget 异步写入，查询实时读库，不进 Redis 缓存。
 - `docs/`：Knife4j / Swagger 页面与 OpenAPI JSON 兼容处理、共用示例 DSL。业务示例放在对应业务目录的 `*Examples.kt`。接口描述只写在路由的 `.describe {}` 里，KDoc 只保留一句话说明，不重复方法/路径/响应清单。
 - `src/main/resources/`：应用、日志与 CORS/限流配置示例，以及 Swagger 静态页面。运行时的 OpenAPI 由 `/v3/api-docs` 从路由生成，不再维护单独的 YAML。
 - `gradle/libs.versions.toml`：统一管理依赖和插件版本。

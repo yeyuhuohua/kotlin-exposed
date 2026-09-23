@@ -39,6 +39,7 @@ object PermissionCatalog {
         page("system", "系统状态", "/system"),
         page("users", "用户管理", "/users", true),
         page("roles", "角色权限", "/roles", true),
+        page("audit", "审计日志", "/audit", true),
         api("GET", "/overview", "查询概览（包含跨模块统计和员工样本）", "工作概览"),
         api("GET", "/employees", "分页查询员工", "员工管理"),
         api("POST", "/employees", "新增员工", "员工管理"),
@@ -81,6 +82,8 @@ object PermissionCatalog {
         api("GET", "/auth/permissions", "查询权限目录", "权限管理", true),
         api("GET", "/auth/roles/{code}/permissions", "查看角色权限", "权限管理", true),
         api("PUT", "/auth/roles/{code}/permissions", "修改角色权限", "权限管理", true),
+        api("GET", "/audit/logins", "查询登录记录", "审计日志", true),
+        api("GET", "/audit/api-calls", "查询接口调用记录", "审计日志", true),
     )
 
     val byCode = definitions.associateBy { it.code }
