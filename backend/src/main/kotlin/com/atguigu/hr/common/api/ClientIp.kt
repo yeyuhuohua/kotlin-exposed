@@ -5,6 +5,7 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.config.ApplicationConfig
 import io.ktor.server.plugins.origin
 import io.ktor.server.request.header
+import java.net.InetAddress
 
 /**
  * 真实客户端 IP 解析：登录限流与审计记录共用。
@@ -40,11 +41,13 @@ object ClientIp {
 fun normalizeIp(host: String): String {
     var value = host.trim().lowercase()
     if (value.startsWith("[") && value.endsWith("]")) value = value.substring(1, value.length - 1)
-    return when (value) {
-        "localhost" -> "127.0.0.1"
-        "0:0:0:0:0:0:0:1" -> "::1"
-        else -> value
+    if (value == "localhost") return "127.0.0.1"
+    if (':' in value) {
+        // IPv6 按地址值展开成完整形式再比较：2001:db8::10 与 2001:db8:0:0:0:0:0:10 相等。
+        // getByName 对合法的地址字面量不做 DNS 查询；非法输入原样返回。
+        return runCatching { InetAddress.getByName(value).hostAddress }.getOrDefault(value)
     }
+    return value
 }
 
 /** X-Forwarded-For 从左到右是客户端到最近代理；从右往左跳过可信代理，第一个不可信跳即真实客户端。 */

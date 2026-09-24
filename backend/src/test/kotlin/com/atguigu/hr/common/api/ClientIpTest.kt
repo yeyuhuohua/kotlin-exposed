@@ -68,4 +68,26 @@ class ClientIpTest {
             resolveClientIp(direct = "127.0.0.1", forwardedFor = "198.51.100.7", trusted = setOf("LOCALHOST")),
         )
     }
+
+    @Test
+    fun `IPv6 压缩形式与展开形式按地址值相等`() {
+        // Netty 返回展开形式 2001:db8:0:0:0:0:0:10，配置里写压缩形式 2001:db8::10 也必须匹配
+        assertEquals(
+            "198.51.100.7",
+            resolveClientIp(
+                direct = "2001:db8:0:0:0:0:0:10",
+                forwardedFor = "198.51.100.7",
+                trusted = setOf("2001:db8::10"),
+            ),
+        )
+        assertEquals(
+            "2001:db8:0:0:0:0:0:10",
+            resolveClientIp(
+                direct = "2001:db8:0:0:0:0:0:10",
+                forwardedFor = "198.51.100.7",
+                trusted = setOf("2001:db8::99"),
+            ),
+            "地址不同的 IPv6 代理不可信",
+        )
+    }
 }

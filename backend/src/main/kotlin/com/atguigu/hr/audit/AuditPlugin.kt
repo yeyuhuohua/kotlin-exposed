@@ -4,6 +4,7 @@ import com.atguigu.hr.auth.UserPrincipal
 import com.atguigu.hr.common.api.clientIp
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.createApplicationPlugin
+import io.ktor.server.application.hooks.ResponseSent
 import io.ktor.server.auth.principal
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
@@ -38,7 +39,8 @@ class ApiCallAuditConfig {
 private val auditStartKey = AttributeKey<Long>("ApiCallAuditStartNs")
 
 /**
- * /api 调用审计：onCall 记起始时间，onCallRespond 收集方法、路径、状态、耗时与身份。
+ * /api 调用审计：onCall 记起始时间，响应发送后（ResponseSent，状态码已包含
+ * 内容协商等转换的最终结果）记录方法、路径、状态、耗时与身份。
  * 装在 route("/api") 内，文档页与静态资源不经过它。
  */
 val ApiCallAudit = createApplicationPlugin("ApiCallAudit", ::ApiCallAuditConfig) {
@@ -48,10 +50,10 @@ val ApiCallAudit = createApplicationPlugin("ApiCallAudit", ::ApiCallAuditConfig)
             call.attributes.put(auditStartKey, System.nanoTime())
         }
     }
-    onCallRespond { call ->
+    on(ResponseSent) { call ->
         // 记录后立即移除起始标记：即使响应被重复提交（如认证 challenge 后又有人 respond），
         // 一次请求也只产生一条审计记录。
-        val startedNs = call.attributes.getOrNull(auditStartKey) ?: return@onCallRespond
+        val startedNs = call.attributes.getOrNull(auditStartKey) ?: return@on
         call.attributes.remove(auditStartKey)
         sink(call.toAuditInput(startedNs))
     }

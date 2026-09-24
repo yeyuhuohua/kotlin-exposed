@@ -71,6 +71,15 @@ class ApiCallAuditPluginTest {
     }
 
     @Test
+    fun `记录内容协商后的最终状态码`() = testApplication {
+        application(testModule())
+        // 只支持 JSON 的接口收到 XML 的 Accept 会被内容协商转成 406，审计必须记录 406 而不是 200。
+        val response = client.get("/api/demo") { header(HttpHeaders.Accept, "application/xml") }
+        assertEquals(406, response.status.value)
+        assertEquals(406, collected.single().statusCode)
+    }
+
+    @Test
     fun `路径过滤纯逻辑`() {
         assertTrue(shouldAuditApiCall("/api/employees"))
         assertTrue(!shouldAuditApiCall("/api/health"))
