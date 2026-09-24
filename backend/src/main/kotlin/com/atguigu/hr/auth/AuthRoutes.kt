@@ -2,6 +2,7 @@ package com.atguigu.hr.auth
 
 import com.atguigu.hr.audit.AuditService
 import com.atguigu.hr.common.api.ApiList
+import com.atguigu.hr.common.api.clientIp
 import com.atguigu.hr.common.api.respondFail
 import com.atguigu.hr.common.api.respondOk
 import com.atguigu.hr.docs.requestExample
@@ -11,7 +12,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.install
 import io.ktor.server.auth.principal
-import io.ktor.server.plugins.origin
 import io.ktor.server.request.receive
 import io.ktor.server.request.userAgent
 import io.ktor.server.response.header
@@ -32,13 +32,13 @@ fun Route.authPublicRoutes(service: AuthService, throttle: LoginThrottle) {
     post("/auth/login") {
         call.response.header("Cache-Control", "no-store")
         val body = call.receive<LoginRequest>()
-        val remoteHost = call.request.origin.remoteHost
-        val auditIp = AuditService.clientIp(call)
+        // 限流与审计用同一个真实来源：经可信代理解析 X-Forwarded-For，直连伪造不生效。
+        val clientIp = call.clientIp()
         val auditUserAgent = call.request.userAgent()
         // 记录用与登录校验相同的归一化形式，但不做合法性校验（非法用户名也要留痕）。
         val auditUsername = body.username.trim().lowercase(Locale.ROOT).take(64)
-        throttle.blockedSeconds(remoteHost, body.username)?.let { retryAfter ->
-            AuditService.recordLogin(auditUsername, null, auditIp, auditUserAgent, success = false, errorCode = "rate_limited")
+        throttle.blockedSeconds(clientIp, body.username)?.let { retryAfter ->
+            AuditService.recordLogin(auditUsername, null, clientIp, auditUserAgent, success = false, errorCode = "rate_limited")
             call.response.header(HttpHeaders.RetryAfter, retryAfter.toString())
             return@post call.respondFail(
                 HttpStatusCode.TooManyRequests,
@@ -48,11 +48,11 @@ fun Route.authPublicRoutes(service: AuthService, throttle: LoginThrottle) {
         try {
             val token = service.login(body)
             throttle.recordSuccess(body.username)
-            AuditService.recordLogin(auditUsername, token.user.id, auditIp, auditUserAgent, success = true, errorCode = null)
+            AuditService.recordLogin(auditUsername, token.user.id, clientIp, auditUserAgent, success = true, errorCode = null)
             call.respondOk(token)
         } catch (cause: AuthException) {
-            throttle.recordFailure(remoteHost, body.username)
-            AuditService.recordLogin(auditUsername, null, auditIp, auditUserAgent, success = false, errorCode = "invalid_credentials")
+            throttle.recordFailure(clientIp, body.username)
+            AuditService.recordLogin(auditUsername, null, clientIp, auditUserAgent, success = false, errorCode = "invalid_credentials")
             throw cause
         }
     }.describe {

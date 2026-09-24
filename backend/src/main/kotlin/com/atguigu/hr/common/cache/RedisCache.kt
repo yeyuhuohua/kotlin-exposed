@@ -188,6 +188,8 @@ object RedisCache {
         if (System.nanoTime() < group.recoverNotBefore.get()) return false
         return group.lock.withLock {
             if (!group.version.get().dirty) return@withLock true
+            // 排队期间可能已有请求清理失败并设置了退避，拿到锁后必须复查，否则串行重试拖慢请求
+            if (System.nanoTime() < group.recoverNotBefore.get()) return@withLock false
             val cleaned = cacheAttempt("recover ${group.name}") { recover(group) }
             if (cleaned == null) group.recoverNotBefore.set(System.nanoTime() + RECOVER_BACKOFF_MS * 1_000_000)
             cleaned == true

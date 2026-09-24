@@ -1,9 +1,5 @@
 package com.atguigu.hr.audit
 
-import io.ktor.http.HttpHeaders
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.plugins.origin
-import io.ktor.server.request.header
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -14,18 +10,11 @@ import org.slf4j.LoggerFactory
 /**
  * 审计日志的异步写入入口：fire-and-forget，写入失败只记日志，绝不影响请求。
  * 查询直接透传仓储（审计数据实时变化，不进 Redis 缓存）。
+ * 客户端 IP 由 common/api/ClientIp 按可信代理解析，与登录限流共用同一来源。
  */
 object AuditService {
     private val log = LoggerFactory.getLogger(AuditService::class.java)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    /** 反向代理场景取 X-Forwarded-For 首跳，否则用直连地址；不全局改 origin 语义。 */
-    fun clientIp(call: ApplicationCall): String =
-        call.request.header(HttpHeaders.XForwardedFor)
-            ?.substringBefore(',')
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
-            ?: call.request.origin.remoteHost
 
     fun recordLogin(
         username: String,

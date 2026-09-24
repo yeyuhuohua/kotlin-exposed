@@ -13,6 +13,7 @@ import com.atguigu.hr.auth.authPublicRoutes
 import com.atguigu.hr.auth.createAuthService
 import com.atguigu.hr.auth.installTokenAuthentication
 import com.atguigu.hr.auth.withBusinessPermissions
+import com.atguigu.hr.common.api.ClientIp
 import com.atguigu.hr.common.api.respondFail
 import com.atguigu.hr.common.database.isConstraintConflict
 import com.atguigu.hr.config.DatabaseFactory
@@ -69,6 +70,7 @@ fun main(args: Array<String>) = EngineMain.main(args)
 fun Application.module() {
     val tokens = TokenService(AuthSettings.from(environment.config))
     DatabaseFactory.connect(environment.config)
+    ClientIp.configure(environment.config)
     // Complete schema/bootstrap work before accepting authenticated requests.
     val authService = runBlocking { createAuthService(environment.config, DatabaseFactory.database, tokens) }
     if (environment.config.propertyOrNull("auth.initializeSchema")?.getString()?.toBooleanStrict() != false) {

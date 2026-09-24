@@ -1,6 +1,7 @@
 package com.atguigu.hr.audit
 
 import com.atguigu.hr.auth.UserPrincipal
+import com.atguigu.hr.common.api.clientIp
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.auth.principal
@@ -63,7 +64,7 @@ internal fun ApplicationCall.toAuditInput(startedNs: Long): ApiCallRecordInput {
         queryString = request.queryString().ifBlank { null },
         statusCode = response.status()?.value ?: 0,
         durationMs = (System.nanoTime() - startedNs) / 1_000_000,
-        ip = AuditService.clientIp(this),
+        ip = this.clientIp(),
         userAgent = request.userAgent(),
     )
 }

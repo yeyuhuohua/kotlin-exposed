@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** 按已获接口权限组合基本档案与关联详情，不为缺失的授权发起额外查询。 */
-import { computed, onMounted } from 'vue'
+import { computed, watch } from 'vue'
 import { Building2, MapPin, Pencil } from '@lucide/vue'
 import Modal from './Modal.vue'
 import StateBlock from './StateBlock.vue'
@@ -26,7 +26,8 @@ const { data, loading, error, refresh } = useResource(async (signal) => {
   if (!record) throw new Error('没有员工档案接口的访问权限')
   return { employee: record, detail: (detail || {}) as Row, hasDetail: detail !== null }
 })
-onMounted(refresh)
+// 弹窗复用组件实例，ID 变化必须重新加载；useResource 会取消过时的旧请求。
+watch(() => props.id, refresh, { immediate: true })
 const entries = computed(() =>
   data.value
     ? [

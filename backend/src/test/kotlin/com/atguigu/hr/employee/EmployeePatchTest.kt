@@ -63,4 +63,50 @@ class EmployeePatchTest {
         assertFailsWith<IllegalArgumentException> { parse("""{"departmentId": 1.5}""") }
         assertFailsWith<IllegalArgumentException> { parse("""{"phoneNumber": 123}""") }
     }
+
+    @Test
+    fun `薪资不能为负`() {
+        val error = assertFailsWith<IllegalArgumentException> { parse("""{"salary": -100}""") }
+        assertTrue(error.message!!.contains("salary"))
+        assertEquals(0.0, parse("""{"salary": 0}""").salary)
+    }
+
+    @Test
+    fun `提成比例必须在 0 到 1 之间`() {
+        assertFailsWith<IllegalArgumentException> { parse("""{"commissionPct": 2}""") }
+        assertFailsWith<IllegalArgumentException> { parse("""{"commissionPct": -0.1}""") }
+        assertEquals(0.35, parse("""{"commissionPct": 0.35}""").commissionPct)
+    }
+
+    @Test
+    fun `新增与更新请求体的数值约束`() {
+        assertEquals(
+            "salary must be a non-negative number",
+            EmployeeUpdateRequest(salary = -1.0).contentError(),
+        )
+        assertNull(EmployeeUpdateRequest(salary = 5000.0).contentError())
+        assertEquals(
+            "commissionPct must be between 0 and 1",
+            createRequest(commissionPct = 1.5).contentError(),
+        )
+        assertEquals(
+            "salary must be a non-negative number",
+            createRequest(salary = -0.01).contentError(),
+        )
+        assertNull(createRequest(salary = 5000.0, commissionPct = 0.2).contentError())
+        assertEquals(
+            "lastName, email, hireDate, jobId are required",
+            createRequest().copy(lastName = " ").contentError(),
+        )
+    }
+
+    private fun createRequest(salary: Double? = null, commissionPct: Double? = null) = EmployeeCreateRequest(
+        employeeId = 999,
+        lastName = "Hire",
+        email = "NHIRE999",
+        hireDate = "2026-09-18",
+        jobId = "IT_PROG",
+        salary = salary,
+        commissionPct = commissionPct,
+    )
 }

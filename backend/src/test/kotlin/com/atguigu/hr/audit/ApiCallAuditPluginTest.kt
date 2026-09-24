@@ -56,10 +56,11 @@ class ApiCallAuditPluginTest {
     }
 
     @Test
-    fun `优先采用 X-Forwarded-For 首跳作为客户端 IP`() = testApplication {
+    fun `直连不可信时忽略调用方自带的 X-Forwarded-For`() = testApplication {
         application(testModule())
+        // 测试客户端的直连地址 localhost 不在默认可信代理里，转发头必须被忽略。
         client.get("/api/demo") { header(HttpHeaders.XForwardedFor, "203.0.113.7, 10.0.0.2") }
-        assertEquals("203.0.113.7", collected.single().ip)
+        assertEquals("localhost", collected.single().ip)
     }
 
     @Test

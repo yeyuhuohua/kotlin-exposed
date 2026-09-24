@@ -47,9 +47,7 @@ fun Route.employeeRoutes() {
     /** 新增员工并刷新缓存。employeeId 由调用方提供。 */
     post("/employees") {
         val body = call.receive<EmployeeCreateRequest>()
-        if (body.lastName.isBlank() || body.email.isBlank() || body.jobId.isBlank() || body.hireDate.isBlank()) {
-            return@post call.respondFail(HttpStatusCode.BadRequest, "lastName, email, hireDate, jobId are required")
-        }
+        body.contentError()?.let { return@post call.respondFail(HttpStatusCode.BadRequest, it) }
         if (runCatching { LocalDate.parse(body.hireDate) }.isFailure) {
             return@post call.respondFail(HttpStatusCode.BadRequest, "invalid hireDate, expected yyyy-MM-dd")
         }
@@ -74,7 +72,7 @@ fun Route.employeeRoutes() {
             message = "created",
             okDescription = "创建成功",
             fails = arrayOf(
-                HttpStatusCode.BadRequest to "lastName, email, hireDate, jobId are required",
+                HttpStatusCode.BadRequest to "lastName, email, hireDate, jobId are required / salary must be a non-negative number",
                 HttpStatusCode.Conflict to "create failed",
             ),
         )

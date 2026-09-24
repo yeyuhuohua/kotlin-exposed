@@ -76,8 +76,26 @@ data class EmployeeUpdateRequest(
     fun hasUpdates(): Boolean =
         salary != null || departmentId != null || jobId != null || phoneNumber != null
 
-    fun contentError(): String? =
-        if (jobId != null && jobId.isBlank()) "jobId must not be blank" else null
+    fun contentError(): String? {
+        if (jobId != null && jobId.isBlank()) return "jobId must not be blank"
+        salary?.let { value -> if (salaryError(value) != null) return salaryError(value) }
+        return null
+    }
+}
+
+/** 薪资与提成的取值约束与前端表单一致：薪资非负，提成在 0~1；NaN/Infinity 一律拒绝。 */
+internal fun salaryError(value: Double): String? =
+    if (value.isFinite() && value >= 0) null else "salary must be a non-negative number"
+
+internal fun commissionPctError(value: Double): String? =
+    if (value.isFinite() && value in 0.0..1.0) null else "commissionPct must be between 0 and 1"
+
+internal fun validateSalary(value: Double) {
+    salaryError(value)?.let { throw IllegalArgumentException(it) }
+}
+
+internal fun validateCommissionPct(value: Double) {
+    commissionPctError(value)?.let { throw IllegalArgumentException(it) }
 }
 
 /** POST /api/employees。employeeId 由调用方提供。 */@Serializable
@@ -105,7 +123,16 @@ data class EmployeeCreateRequest(
     val managerId: Int? = null,
     @JsonSchema.Description("所属部门 ID")
     val departmentId: Int? = null,
-)
+) {
+    fun contentError(): String? {
+        if (lastName.isBlank() || email.isBlank() || jobId.isBlank() || hireDate.isBlank()) {
+            return "lastName, email, hireDate, jobId are required"
+        }
+        salary?.let { value -> salaryError(value)?.let { return it } }
+        commissionPct?.let { value -> commissionPctError(value)?.let { return it } }
+        return null
+    }
+}
 
 /** 未分配部门的显示名，聚合查询和前端展示共用。 */
 const val UNASSIGNED_DEPARTMENT = "未分配部门"
@@ -171,8 +198,8 @@ data class EmployeePatch(
             return EmployeePatch(
                 present = body.keys.toSet(),
                 firstName = body.text("firstName"),
-                salary = body.number("salary"),
-                commissionPct = body.number("commissionPct"),
+                salary = body.number("salary")?.also { validateSalary(it) },
+                commissionPct = body.number("commissionPct")?.also { validateCommissionPct(it) },
                 departmentId = body.integer("departmentId"),
                 managerId = body.integer("managerId"),
                 phoneNumber = body.text("phoneNumber"),
