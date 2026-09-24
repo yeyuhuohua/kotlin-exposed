@@ -28,22 +28,26 @@ const { data, loading, error, refresh } = useResource(async (signal) => {
 })
 // 弹窗复用组件实例，ID 变化必须重新加载；useResource 会取消过时的旧请求。
 watch(() => props.id, refresh, { immediate: true })
+/** 新数据未就位（或返回的不是当前 ID）时为 undefined，加载期间不暴露上一位员工。 */
+const current = computed(() => (data.value?.employee.employeeId === props.id ? data.value : undefined))
 const entries = computed(() =>
-  data.value
+  current.value
     ? [
-        ['员工编号', data.value.employee.employeeId],
-        ['入职日期', data.value.employee.hireDate],
-        ['邮箱账号', data.value.employee.email],
-        ['联系电话', data.value.employee.phoneNumber],
-        ['月薪', money(data.value.employee.salary)],
+        ['员工编号', current.value.employee.employeeId],
+        ['入职日期', current.value.employee.hireDate],
+        ['邮箱账号', current.value.employee.email],
+        ['联系电话', current.value.employee.phoneNumber],
+        ['月薪', money(current.value.employee.salary)],
         [
           '提成比例',
-          data.value.employee.commissionPct === null ? null : `${data.value.employee.commissionPct * 100}%`,
+          current.value.employee.commissionPct === null
+            ? null
+            : `${current.value.employee.commissionPct * 100}%`,
         ],
-        ['直属经理编号', data.value.employee.managerId],
-        ['国家', data.value.detail.countryName],
-        ['区域', data.value.detail.regionName],
-        ['州 / 省', data.value.detail.stateProvince],
+        ['直属经理编号', current.value.employee.managerId],
+        ['国家', current.value.detail.countryName],
+        ['区域', current.value.detail.regionName],
+        ['州 / 省', current.value.detail.stateProvince],
       ]
     : [],
 )
@@ -58,26 +62,26 @@ const groups = computed(() => [
   <Modal title="员工档案" @close="$emit('close')">
     <div class="modal-body">
       <StateBlock :loading="loading" :error="error" @retry="refresh" />
-      <template v-if="data && !loading">
+      <template v-if="current && !loading">
         <div class="profile-heading">
           <span class="avatar large" :class="`tone-${id % 4}`">
-            {{ initials(fullName(data.employee)) }}
+            {{ initials(fullName(current.employee)) }}
           </span>
           <div class="profile-title">
-            <h2>{{ fullName(data.employee) }}</h2>
-            <el-tag v-if="data.detail.jobTitle" class="job-chip" type="info" effect="plain">
-              {{ data.detail.jobTitle }}
+            <h2>{{ fullName(current.employee) }}</h2>
+            <el-tag v-if="current.detail.jobTitle" class="job-chip" type="info" effect="plain">
+              {{ current.detail.jobTitle }}
             </el-tag>
           </div>
         </div>
-        <div v-if="data.hasDetail" class="profile-tags">
+        <div v-if="current.hasDetail" class="profile-tags">
           <span>
             <Building2 :size="15" />
-            {{ data.detail.departmentName || '未分配部门' }}
+            {{ current.detail.departmentName || '未分配部门' }}
           </span>
           <span>
             <MapPin :size="15" />
-            {{ data.detail.city || '未分配地点' }}
+            {{ current.detail.city || '未分配地点' }}
           </span>
         </div>
         <section v-for="group in groups" :key="group.title" class="profile-group">
@@ -95,9 +99,11 @@ const groups = computed(() => [
       <el-button class="button secondary" @click="$emit('close')">关闭</el-button>
       <el-button
         type="primary"
-        v-if="(auth.canApi('PUT', employeesPaths.item) || auth.canApi('PATCH', employeesPaths.item)) && data"
+        v-if="
+          (auth.canApi('PUT', employeesPaths.item) || auth.canApi('PATCH', employeesPaths.item)) && current
+        "
         class="button primary"
-        @click="$emit('edit', data.employee)"
+        @click="$emit('edit', current!.employee)"
       >
         <Pencil :size="15" />
         编辑资料
