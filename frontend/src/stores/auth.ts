@@ -37,12 +37,17 @@ export const useAuth = defineStore('auth', () => {
   async function restore() {
     if (!initialized)
       initialized = (async () => {
-        if (!readSession()) return
+        const token = readSession()?.token
+        if (!token) return
         try {
-          user.value = await api<User>(authPaths.me)
+          const fresh = await api<User>(authPaths.me)
+          // 请求期间已切换账号：旧会话的结果不能覆盖新身份。
+          if (readSession()?.token !== token) return
+          user.value = fresh
           refreshedAt = Date.now()
           scheduleExpiry()
         } catch (error) {
+          if (readSession()?.token !== token) return
           // 只有 401 说明会话真的失效；网络抖动或后端重启时保留会话，允许下次导航重试。
           if (error instanceof ApiError && error.status === 401) return clear()
           initialized = undefined
@@ -64,14 +69,18 @@ export const useAuth = defineStore('auth', () => {
   }
   /** 短时间内复用上一次结果；权限被服务端拒绝时用 force 立即重新拉取。 */
   async function refreshUser(options: { force?: boolean } = {}) {
-    if (!readSession()) return
+    const token = readSession()?.token
+    if (!token) return
     if (!options.force && Date.now() - refreshedAt < REFRESH_INTERVAL_MS) return
     try {
-      user.value = await api<User>(authPaths.me)
+      const fresh = await api<User>(authPaths.me)
+      // 请求期间已切换账号：旧会话的结果不能覆盖新身份，401 也不能清掉新会话。
+      if (readSession()?.token !== token) return
+      user.value = fresh
       refreshedAt = Date.now()
     } catch (error) {
       // 401 由 hr:unauthorized 事件统一登出；网络错误保留现有用户，下个周期再试。
-      if (error instanceof ApiError && error.status === 401) clear()
+      if (error instanceof ApiError && error.status === 401 && readSession()?.token === token) clear()
     }
   }
   async function logout() {

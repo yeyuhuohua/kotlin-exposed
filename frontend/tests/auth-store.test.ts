@@ -80,4 +80,47 @@ describe('auth store 会话恢复', () => {
     expect(auth.user).toBeNull()
     expect(readSession()).toBeNull()
   })
+
+  it('请求期间切换到新账号后，旧请求的成功结果不覆盖新身份', async () => {
+    saveSession('token-a', 600)
+    let release!: (value: User) => void
+    mockedApi.mockImplementationOnce(() => new Promise<User>((resolve) => (release = resolve)))
+    const auth = await store()
+    const pending = auth.restore()
+    // /auth/me 尚未返回时，用户已登录另一个账号。
+    saveSession('token-b', 600)
+    release({ ...user, username: 'alice' })
+    await pending
+    expect(auth.user).toBeNull()
+    expect(readSession()?.token).toBe('token-b')
+  })
+
+  it('请求期间切换到新账号后，旧请求的 401 不清除新会话', async () => {
+    saveSession('token-a', 600)
+    let reject!: (reason: unknown) => void
+    mockedApi.mockImplementationOnce(() => new Promise<User>((_, r) => (reject = r)))
+    const auth = await store()
+    const pending = auth.restore()
+    saveSession('token-b', 600)
+    reject(new ApiError(401, '登录已失效'))
+    await pending
+    expect(readSession()?.token).toBe('token-b')
+  })
+
+  it('refreshUser 的旧 401 响应不清除新登录的会话', async () => {
+    saveSession('token-a', 600)
+    mockedApi.mockResolvedValueOnce(user)
+    const auth = await store()
+    await auth.restore()
+    expect(auth.user?.username).toBe('reader')
+
+    let reject!: (reason: unknown) => void
+    mockedApi.mockImplementationOnce(() => new Promise<User>((_, r) => (reject = r)))
+    const pending = auth.refreshUser({ force: true })
+    saveSession('token-b', 600)
+    reject(new ApiError(401, '登录已失效'))
+    await pending
+    expect(auth.user?.username).toBe('reader')
+    expect(readSession()?.token).toBe('token-b')
+  })
 })

@@ -26,8 +26,9 @@ class AuthService(
     suspend fun authenticate(id: Int, version: Int): AuthUser? {
         userCache.get(id, version)?.let { return it }
         // 只缓存通过校验的活跃用户；停用或版本不符时保持 401
+        val loadedAt = userCache.now()
         val user = store.findById(id)?.takeIf { it.active && it.tokenVersion == version } ?: return null
-        userCache.put(user)
+        userCache.put(user, loadedAt)
         return user
     }
 
@@ -42,7 +43,7 @@ class AuthService(
     suspend fun updateRolePermissions(actor: AuthUser, code: String, body: RolePermissionsRequest): RolePermissionsDto {
         requirePermissionAdmin(actor, "PUT")
         if (body.revision < 0) badRequest("invalid permissions revision")
-        return store.replaceRolePermissions(code, body)
+        return store.replaceRolePermissions(code, body).also { userCache.invalidateRole(code) }
     }
 
     private fun requirePermissionAdmin(actor: AuthUser, method: String) {
@@ -65,8 +66,9 @@ class AuthService(
 
     suspend fun updateRole(code: String, body: RoleUpdateRequest): RoleDto {
         if (body.name == null && body.enabled == null) badRequest("no fields to update")
-        return store.updateRole(code, body.copy(name = body.name?.let(::validRoleName)))
-            ?: throw AuthException(HttpStatusCode.NotFound, "role not found")
+        return store.updateRole(code, body.copy(name = body.name?.let(::validRoleName)))?.also {
+            userCache.invalidateRole(code)
+        } ?: throw AuthException(HttpStatusCode.NotFound, "role not found")
     }
 
     private fun validRoleName(name: String): String = name.trim().also {
@@ -114,8 +116,9 @@ class AuthService(
         body.roleCode?.let { validateRole(it) }
         body.password?.let { validatePassword(it) }
         val hash = body.password?.let { PasswordHasher.hash(it) }
-        return store.updateUser(id, body.roleCode, body.enabled, hash)?.toDto()
-            ?: throw AuthException(HttpStatusCode.NotFound, "user not found")
+        return store.updateUser(id, body.roleCode, body.enabled, hash)?.toDto()?.also {
+            userCache.invalidateUser(id)
+        } ?: throw AuthException(HttpStatusCode.NotFound, "user not found")
     }
 
     /**
@@ -138,7 +141,9 @@ class AuthService(
                 ErrorCode.SELF_DELETION,
             )
         }
-        return store.deleteUser(id)
+        return store.deleteUser(id).also { deleted ->
+            if (deleted) userCache.invalidateUser(id)
+        }
     }
 
     /** 删除角色。ADMIN 角色受保护，仓库层还会拦下仍有账号引用的角色。 */
@@ -149,7 +154,11 @@ class AuthService(
         return store.deleteRole(code)
     }
 
-    suspend fun logout(id: Int) = store.revokeTokens(id)
+    /** 退出登录：先吊销令牌（版本 +1），再清掉鉴权缓存里该用户的所有条目。 */
+    suspend fun logout(id: Int) {
+        store.revokeTokens(id)
+        userCache.invalidateUser(id)
+    }
 
     private suspend fun validateRole(code: String) {
         if (store.listRoles().none { it.code == code && it.enabled }) {

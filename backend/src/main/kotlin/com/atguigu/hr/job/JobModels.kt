@@ -28,6 +28,13 @@ data class JobUpdateRequest(
 
     fun contentError(): String? =
         if (jobTitle != null && jobTitle.isBlank()) "jobTitle must not be blank" else null
+
+    /** 与库里现值合并后的区间校验：只改一端时，另一端取现值比对。 */
+    fun rangeError(current: JobDto): String? {
+        val min = minSalary ?: current.minSalary
+        val max = maxSalary ?: current.maxSalary
+        return if (min != null && max != null && min > max) "minSalary must not exceed maxSalary" else null
+    }
 }
 
 /** POST /api/jobs，jobId 为业务主键。 */
@@ -42,4 +49,10 @@ data class JobCreateRequest(
     val minSalary: Int? = null,
     @JsonSchema.Description("最高月薪")
     val maxSalary: Int? = null,
-)
+) {
+    fun contentError(): String? = when {
+        jobId.isBlank() || jobTitle.isBlank() -> "jobId and jobTitle are required"
+        minSalary != null && maxSalary != null && minSalary > maxSalary -> "minSalary must not exceed maxSalary"
+        else -> null
+    }
+}

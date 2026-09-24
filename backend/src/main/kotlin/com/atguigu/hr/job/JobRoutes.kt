@@ -30,9 +30,7 @@ fun Route.jobRoutes() {
     /** 新增岗位并刷新缓存。 */
     post("/jobs") {
         val body = call.receive<JobCreateRequest>()
-        if (body.jobId.isBlank() || body.jobTitle.isBlank()) {
-            return@post call.respondFail(HttpStatusCode.BadRequest, "jobId and jobTitle are required")
-        }
+        body.contentError()?.let { return@post call.respondFail(HttpStatusCode.BadRequest, it) }
         val created = JobService.createJob(body)
         call.respondOk(created, message = "created")
     }.describe {
@@ -44,7 +42,7 @@ fun Route.jobRoutes() {
             message = "created",
             okDescription = "创建成功",
             fails = arrayOf(
-                HttpStatusCode.BadRequest to "jobId and jobTitle are required",
+                HttpStatusCode.BadRequest to "jobId and jobTitle are required / minSalary must not exceed maxSalary",
                 HttpStatusCode.Conflict to "create failed",
             ),
         )
@@ -59,6 +57,10 @@ fun Route.jobRoutes() {
             return@put call.respondFail(HttpStatusCode.BadRequest, "no fields to update")
         }
         patch.contentError()?.let { return@put call.respondFail(HttpStatusCode.BadRequest, it) }
+        // 只改薪资一端时，与库里的另一端现值合并后再校验区间。
+        val current = JobService.findJob(id)
+            ?: return@put call.respondFail(HttpStatusCode.NotFound, "job not found")
+        patch.rangeError(current)?.let { return@put call.respondFail(HttpStatusCode.BadRequest, it) }
         val updated = JobService.updateJob(id, patch)
             ?: return@put call.respondFail(HttpStatusCode.NotFound, "job not found")
         call.respondOk(updated, message = "updated")
@@ -74,7 +76,7 @@ fun Route.jobRoutes() {
             message = "updated",
             okDescription = "更新成功",
             fails = arrayOf(
-                HttpStatusCode.BadRequest to "no fields to update",
+                HttpStatusCode.BadRequest to "no fields to update / minSalary must not exceed maxSalary",
                 HttpStatusCode.NotFound to "job not found",
                 HttpStatusCode.Conflict to "update failed",
             ),

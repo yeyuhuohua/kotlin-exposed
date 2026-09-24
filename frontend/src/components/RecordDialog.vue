@@ -152,10 +152,12 @@ async function save() {
   busy.value = true
   try {
     const payload = formPayload(fields.value, values, props.original, { allowClear: props.allowClear })
+    // 与原值合并后再校验：只改最低或最高一端时，另一端要取数据库里的现值。
+    const merged = { ...props.original, ...payload }
     if (
-      payload.minSalary != null &&
-      payload.maxSalary != null &&
-      Number(payload.minSalary) > Number(payload.maxSalary)
+      merged.minSalary != null &&
+      merged.maxSalary != null &&
+      Number(merged.minSalary) > Number(merged.maxSalary)
     )
       throw new Error('最低月薪不能大于最高月薪')
     const path = !props.original
@@ -163,9 +165,11 @@ async function save() {
       : props.updateTemplate
         ? fillTemplate(props.updateTemplate, String(props.original[props.idKey]))
         : itemUrl(props.endpoint, String(props.original[props.idKey]))
-    // 只有真的要清空字段时才用 PATCH，其余情况保持原来的 PUT 语义，权限也不用扩大。
+    // 只有真的要清空字段时才用 PATCH，其余情况保持原来的 PUT 语义，权限也不用扩大；
+    // 没有 PUT 权限但被单独授予 PATCH 时，整单（只含变更字段）走 PATCH。
     const clearing = Object.values(payload).some((value) => value === null)
-    const method = props.original ? (clearing ? 'PATCH' : 'PUT') : 'POST'
+    const canPut = !props.updateTemplate || auth.canApi('PUT', props.updateTemplate)
+    const method = props.original ? (canPut && !clearing ? 'PUT' : 'PATCH') : 'POST'
     await api(path, { method, body: payload })
     notices.show(props.original ? '修改已保存' : '记录已创建')
     if (self.value) {

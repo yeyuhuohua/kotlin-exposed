@@ -270,7 +270,10 @@ async function remove() {
         </el-table-column>
         <el-table-column
           v-if="
-            canDetail || auth.canApi('PUT', employeesPaths.item) || auth.canApi('DELETE', employeesPaths.item)
+            canDetail ||
+            auth.canApi('PUT', employeesPaths.item) ||
+            auth.canApi('PATCH', employeesPaths.item) ||
+            auth.canApi('DELETE', employeesPaths.item)
           "
           label="操作"
           width="135"
@@ -287,7 +290,10 @@ async function remove() {
                   @click="detailId = row.employeeId"
                 />
               </el-tooltip>
-              <el-tooltip v-if="auth.canApi('PUT', employeesPaths.item)" content="编辑员工">
+              <el-tooltip
+                v-if="auth.canApi('PUT', employeesPaths.item) || auth.canApi('PATCH', employeesPaths.item)"
+                content="编辑员工"
+              >
                 <el-button
                   link
                   :icon="Pencil"
