@@ -1,7 +1,10 @@
 <script setup lang="ts">
 /** 统一弹窗关闭策略：保存期间禁止关闭，焦点锁定和遮罩由 Element Plus 处理。 */
+import { useSlots } from 'vue'
+
 defineProps<{ title: string; wide?: boolean; busy?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
+const slots = useSlots()
 </script>
 <template>
   <el-dialog
@@ -18,6 +21,10 @@ const emit = defineEmits<{ close: [] }>()
     @close="emit('close')"
   >
     <slot />
+    <!-- 调用方传入 footer 插槽时透传给 el-dialog，确认类按钮才挂得上 -->
+    <template v-if="slots.footer" #footer>
+      <slot name="footer" />
+    </template>
   </el-dialog>
 </template>
 

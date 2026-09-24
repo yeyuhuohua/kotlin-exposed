@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicReference
  * - 超时只计 Redis 命令本身，排队等待不会被误判成 Redis 不可用。
  * - 清理分组用 SCAN 游标，不用 KEYS，避免在请求路径上阻塞 Redis。
  * - 失效失败的分组保持旁路（dirty），清理成功后才重新启用，并在失败后退避一段时间。
+ * - 读取或回填失败同样进入退避：Redis 故障期间请求直接回源，不会持锁逐个等待超时。
  */
 object RedisCache {
     private const val OPERATION_TIMEOUT_MS = 2_000L
@@ -65,6 +66,9 @@ object RedisCache {
 
         /** 清理失败后的退避截止时间（System.nanoTime），退避期内直接旁路。 */
         val recoverNotBefore = AtomicLong(0L)
+
+        /** 读取或回填失败后的退避截止时间；退避期内读缓存与回填都直接跳过。 */
+        val failNotBefore = AtomicLong(0L)
     }
 
     internal fun groupOf(key: String): Group? = when {
@@ -158,28 +162,40 @@ object RedisCache {
 
     suspend fun readRaw(key: String): String? {
         val group = groupOf(key) ?: return null
-        // 清理与退避在 cacheAttempt 之外，排队等待不算进 Redis 命令的超时预算。
+        // 清理与退避在 cacheOutcome 之外，排队等待不算进 Redis 命令的超时预算。
         if (!ensureClean(group)) return null
         val before = group.version.get()
         if (before.dirty) return null
-        return cacheAttempt("read $key") {
+        if (System.nanoTime() < group.failNotBefore.get()) return null
+        val outcome = cacheOutcome("read $key") {
             val raw = RedisFactory.async.get(key).await()
             // 新的失效可能在等待 Redis GET 时标记分组。
             if (group.version.get() == before) raw else null
         }
+        // 读取失败（超时/异常）进入退避；缓存未命中不算失败。
+        if (outcome == null) group.backoffOnFailure()
+        return outcome?.value
     }
 
     /** 回填前重新核对版本，避免把失效期间读到的旧值写回缓存。 */
     private suspend fun fill(key: String, group: Group, snap: Long, encode: () -> String) {
         if (group.version.get().dirty) return
+        if (System.nanoTime() < group.failNotBefore.get()) return
         group.lock.withLock {
-            cacheAttempt("fill $key") {
+            // 排队期间可能已有回填失败并设置了退避，拿到锁后必须复查，否则串行等待超时
+            if (System.nanoTime() < group.failNotBefore.get()) return@withLock
+            val outcome = cacheOutcome("fill $key") {
                 val version = group.version.get()
                 if (!version.dirty && version.number == snap) {
                     RedisFactory.async.set(key, encode(), ttl()).await()
                 }
             }
+            if (outcome == null) group.backoffOnFailure()
         }
+    }
+
+    private fun Group.backoffOnFailure() {
+        failNotBefore.set(System.nanoTime() + RECOVER_BACKOFF_MS * 1_000_000)
     }
 
     /** 分组脏时清理一次；正在退避或清理失败时返回 false，调用方直接旁路。 */
@@ -224,15 +240,19 @@ object RedisCache {
 
     private data class Outcome<T>(val value: T)
 
-    /** 超时与异常都只记录日志并返回 null，缓存不可用时业务照常走数据库。 */
-    private suspend fun <T> cacheAttempt(operation: String, block: suspend () -> T): T? = try {
+    /** 返回 null 表示超时或异常；成功时即使值为 null（如缓存未命中）也包装在 Outcome 里返回。 */
+    private suspend fun <T> cacheOutcome(operation: String, block: suspend () -> T): Outcome<T>? = try {
         val outcome = withTimeoutOrNull(OPERATION_TIMEOUT_MS) { Outcome(block()) }
         if (outcome == null) log.warn("Redis {} timed out; cache bypassed", operation)
-        outcome?.value
+        outcome
     } catch (cause: CancellationException) {
         throw cause
     } catch (cause: Exception) {
         log.warn("Redis {} failed; cache bypassed", operation, cause)
         null
     }
+
+    /** 超时与异常都只记录日志并返回 null，缓存不可用时业务照常走数据库。 */
+    private suspend fun <T> cacheAttempt(operation: String, block: suspend () -> T): T? =
+        cacheOutcome(operation, block)?.value
 }

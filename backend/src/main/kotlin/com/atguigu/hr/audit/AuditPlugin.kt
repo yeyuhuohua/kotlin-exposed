@@ -49,7 +49,10 @@ val ApiCallAudit = createApplicationPlugin("ApiCallAudit", ::ApiCallAuditConfig)
         }
     }
     onCallRespond { call ->
+        // 记录后立即移除起始标记：即使响应被重复提交（如认证 challenge 后又有人 respond），
+        // 一次请求也只产生一条审计记录。
         val startedNs = call.attributes.getOrNull(auditStartKey) ?: return@onCallRespond
+        call.attributes.remove(auditStartKey)
         sink(call.toAuditInput(startedNs))
     }
 }

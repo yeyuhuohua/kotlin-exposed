@@ -18,6 +18,7 @@ class RedisCacheDownTest {
     fun resetGroup() {
         group.version.set(RedisCache.Version())
         group.recoverNotBefore.set(0)
+        group.failNotBefore.set(0)
     }
 
     @Test
@@ -42,5 +43,14 @@ class RedisCacheDownTest {
         }
         assertTrue(outcome.isFailure)
         assertTrue(group.version.get().dirty, "写库可能已部分提交，异常时也必须完成失效标记")
+    }
+
+    @Test
+    fun `读取或回填失败后进入退避，退避期内不再触碰 Redis`() = runBlocking {
+        RedisCache.getOrLoad("hr:employees:list:fail-backoff") { "v1" }
+        val backoff = group.failNotBefore.get()
+        assertTrue(backoff > System.nanoTime(), "Redis 操作失败后必须设置退避截止时间")
+        RedisCache.getOrLoad("hr:employees:list:fail-backoff-2") { "v2" }
+        assertEquals(backoff, group.failNotBefore.get(), "退避期内的读取与回填直接跳过，不再串行等待超时")
     }
 }

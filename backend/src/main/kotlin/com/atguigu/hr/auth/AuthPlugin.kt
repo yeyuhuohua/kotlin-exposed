@@ -16,8 +16,12 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.RouteSelector
 import io.ktor.server.routing.RouteSelectorEvaluation
 import io.ktor.server.routing.RoutingResolveContext
+import io.ktor.util.AttributeKey
 
 data class UserPrincipal(val user: AuthUser)
+
+/** JWT challenge 已发出 401 时置位，RoleAuthorization 据此不再重复响应（审计也只记一次）。 */
+private val authChallengeSentKey = AttributeKey<Boolean>("AuthChallengeSent")
 
 fun Application.installTokenAuthentication(service: AuthService, tokens: TokenService) {
     install(Authentication) {
@@ -31,6 +35,7 @@ fun Application.installTokenAuthentication(service: AuthService, tokens: TokenSe
                 service.authenticate(id, version)?.let(::UserPrincipal)
             }
             challenge { _, _ ->
+                call.attributes.put(authChallengeSentKey, true)
                 call.response.headers.append("WWW-Authenticate", "Bearer realm=\"hr-api\"")
                 call.respondFail(HttpStatusCode.Unauthorized, "missing, invalid or expired token")
             }
@@ -47,7 +52,10 @@ val RoleAuthorization = createRouteScopedPlugin("RoleAuthorization", ::RoleAutho
     on(AuthenticationChecked) { call ->
         val user = call.principal<UserPrincipal>()?.user
         if (user == null) {
-            call.respondFail(HttpStatusCode.Unauthorized, "authentication required")
+            // 认证 challenge 已经回复过 401 时不再重复响应，一次请求只产生一条审计记录。
+            if (!call.attributes.contains(authChallengeSentKey)) {
+                call.respondFail(HttpStatusCode.Unauthorized, "authentication required")
+            }
             return@on
         }
         val permission = PermissionCatalog.requiredApi(call.request.httpMethod.value, call.request.path())

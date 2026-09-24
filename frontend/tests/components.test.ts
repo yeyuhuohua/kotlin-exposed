@@ -13,6 +13,7 @@ import ElementPlus, {
 import RecordDialog from '../src/components/RecordDialog.vue'
 import Pagination from '../src/components/Pagination.vue'
 import RolePermissionEditor from '../src/components/RolePermissionEditor.vue'
+import Modal from '../src/components/Modal.vue'
 import LoginView from '../src/views/LoginView.vue'
 
 /** 在内存 DOM 中验证组件契约，不读取本机账号、不访问浏览器或真实 API。 */
@@ -204,5 +205,19 @@ describe('Element Plus components', () => {
     await flushPromises()
     expect(mocks.login).toHaveBeenCalledWith('reader', 'test-password')
     expect(mocks.replace).toHaveBeenCalledWith('/account')
+  })
+
+  it('Modal 透传 footer 插槽，删除确认按钮可见', async () => {
+    const wrapper = mount(Modal, {
+      ...options,
+      props: { title: '删除用户' },
+      slots: {
+        default: '<p>确定删除该用户？</p>',
+        footer: '<button class="danger-confirm">确认删除</button>',
+      },
+    })
+    mounted.push(wrapper)
+    await flushPromises()
+    expect(document.body.querySelector('.el-dialog__footer .danger-confirm')).toBeTruthy()
   })
 })
