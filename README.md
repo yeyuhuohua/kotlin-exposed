@@ -164,8 +164,7 @@ Gradle Wrapper、`pnpm-lock.yaml`、源码、文档和无密钥的示例配置�
 Vite 的开发代理不会被打包进生产构建产物。
 如果 API 使用独立域名或端口，请在构建时设置 `VITE_API_BASE_URL`，并为该部署配置后端 CORS 和文档链接。
 
-后端可以直接运行 `./gradlew buildFatJar` 的产物（`build/libs/kotlin-exposed-all.jar`），
-也可以用 `backend/Dockerfile` 构建镜像（多阶段构建，运行阶段只含 JRE 21）。
+后端可以直接运行 `./gradlew buildFatJar` 的产物（`build/libs/kotlin-exposed-all.jar`）。
 
 生产环境应使用 HTTPS，并在网关配置登录限流。
 登录页背景使用 Unsplash 的外部办公空间图片，字体无法加载时会使用本地系统字体。
