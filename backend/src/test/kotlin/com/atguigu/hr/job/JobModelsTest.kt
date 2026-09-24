@@ -55,4 +55,23 @@ class JobModelsTest {
             JobCreateRequest(jobId = " ", jobTitle = "Kotlin Developer").contentError(),
         )
     }
+
+    @Test
+    fun `薪资不能为负`() {
+        assertEquals(
+            "minSalary must be non-negative",
+            JobUpdateRequest(minSalary = -100).contentError(),
+        )
+        assertEquals(
+            "maxSalary must be non-negative",
+            JobUpdateRequest(maxSalary = -1).contentError(),
+        )
+        assertNull(JobUpdateRequest(minSalary = 0).contentError())
+        assertEquals(
+            "minSalary must be non-negative",
+            JobCreateRequest(jobId = "KT_DEV", jobTitle = "Kotlin Developer", minSalary = -100, maxSalary = 1000)
+                .contentError(),
+        )
+        assertNull(JobCreateRequest(jobId = "KT_DEV", jobTitle = "Kotlin Developer", minSalary = 0).contentError())
+    }
 }

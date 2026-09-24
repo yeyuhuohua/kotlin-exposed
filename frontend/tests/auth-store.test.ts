@@ -123,4 +123,26 @@ describe('auth store 会话恢复', () => {
     expect(auth.user?.username).toBe('reader')
     expect(readSession()?.token).toBe('token-b')
   })
+
+  it('退出请求返回前已登录新账号时，旧退出不清掉新会话', async () => {
+    saveSession('token-a', 600)
+    let release!: () => void
+    mockedApi.mockImplementationOnce(() => new Promise<void>((resolve) => (release = resolve)))
+    const auth = await store()
+    const pending = auth.logout()
+    // 退出请求还在路上，用户已用另一个账号登录。
+    saveSession('token-b', 600)
+    release()
+    await pending
+    expect(readSession()?.token).toBe('token-b')
+  })
+
+  it('退出请求正常完成时清理自己的会话', async () => {
+    saveSession('token-a', 600)
+    mockedApi.mockResolvedValueOnce(undefined)
+    const auth = await store()
+    await auth.logout()
+    expect(readSession()).toBeNull()
+    expect(auth.user).toBeNull()
+  })
 })

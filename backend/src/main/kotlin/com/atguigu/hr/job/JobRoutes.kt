@@ -42,7 +42,7 @@ fun Route.jobRoutes() {
             message = "created",
             okDescription = "创建成功",
             fails = arrayOf(
-                HttpStatusCode.BadRequest to "jobId and jobTitle are required / minSalary must not exceed maxSalary",
+                HttpStatusCode.BadRequest to "jobId and jobTitle are required / minSalary must be non-negative / minSalary must not exceed maxSalary",
                 HttpStatusCode.Conflict to "create failed",
             ),
         )
@@ -76,7 +76,7 @@ fun Route.jobRoutes() {
             message = "updated",
             okDescription = "更新成功",
             fails = arrayOf(
-                HttpStatusCode.BadRequest to "no fields to update / minSalary must not exceed maxSalary",
+                HttpStatusCode.BadRequest to "no fields to update / minSalary must be non-negative / minSalary must not exceed maxSalary",
                 HttpStatusCode.NotFound to "job not found",
                 HttpStatusCode.Conflict to "update failed",
             ),

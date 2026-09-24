@@ -84,10 +84,12 @@ export const useAuth = defineStore('auth', () => {
     }
   }
   async function logout() {
+    const token = readSession()?.token
     try {
       await api(authPaths.logout, { method: 'POST' })
     } finally {
-      clear()
+      // 等待退出请求期间已重新登录时，只清理发起退出的那个会话。
+      if (readSession()?.token === token) clear()
     }
   }
   return { user, isAdmin, home, canPage, canApi, restore, login, logout, clear, refreshUser }

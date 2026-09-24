@@ -26,8 +26,12 @@ data class JobUpdateRequest(
     fun hasUpdates(): Boolean =
         jobTitle != null || minSalary != null || maxSalary != null
 
-    fun contentError(): String? =
-        if (jobTitle != null && jobTitle.isBlank()) "jobTitle must not be blank" else null
+    fun contentError(): String? = when {
+        jobTitle != null && jobTitle.isBlank() -> "jobTitle must not be blank"
+        minSalary != null && minSalary < 0 -> "minSalary must be non-negative"
+        maxSalary != null && maxSalary < 0 -> "maxSalary must be non-negative"
+        else -> null
+    }
 
     /** 与库里现值合并后的区间校验：只改一端时，另一端取现值比对。 */
     fun rangeError(current: JobDto): String? {
@@ -52,6 +56,8 @@ data class JobCreateRequest(
 ) {
     fun contentError(): String? = when {
         jobId.isBlank() || jobTitle.isBlank() -> "jobId and jobTitle are required"
+        minSalary != null && minSalary < 0 -> "minSalary must be non-negative"
+        maxSalary != null && maxSalary < 0 -> "maxSalary must be non-negative"
         minSalary != null && maxSalary != null && minSalary > maxSalary -> "minSalary must not exceed maxSalary"
         else -> null
     }
