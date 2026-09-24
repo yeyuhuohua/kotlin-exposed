@@ -41,8 +41,13 @@ class AuthUserCache(
     /** [loadedAt] 是数据从数据库读出的时刻；失效之后才回填的旧读数在这里被识别为脏数据。 */
     fun put(user: AuthUser, loadedAt: Long = clock()) {
         if (!enabled) return
+        val now = clock()
+        // 拒绝两类回填：读出时刻早于失效时刻的脏数据，以及比 TTL 还老的迟到数据。
+        // 后者保证失效标记被 prune 清理后，迟到的旧回填也不会让已撤销的 Token 复活。
+        val entry = Entry(user, loadedAt, now + ttlMillis)
+        if (loadedAt <= now - ttlMillis || entry.stale()) return
         if (entries.size >= maxEntries) prune()
-        entries[key(user.id, user.tokenVersion)] = Entry(user, loadedAt, clock() + ttlMillis)
+        entries[key(user.id, user.tokenVersion)] = entry
     }
 
     /** 退出登录、改密码、停用或删除账号后调用：该用户所有 tokenVersion 的条目立即失效。 */
@@ -76,7 +81,8 @@ class AuthUserCache(
     private fun prune() {
         val now = clock()
         entries.entries.removeIf { it.value.expiresAt <= now }
-        // 失效记录只影响 TTL 内写入的条目，更老的记录可以安全丢弃
+        // 失效记录只需保留一个 TTL：put 会拒绝 loadedAt 早于 now-ttl 的数据，
+        // 因此更老的失效记录对之后写入的条目不再有影响
         invalidatedUsers.entries.removeIf { it.value <= now - ttlMillis }
         invalidatedRoles.entries.removeIf { it.value <= now - ttlMillis }
         if (entries.size >= maxEntries) entries.clear()

@@ -29,13 +29,23 @@ object JobRepository {
             .firstOrNull()
     }
 
+    /**
+     * 部分更新岗位。锁行后在同一事务内读取现值、合并校验薪资区间再写入，
+     * 避免两个并发请求各自基于旧值通过校验而把区间改倒置。
+     * 区间不合法时抛 [IllegalArgumentException]，由路由转成 400。
+     */
     suspend fun updateJob(jobId: String, patch: JobUpdateRequest): JobDto? = dbUpdate {
-        val rows = Jobs.update({ Jobs.jobId eq jobId }) {
+        val current = Jobs.selectAll()
+            .where { Jobs.jobId eq jobId }
+            .forUpdate()
+            .firstOrNull() ?: return@dbUpdate null
+        patch.rangeError(current.toJob())?.let { throw IllegalArgumentException(it) }
+        Jobs.update({ Jobs.jobId eq jobId }) {
             patch.jobTitle?.let { value -> it[jobTitle] = value }
             patch.minSalary?.let { value -> it[minSalary] = value }
             patch.maxSalary?.let { value -> it[maxSalary] = value }
         }
-        if (rows == 0) null else loadJob(jobId)
+        loadJob(jobId)
     }
 
     suspend fun createJob(body: JobCreateRequest): JobDto = dbUpdate {

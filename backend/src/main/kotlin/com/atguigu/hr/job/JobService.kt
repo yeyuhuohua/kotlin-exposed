@@ -11,9 +11,6 @@ object JobService {
     suspend fun listJobs(): Cached<List<JobDto>> =
         RedisCache.getOrLoad(JobCache.JOBS) { JobRepository.listJobs() }
 
-    /** 写路径上的现值读取不走缓存，保证合并校验基于最新数据。 */
-    suspend fun findJob(jobId: String): JobDto? = JobRepository.findJob(jobId)
-
     suspend fun updateJob(jobId: String, patch: JobUpdateRequest): JobDto? = RedisCache.withInvalidation(
         JobCache.JOBS,
         EmployeeCache.EMPLOYEE_PREFIX,

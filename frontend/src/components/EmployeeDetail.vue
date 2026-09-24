@@ -94,7 +94,7 @@ const groups = computed(() => [
       <el-button class="button secondary" @click="$emit('close')">关闭</el-button>
       <el-button
         type="primary"
-        v-if="auth.canApi('PUT', employeesPaths.item) && data"
+        v-if="(auth.canApi('PUT', employeesPaths.item) || auth.canApi('PATCH', employeesPaths.item)) && data"
         class="button primary"
         @click="$emit('edit', data.employee)"
       >

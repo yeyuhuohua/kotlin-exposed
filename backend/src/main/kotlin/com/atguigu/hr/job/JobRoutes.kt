@@ -57,12 +57,12 @@ fun Route.jobRoutes() {
             return@put call.respondFail(HttpStatusCode.BadRequest, "no fields to update")
         }
         patch.contentError()?.let { return@put call.respondFail(HttpStatusCode.BadRequest, it) }
-        // 只改薪资一端时，与库里的另一端现值合并后再校验区间。
-        val current = JobService.findJob(id)
-            ?: return@put call.respondFail(HttpStatusCode.NotFound, "job not found")
-        patch.rangeError(current)?.let { return@put call.respondFail(HttpStatusCode.BadRequest, it) }
-        val updated = JobService.updateJob(id, patch)
-            ?: return@put call.respondFail(HttpStatusCode.NotFound, "job not found")
+        // 锁行、读取现值、合并校验、写入在同一个写事务内完成，并发更新不会把区间改倒置。
+        val updated = try {
+            JobService.updateJob(id, patch)
+        } catch (cause: IllegalArgumentException) {
+            return@put call.respondFail(HttpStatusCode.BadRequest, cause.message ?: "invalid job update")
+        } ?: return@put call.respondFail(HttpStatusCode.NotFound, "job not found")
         call.respondOk(updated, message = "updated")
     }.describe {
         summary = "部分更新岗位并刷新缓存"

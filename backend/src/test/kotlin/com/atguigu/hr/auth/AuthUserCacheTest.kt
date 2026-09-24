@@ -88,4 +88,17 @@ class AuthUserCacheTest {
         cache.put(user(version = 1), cache.now())
         assertNotNull(cache.get(7, 1), "失效之后重新读到的数据可以正常缓存")
     }
+
+    @Test
+    fun `失效标记被清理后迟到的旧回填仍然被拒绝`() {
+        val cache = AuthUserCache(ttlMillis = 3_000) { now }
+        val loadedAt = cache.now()
+        now += 1
+        cache.invalidateUser(7)
+        // 时间走过一个完整 TTL，失效标记在容量清理时会被丢弃
+        now += 3_000
+        cache.put(user(version = 1), loadedAt)
+        assertNull(cache.get(7, 1), "比 TTL 还老的迟到回填即使失去标记保护也不能复活旧 Token")
+        assertEquals(0, cache.trackedEntries())
+    }
 }
