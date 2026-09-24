@@ -39,7 +39,9 @@ export function formPayload(
     if (value !== null && typeof value === 'number' && !Number.isFinite(value))
       throw new Error(`${field.label}必须是有效数字`)
     if (original) {
-      if (value === (original[field.key] ?? null)) continue
+      const originalValue = original[field.key]
+      // 数据库里的空字符串与表单留空（null）是同一种"没有值"，不算清空修改。
+      if (value === (originalValue ?? null) || (value === null && originalValue === '')) continue
       if (value === null) {
         if (!(options.allowClear && field.clearable)) {
           throw new Error(`${field.label}不能清空，当前接口仅支持修改为非空值`)

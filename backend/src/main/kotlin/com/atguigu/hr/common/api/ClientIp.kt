@@ -29,21 +29,35 @@ object ClientIp {
     }
 
     fun resolve(call: ApplicationCall): String = resolveClientIp(
-        direct = call.request.origin.remoteHost,
+        // remoteHost 可能是反向解析出的主机名（如 localhost），remoteAddress 才是连接对端地址
+        direct = call.request.origin.remoteAddress,
         forwardedFor = call.request.header(HttpHeaders.XForwardedFor),
         trusted = trustedProxies,
     )
 }
 
+/** 统一大小写、去掉 IPv6 方括号，并把本机别名归一到规范 IP，避免主机名与 IP 互不相等。 */
+fun normalizeIp(host: String): String {
+    var value = host.trim().lowercase()
+    if (value.startsWith("[") && value.endsWith("]")) value = value.substring(1, value.length - 1)
+    return when (value) {
+        "localhost" -> "127.0.0.1"
+        "0:0:0:0:0:0:0:1" -> "::1"
+        else -> value
+    }
+}
+
 /** X-Forwarded-For 从左到右是客户端到最近代理；从右往左跳过可信代理，第一个不可信跳即真实客户端。 */
 fun resolveClientIp(direct: String, forwardedFor: String?, trusted: Set<String>): String {
-    if (direct !in trusted) return direct
+    val normalizedTrusted = trusted.mapTo(HashSet()) { normalizeIp(it) }
+    val normalizedDirect = normalizeIp(direct)
+    if (normalizedDirect !in normalizedTrusted) return normalizedDirect
     val hops = forwardedFor
         ?.split(',')
-        ?.map { it.trim() }
+        ?.map { normalizeIp(it) }
         ?.filter { it.isNotEmpty() }
-        ?: return direct
-    return hops.asReversed().firstOrNull { it !in trusted } ?: direct
+        ?: return normalizedDirect
+    return hops.asReversed().firstOrNull { it !in normalizedTrusted } ?: normalizedDirect
 }
 
 fun ApplicationCall.clientIp(): String = ClientIp.resolve(this)

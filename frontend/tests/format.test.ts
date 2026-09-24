@@ -62,6 +62,24 @@ describe('form payloads', () => {
     ).toThrow('没有需要保存')
     expect(() => formPayload(fields, { salary: 'oops', enabled: true })).toThrow('有效数字')
   })
+  it('treats an empty-string original as unchanged when the field is left blank', () => {
+    const phoneFields: Field[] = [
+      { key: 'phoneNumber', label: '联系电话', clearable: true },
+      { key: 'salary', label: '月薪', type: 'number' },
+    ]
+    // 电话里原值是空字符串、表单同样留空：只改薪资时电话不算被清空，也不进载荷。
+    expect(
+      formPayload(phoneFields, { phoneNumber: '', salary: '6000' }, { phoneNumber: '', salary: 5000 }),
+    ).toEqual({ salary: 6000 })
+    // 原值非空时留空仍然是清空操作，需要 PATCH 权限语义。
+    expect(() =>
+      formPayload(
+        phoneFields,
+        { phoneNumber: '', salary: '6000' },
+        { phoneNumber: '515.000.0000', salary: 5000 },
+      ),
+    ).toThrow('不能清空')
+  })
 })
 describe('display and query helpers', () => {
   it('handles nullable first names and initials', () => {

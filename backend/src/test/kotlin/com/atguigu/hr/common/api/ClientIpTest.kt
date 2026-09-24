@@ -51,4 +51,21 @@ class ClientIpTest {
             resolveClientIp(direct = "127.0.0.1", forwardedFor = "10.0.0.1, ::1", trusted = trusted),
         )
     }
+
+    @Test
+    fun `主机名与 IPv6 全形会归一后再比较`() {
+        // Netty 对回环连接可能返回 localhost 或 0:0:0:0:0:0:0:1，必须与本机白名单匹配
+        assertEquals(
+            "198.51.100.7",
+            resolveClientIp(direct = "localhost", forwardedFor = "198.51.100.7", trusted = setOf("127.0.0.1")),
+        )
+        assertEquals(
+            "198.51.100.7",
+            resolveClientIp(direct = "[0:0:0:0:0:0:0:1]", forwardedFor = "198.51.100.7", trusted = setOf("::1")),
+        )
+        assertEquals(
+            "198.51.100.7",
+            resolveClientIp(direct = "127.0.0.1", forwardedFor = "198.51.100.7", trusted = setOf("LOCALHOST")),
+        )
+    }
 }
