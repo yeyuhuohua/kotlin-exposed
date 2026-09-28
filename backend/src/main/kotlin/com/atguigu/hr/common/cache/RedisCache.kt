@@ -312,11 +312,11 @@ return 1
             val keys = group.patterns.flatMap { pattern -> scanKeys(pattern) }
             keys.chunked(DELETE_BATCH).forEach { batch -> RedisFactory.async.del(*batch.toTypedArray()).await() }
             if (group.version.compareAndSet(before, Version(before.number))) {
-                // 依赖它的聚合缓存再次失效：恢复前的窗口里，其它实例可能已用旧数据生成新聚合。
-                // 聚合分组已在失效流程（dirty）时由它自己的恢复覆盖，无需重复级联。
-                dependents[group]
-                    ?.filter { dependent -> !dependent.version.get().dirty }
-                    ?.forEach { dependent -> invalidate(listOf(dependent)) }
+                // 依赖它的聚合缓存必须再次失效：恢复前的窗口里，其它实例可能已用旧数据生成新聚合。
+                // 聚合分组为 dirty 也不能跳过——它可能已发布令牌但清理未完成，
+                // 其它实例正按该令牌用旧子缓存回填聚合；把版本再 +1，
+                // 在途的恢复会因此 CAS 失败并重新处理（新令牌 + 重新清理）。
+                dependents[group]?.forEach { dependent -> invalidate(listOf(dependent)) }
                 return true
             }
         }
