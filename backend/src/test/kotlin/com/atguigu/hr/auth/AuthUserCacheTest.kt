@@ -101,4 +101,27 @@ class AuthUserCacheTest {
         assertNull(cache.get(7, 1), "比 TTL 还老的迟到回填即使失去标记保护也不能复活旧 Token")
         assertEquals(0, cache.trackedEntries())
     }
+
+    @Test
+    fun `交错的失效操作不会让标记倒退`() {
+        val cache = AuthUserCache(ttlMillis = 10_000) { now }
+        now = 200
+        cache.invalidateUser(7)
+        now = 100
+        cache.invalidateUser(7)
+        // 两次失效之间（t=150）读出的数据，按较早的标记会被误判为新数据
+        cache.put(user(version = 1), loadedAt = 150)
+        assertNull(cache.get(7, 1), "较早的失效操作后写入也不能覆盖较新的失效时间")
+    }
+
+    @Test
+    fun `角色的失效标记同样不倒退`() {
+        val cache = AuthUserCache(ttlMillis = 10_000) { now }
+        now = 200
+        cache.invalidateRole("READER")
+        now = 100
+        cache.invalidateRole("READER")
+        cache.put(user(version = 1, roleCode = "READER"), loadedAt = 150)
+        assertNull(cache.get(7, 1))
+    }
 }

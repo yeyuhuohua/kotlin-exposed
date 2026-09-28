@@ -53,14 +53,16 @@ class AuthUserCache(
     /** 退出登录、改密码、停用或删除账号后调用：该用户所有 tokenVersion 的条目立即失效。 */
     fun invalidateUser(id: Int) {
         if (!enabled) return
-        invalidatedUsers[id] = clock()
+        // 原子取最大值：交错的失效操作不允许让标记倒退，否则两次操作之间
+        // 读出的旧数据会被当成新数据回填
+        invalidatedUsers.merge(id, clock(), ::maxOf)
         entries.keys.removeIf { it.startsWith("$id:") }
     }
 
     /** 角色权限或启停变化后调用：该角色下所有用户的条目立即失效。 */
     fun invalidateRole(roleCode: String) {
         if (!enabled) return
-        invalidatedRoles[roleCode] = clock()
+        invalidatedRoles.merge(roleCode, clock(), ::maxOf)
         entries.entries.removeIf { it.value.user.roleCode == roleCode }
     }
 
