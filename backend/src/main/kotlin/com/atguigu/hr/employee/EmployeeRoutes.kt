@@ -17,7 +17,6 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 import kotlinx.serialization.json.JsonObject
-import java.time.LocalDate
 
 @OptIn(ExperimentalKtorApi::class)
 fun Route.employeeRoutes() {
@@ -48,9 +47,6 @@ fun Route.employeeRoutes() {
     post("/employees") {
         val body = call.receive<EmployeeCreateRequest>()
         body.contentError()?.let { return@post call.respondFail(HttpStatusCode.BadRequest, it) }
-        if (runCatching { LocalDate.parse(body.hireDate) }.isFailure) {
-            return@post call.respondFail(HttpStatusCode.BadRequest, "invalid hireDate, expected yyyy-MM-dd")
-        }
         val created = EmployeeService.createEmployee(body)
         call.respondOk(created, message = "created")
     }.describe {
@@ -72,7 +68,7 @@ fun Route.employeeRoutes() {
             message = "created",
             okDescription = "创建成功",
             fails = arrayOf(
-                HttpStatusCode.BadRequest to "lastName, email, hireDate, jobId are required / salary must be a non-negative number",
+                HttpStatusCode.BadRequest to "lastName, email, hireDate, jobId are required / invalid hireDate / salary must be a non-negative number",
                 HttpStatusCode.Conflict to "create failed",
             ),
         )

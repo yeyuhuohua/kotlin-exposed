@@ -8,6 +8,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
+import java.time.LocalDate
 
 /** employees 表。hireDate 序列化为 ISO 日期字符串。 */
 @Serializable
@@ -131,6 +132,7 @@ data class EmployeeCreateRequest(
         if (lastName.isBlank() || email.isBlank() || jobId.isBlank() || hireDate.isBlank()) {
             return "lastName, email, hireDate, jobId are required"
         }
+        hireDateError(hireDate)?.let { return it }
         if (firstName != null && firstName.exceedsMaxLength(20)) return "firstName must be at most 20 characters"
         if (lastName.exceedsMaxLength(25)) return "lastName must be at most 25 characters"
         if (email.exceedsMaxLength(25)) return "email must be at most 25 characters"
@@ -140,6 +142,13 @@ data class EmployeeCreateRequest(
         commissionPct?.let { value -> commissionPctError(value)?.let { return it } }
         return null
     }
+}
+
+/** MySQL DATE 支持 1000-01-01 至 9999-12-31；LocalDate.parse 能接受的 +/-年份超出这个范围。 */
+internal fun hireDateError(value: String): String? {
+    val date = runCatching { LocalDate.parse(value) }.getOrNull()
+        ?: return "invalid hireDate, expected yyyy-MM-dd"
+    return if (date.year !in 1000..9999) "hireDate must be between 1000-01-01 and 9999-12-31" else null
 }
 
 /** 未分配部门的显示名，聚合查询和前端展示共用。 */

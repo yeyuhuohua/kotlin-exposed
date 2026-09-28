@@ -152,6 +152,34 @@ class EmployeePatchTest {
         assertNull(createRequest().copy(phoneNumber = "1".repeat(20)).contentError())
     }
 
+    @Test
+    fun `入职日期必须是 MySQL DATE 支持的 yyyy-MM-dd`() {
+        assertEquals(
+            "invalid hireDate, expected yyyy-MM-dd",
+            createRequest().copy(hireDate = "2026-9-8").contentError(),
+        )
+        assertEquals(
+            "invalid hireDate, expected yyyy-MM-dd",
+            createRequest().copy(hireDate = "not-a-date").contentError(),
+        )
+        // LocalDate.parse 接受但超出 MySQL DATE 范围（1000-01-01 ~ 9999-12-31）的年份
+        assertEquals(
+            "hireDate must be between 1000-01-01 and 9999-12-31",
+            createRequest().copy(hireDate = "-0001-01-01").contentError(),
+        )
+        assertEquals(
+            "hireDate must be between 1000-01-01 and 9999-12-31",
+            createRequest().copy(hireDate = "+10000-01-01").contentError(),
+        )
+        assertEquals(
+            "hireDate must be between 1000-01-01 and 9999-12-31",
+            createRequest().copy(hireDate = "0999-12-31").contentError(),
+        )
+        assertNull(createRequest().copy(hireDate = "1000-01-01").contentError())
+        assertNull(createRequest().copy(hireDate = "9999-12-31").contentError())
+        assertNull(createRequest().copy(hireDate = "2026-09-28").contentError())
+    }
+
     private fun createRequest(salary: Double? = null, commissionPct: Double? = null) = EmployeeCreateRequest(
         employeeId = 999,
         lastName = "Hire",
