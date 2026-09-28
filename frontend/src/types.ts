@@ -135,6 +135,8 @@ export interface Field {
   max?: number
   maxLength?: number
   minLength?: number
+  /** 长度计数单位：默认 codePoint（与数据库列一致）；密码等后端按 UTF-16 校验的字段用 utf16。 */
+  lengthUnit?: 'codePoint' | 'utf16'
   step?: string
   options?: Option[]
   lookup?: string

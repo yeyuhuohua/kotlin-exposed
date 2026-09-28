@@ -261,7 +261,8 @@ export const resources: Resource[] = [
         pattern: /^[a-z0-9._-]{3,64}$/,
         patternMessage: '用户名须为 3-64 位小写字母、数字或 . _ -',
       },
-      { key: 'password', label: '密码', type: 'password', minLength: 8, maxLength: 128 },
+      // 密码长度规则与后端 AuthService 的 8..128 一致，按 UTF-16 单元计数。
+      { key: 'password', label: '密码', type: 'password', minLength: 8, maxLength: 128, lengthUnit: 'utf16' },
       { key: 'roleCode', label: '角色', type: 'select', lookup: 'roles', required: true, default: 'READER' },
       { key: 'enabled', label: '启用账号', type: 'checkbox', default: true },
     ],

@@ -139,6 +139,46 @@ describe('Element Plus components', () => {
     expect(mocks.api).toHaveBeenCalledTimes(1)
   })
 
+  it('counts password length in UTF-16 units to match the backend rule', async () => {
+    const wrapper = mount(RecordDialog, {
+      ...options,
+      props: {
+        title: '新建用户',
+        endpoint: '/auth/users',
+        idKey: 'id',
+        fields: [
+          { key: 'username', label: '用户名', required: true },
+          {
+            key: 'password',
+            label: '密码',
+            type: 'password',
+            required: true,
+            minLength: 8,
+            maxLength: 128,
+            lengthUnit: 'utf16',
+          },
+        ],
+      },
+    })
+    mounted.push(wrapper)
+    await flushPromises()
+    const inputs = wrapper.findAllComponents(ElInput)
+    await inputs[0]!.find('input').setValue('reader')
+    // 65 个 𠮷 = 65 个码点、130 个 UTF-16 单元：后端按 130 判超 128，前端必须同样拦下
+    await inputs[1]!.find('input').setValue('𠮷'.repeat(65))
+    await wrapper.findComponent(ElForm).trigger('submit')
+    await flushPromises()
+    expect(mocks.api).not.toHaveBeenCalled()
+    // 64 个 𠮷 = 128 个 UTF-16 单元：前后端一致放行
+    await inputs[1]!.find('input').setValue('𠮷'.repeat(64))
+    await wrapper.findComponent(ElForm).trigger('submit')
+    await flushPromises()
+    expect(mocks.api).toHaveBeenCalledWith('/auth/users', {
+      method: 'POST',
+      body: { username: 'reader', password: '𠮷'.repeat(64) },
+    })
+  })
+
   it('forwards pagination events without changing the API page contract', () => {
     const wrapper = mount(Pagination, { ...options, props: { page: 1, pageSize: 10, total: 107 } })
     mounted.push(wrapper)

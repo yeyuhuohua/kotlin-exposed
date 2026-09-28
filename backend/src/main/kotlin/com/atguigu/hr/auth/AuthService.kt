@@ -1,6 +1,7 @@
 package com.atguigu.hr.auth
 
 import com.atguigu.hr.common.api.ErrorCode
+import com.atguigu.hr.common.api.exceedsMaxLength
 import com.atguigu.hr.common.database.isConstraintConflict
 import io.ktor.http.HttpStatusCode
 import java.util.Locale
@@ -72,7 +73,8 @@ class AuthService(
     }
 
     private fun validRoleName(name: String): String = name.trim().also {
-        if (it.isBlank() || it.length > 50) badRequest("role name must contain 1-50 characters")
+        // 与 name 列 varchar(50) 的码点计长一致，不按 UTF-16 单元
+        if (it.isBlank() || it.exceedsMaxLength(50)) badRequest("role name must contain 1-50 characters")
     }
 
     suspend fun createUser(body: UserCreateRequest): UserDto {

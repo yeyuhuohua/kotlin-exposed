@@ -94,10 +94,12 @@ const rules = computed<FormRules>(() =>
               if ((!field.step || field.step === '1') && !Number.isInteger(number))
                 return done(new Error(`${field.label}必须是整数`))
             } else if (typeof value === 'string') {
-              if (field.minLength !== undefined && value.length < field.minLength)
+              // 默认与数据库列一致按 Unicode 码点计数（𠮷 算 1 个）；
+              // 密码等后端按 UTF-16 校验的字段用 lengthUnit: 'utf16' 对齐。
+              const textLength = field.lengthUnit === 'utf16' ? value.length : codePointLength(value)
+              if (field.minLength !== undefined && textLength < field.minLength)
                 return done(new Error(`${field.label}至少 ${field.minLength} 个字符`))
-              // 与后端/数据库一致按 Unicode 码点计数，𠮷 等字符算 1 个
-              if (field.maxLength !== undefined && codePointLength(value) > field.maxLength)
+              if (field.maxLength !== undefined && textLength > field.maxLength)
                 return done(new Error(`${field.label}最多 ${field.maxLength} 个字符`))
               if (field.pattern && !field.pattern.test(value))
                 return done(new Error(field.patternMessage || `${field.label}格式不正确`))
