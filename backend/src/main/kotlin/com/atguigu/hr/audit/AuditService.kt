@@ -30,6 +30,9 @@ object AuditService {
     private val workers = mutableListOf<Job>()
     private val dropped = AtomicLong(0)
 
+    /** 已取出但尚未写完的记录数；停机超时取消时计入损失。 */
+    private val inFlight = AtomicLong(0)
+
     /** 停机排空等待上限；internal 供测试缩短。 */
     internal var drainTimeoutMs = 5_000L
 
@@ -97,7 +100,12 @@ object AuditService {
             repeat(WORKERS) {
                 workers += scope.launch {
                     for (task in queue) {
-                        runCatching { task() }.onFailure { log.warn("写入审计记录失败", it) }
+                        inFlight.incrementAndGet()
+                        try {
+                            runCatching { task() }.onFailure { log.warn("写入审计记录失败", it) }
+                        } finally {
+                            inFlight.decrementAndGet()
+                        }
                     }
                 }
             }
@@ -115,7 +123,8 @@ object AuditService {
         }
         if (!drained) {
             scope.cancel()
-            var lost = 0L
+            // 队列剩余 + 已取出但未写完的被取消记录；两个集合不相交，不会重复计数
+            var lost = inFlight.get()
             while (queue.tryReceive().isSuccess) lost++
             if (lost > 0) {
                 log.warn("审计停机等待超时，丢弃 {} 条未写出记录（累计 {} 条）", lost, dropped.addAndGet(lost))
@@ -132,6 +141,7 @@ object AuditService {
             queue = Channel(QUEUE_CAPACITY)
             workers.clear()
             dropped.set(0)
+            inFlight.set(0)
             started = false
         }
     }
