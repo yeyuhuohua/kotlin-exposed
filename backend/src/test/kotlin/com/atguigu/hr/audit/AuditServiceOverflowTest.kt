@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 class AuditServiceOverflowTest {
     @AfterTest
     fun resetWriters() {
-        AuditService.loginWriter = { _, _, _, _, _, _ -> }
+        AuditService.loginWriter = { _, _, _, _, _, _, _ -> }
     }
 
     @Test
@@ -22,7 +22,7 @@ class AuditServiceOverflowTest {
         val gate = CompletableDeferred<Unit>()
         val written = AtomicInteger(0)
         val droppedBefore = AuditService.droppedCount()
-        AuditService.loginWriter = { _, _, _, _, _, _ ->
+        AuditService.loginWriter = { _, _, _, _, _, _, _ ->
             gate.await()
             written.incrementAndGet()
         }
@@ -37,7 +37,7 @@ class AuditServiceOverflowTest {
             )
             // 打开闸门并恢复快速写入端，用完成信号等队列排空：每条记录要么写出、要么被丢弃
             gate.complete(Unit)
-            AuditService.loginWriter = { _, _, _, _, _, _ -> written.incrementAndGet(); Unit }
+            AuditService.loginWriter = { _, _, _, _, _, _, _ -> written.incrementAndGet(); Unit }
             withTimeout(10_000) {
                 while (written.get() + (AuditService.droppedCount() - droppedBefore) < submitted) {
                     delay(10)
@@ -45,7 +45,7 @@ class AuditServiceOverflowTest {
             }
         } finally {
             gate.complete(Unit)
-            AuditService.loginWriter = { _, _, _, _, _, _ -> }
+            AuditService.loginWriter = { _, _, _, _, _, _, _ -> }
         }
     }
 }

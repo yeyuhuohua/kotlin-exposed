@@ -110,4 +110,26 @@ describe('typed API client', () => {
     await expect(api('/employees')).rejects.toThrow('无法连接服务')
     await expect(api('/employees')).rejects.toThrow('无法识别的数据')
   })
+  it('正文读取超时归类为请求超时，而不是无法识别的数据', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          // 响应头已返回，正文读取超过内部 15 秒超时后才失败
+          json: () =>
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new DOMException('Request timeout', 'TimeoutError')), 16_000),
+            ),
+        }),
+      )
+      const assertion = expect(api('/employees')).rejects.toThrow('请求超时')
+      await vi.advanceTimersByTimeAsync(16_000)
+      await assertion
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

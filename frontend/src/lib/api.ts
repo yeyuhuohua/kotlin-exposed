@@ -60,7 +60,11 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
       },
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
     })
-    const envelope = (await response.json().catch(() => null)) as ApiEnvelope<T> | null
+    const envelope = (await response.json().catch((error: unknown) => {
+      // 只兜底 JSON 格式错误；取消、超时与网络异常必须向上传递，由外层统一归类。
+      if (error instanceof SyntaxError) return null
+      throw error
+    })) as ApiEnvelope<T> | null
     const currentToken = readSession()?.token
     if (response.status === 401 && options.auth !== false && (!currentToken || currentToken === token))
       window.dispatchEvent(new Event('hr:unauthorized'))

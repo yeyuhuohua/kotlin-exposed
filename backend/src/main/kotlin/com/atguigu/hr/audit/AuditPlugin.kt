@@ -12,7 +12,7 @@ import io.ktor.server.request.queryString
 import io.ktor.server.request.userAgent
 import io.ktor.util.AttributeKey
 
-/** 一次 /api 调用的记录输入。 */
+/** 一次 /api 调用的记录输入。occurredAt 是响应发送（事件发生）时刻。 */
 data class ApiCallRecordInput(
     val userId: Int?,
     val username: String?,
@@ -23,6 +23,7 @@ data class ApiCallRecordInput(
     val durationMs: Long,
     val ip: String,
     val userAgent: String?,
+    val occurredAt: java.time.LocalDateTime,
 )
 
 /** 不需要记录的路径：顶栏健康检查等高频轮询噪音。 */
@@ -71,5 +72,6 @@ internal fun ApplicationCall.toAuditInput(startedNs: Long): ApiCallRecordInput {
         durationMs = (System.nanoTime() - startedNs) / 1_000_000,
         ip = this.clientIp(),
         userAgent = request.userAgent(),
+        occurredAt = java.time.LocalDateTime.now(),
     )
 }

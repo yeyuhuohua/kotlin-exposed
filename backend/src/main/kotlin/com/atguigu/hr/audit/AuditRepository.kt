@@ -33,6 +33,7 @@ object AuditRepository {
         userAgent: String?,
         success: Boolean,
         errorCode: String?,
+        occurredAt: LocalDateTime,
     ) = dbUpdate {
         LoginRecords.insert {
             it[LoginRecords.username] = username.take(64)
@@ -41,7 +42,7 @@ object AuditRepository {
             it[LoginRecords.userAgent] = userAgent?.take(255)
             it[LoginRecords.success] = success
             it[LoginRecords.errorCode] = errorCode?.take(40)
-            it[createdAt] = LocalDateTime.now()
+            it[createdAt] = occurredAt
         }
     }
 
@@ -55,6 +56,7 @@ object AuditRepository {
         durationMs: Long,
         ip: String,
         userAgent: String?,
+        occurredAt: LocalDateTime,
     ) = dbUpdate {
         ApiCallRecords.insert {
             it[ApiCallRecords.userId] = userId
@@ -66,7 +68,7 @@ object AuditRepository {
             it[ApiCallRecords.durationMs] = durationMs
             it[ApiCallRecords.ip] = ip.take(45)
             it[ApiCallRecords.userAgent] = userAgent?.take(255)
-            it[createdAt] = LocalDateTime.now()
+            it[createdAt] = occurredAt
         }
     }
 
