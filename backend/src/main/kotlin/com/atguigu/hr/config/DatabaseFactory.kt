@@ -20,8 +20,11 @@ object DatabaseFactory {
         val name = config.property("database.name").getString()
         val user = config.property("database.user").getString()
         val password = config.property("database.password").getString()
-        // 本地 Docker MySQL 一般未开 SSL；zeroDate 避免 0000-00-00 解码失败
-        val url = "r2dbc:mysql://$host:$port/$name?sslMode=disabled&zeroDate=use_null"
+        // 服务端要求 caching_sha2_password 走加密通道时（报 must require SSL），把 sslMode 调成 required；
+        // zeroDate 避免 0000-00-00 解码失败
+        val sslMode = config.propertyOrNull("database.sslMode")?.getString()
+            ?.takeIf { it.isNotBlank() } ?: "disabled"
+        val url = "r2dbc:mysql://$host:$port/$name?sslMode=$sslMode&zeroDate=use_null"
 
         database = R2dbcDatabase.connect(
             url = url,

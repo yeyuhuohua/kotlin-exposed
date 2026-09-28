@@ -14,6 +14,9 @@ database:
   name: atguigudb
   user: root
   password: ""
+  # MySQL 连接加密：disabled（默认，本地未开 SSL 的库）/ required / verify_ca / verify_identity。
+  # 启动报 "Authentication type 'caching_sha2_password' must require SSL" 时改成 required。
+  sslMode: disabled
 
 redis:
   host: localhost
