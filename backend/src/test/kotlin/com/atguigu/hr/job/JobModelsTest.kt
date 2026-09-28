@@ -102,4 +102,19 @@ class JobModelsTest {
             JobUpdateRequest(jobTitle = "𠮷" + "a".repeat(35)).contentError(),
         )
     }
+
+    @Test
+    fun `点号编码会被路径规范化，创建时必须拒绝`() {
+        // /api/jobs/. 会变成 /api/jobs/，/api/jobs/.. 会变成 /api/，创建后永远编辑不到
+        assertEquals(
+            "jobId must not be '.' or '..'",
+            JobCreateRequest(jobId = ".", jobTitle = "Dot").contentError(),
+        )
+        assertEquals(
+            "jobId must not be '.' or '..'",
+            JobCreateRequest(jobId = "..", jobTitle = "Dots").contentError(),
+        )
+        assertNull(JobCreateRequest(jobId = "...", jobTitle = "Dots").contentError())
+        assertNull(JobCreateRequest(jobId = "A.B", jobTitle = "Dot Inside").contentError())
+    }
 }

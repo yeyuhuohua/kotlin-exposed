@@ -181,6 +181,33 @@ describe('Element Plus components', () => {
     })
   })
 
+  it('rejects dot-only job ids that would break the edit path', async () => {
+    const { resources } = await import('../src/config/resources')
+    const jobs = resources.find((resource) => resource.key === 'jobs')!
+    const wrapper = mount(RecordDialog, {
+      ...options,
+      props: { title: '新增岗位', endpoint: '/jobs', idKey: 'jobId', fields: jobs.fields! },
+    })
+    mounted.push(wrapper)
+    await flushPromises()
+    const inputs = wrapper.findAllComponents(ElInput)
+    await inputs[1]!.find('input').setValue('Dots')
+    // "." 与 ".." 会被浏览器按路径段规范化，创建后 /jobs/{id} 永远到不了更新接口
+    for (const bad of ['.', '..']) {
+      await inputs[0]!.find('input').setValue(bad)
+      await wrapper.findComponent(ElForm).trigger('submit')
+      await flushPromises()
+    }
+    expect(mocks.api).not.toHaveBeenCalled()
+    await inputs[0]!.find('input').setValue('KT_DEV')
+    await wrapper.findComponent(ElForm).trigger('submit')
+    await flushPromises()
+    expect(mocks.api).toHaveBeenCalledWith('/jobs', {
+      method: 'POST',
+      body: { jobId: 'KT_DEV', jobTitle: 'Dots' },
+    })
+  })
+
   it('clears the session after changing own password only when it is unchanged', async () => {
     saveSession('token-old', 600)
     let release!: () => void

@@ -58,6 +58,8 @@ data class JobCreateRequest(
 ) {
     fun contentError(): String? = when {
         jobId.isBlank() || jobTitle.isBlank() -> "jobId and jobTitle are required"
+        // "." 与 ".." 会被客户端按路径段规范化，创建后 /jobs/{id} 将永远到不了更新接口
+        jobId == "." || jobId == ".." -> "jobId must not be '.' or '..'"
         jobId.exceedsMaxLength(10) -> "jobId must be at most 10 characters"
         jobTitle.exceedsMaxLength(35) -> "jobTitle must be at most 35 characters"
         minSalary != null && minSalary < 0 -> "minSalary must be non-negative"

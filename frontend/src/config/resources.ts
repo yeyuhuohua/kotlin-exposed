@@ -94,7 +94,13 @@ export const resources: Resource[] = [
       { key: 'maxSalary', label: '最高月薪', kind: 'money' },
     ],
     fields: [
-      { ...text('jobId', '岗位编码', true, 10), createOnly: true },
+      {
+        ...text('jobId', '岗位编码', true, 10),
+        createOnly: true,
+        // "." 与 ".." 会被浏览器按路径段规范化（/api/jobs/.. → /api/），创建后将无法编辑。
+        pattern: /^(?!\.{1,2}$).+$/,
+        patternMessage: '岗位编码不能是 . 或 ..',
+      },
       text('jobTitle', '岗位名称', true, 35),
       { ...number('minSalary', '最低月薪'), min: 0 },
       { ...number('maxSalary', '最高月薪'), min: 0 },
