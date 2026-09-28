@@ -5,7 +5,7 @@ import type { FormInstance, FormRules } from 'element-plus'
 import Modal from './Modal.vue'
 import { fillTemplate, itemUrl, rolesPaths, usersPaths } from '../api/paths'
 import { api } from '../lib/api'
-import { formPayload } from '../lib/format'
+import { formPayload, codePointLength } from '../lib/format'
 import { lookupSources } from '../config/resources'
 import { useAuth } from '../stores/auth'
 import { useNotices } from '../stores/notices'
@@ -96,7 +96,8 @@ const rules = computed<FormRules>(() =>
             } else if (typeof value === 'string') {
               if (field.minLength !== undefined && value.length < field.minLength)
                 return done(new Error(`${field.label}至少 ${field.minLength} 个字符`))
-              if (field.maxLength !== undefined && value.length > field.maxLength)
+              // 与后端/数据库一致按 Unicode 码点计数，𠮷 等字符算 1 个
+              if (field.maxLength !== undefined && codePointLength(value) > field.maxLength)
                 return done(new Error(`${field.label}最多 ${field.maxLength} 个字符`))
               if (field.pattern && !field.pattern.test(value))
                 return done(new Error(field.patternMessage || `${field.label}格式不正确`))
@@ -251,13 +252,14 @@ async function save() {
               :model-value="String(values[field.key] ?? '')"
               @update:model-value="values[field.key] = $event"
               :type="field.type || 'text'"
-              :maxlength="field.maxLength"
               :show-password="field.type === 'password'"
               :aria-label="field.label"
               :disabled="busy"
               :autocomplete="field.type === 'password' ? 'new-password' : 'off'"
               :placeholder="field.type === 'password' && original ? '保持不变' : undefined"
             />
+            <!-- 不设置原生 maxlength：它按 UTF-16 单元计数，会挡住 𠮷 这类合法输入；
+                 长度限制统一由上面的码点校验给出提示。 -->
           </el-form-item>
         </div>
         <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />

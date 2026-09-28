@@ -17,6 +17,10 @@ export interface FormPayloadOptions {
   /** 后端支持 PATCH 语义时，clearable 字段可以提交 null 表示清空。 */
   allowClear?: boolean
 }
+/** 与后端/数据库一致的字符数：按 Unicode 码点计数，𠮷 等增补平面字符算 1 个。 */
+export function codePointLength(value: string): number {
+  return [...value].length
+}
 export function formPayload(
   fields: Field[],
   values: Row,

@@ -109,6 +109,36 @@ describe('Element Plus components', () => {
     expect(mocks.api).toHaveBeenCalledWith('/employees/100', { method: 'PUT', body: { salary: 1250.5 } })
   })
 
+  it('validates text length by code points so supplementary-plane records stay editable', async () => {
+    // 部门名是 𠮷 加 29 个普通字符（30 个码点、31 个 UTF-16 单元）：只改经理编号也应能保存。
+    const wrapper = mount(RecordDialog, {
+      ...options,
+      props: {
+        title: '编辑部门',
+        endpoint: '/departments',
+        idKey: 'departmentId',
+        original: { departmentId: 60, departmentName: '𠮷' + 'a'.repeat(29), managerId: 100 },
+        fields: [
+          { key: 'departmentName', label: '部门名称', required: true, maxLength: 30 },
+          { key: 'managerId', label: '经理编号', type: 'number' },
+        ],
+      },
+    })
+    mounted.push(wrapper)
+    await flushPromises()
+    wrapper.findComponent(ElInputNumber).vm.$emit('update:modelValue', 200)
+    await wrapper.findComponent(ElForm).trigger('submit')
+    await flushPromises()
+    expect(mocks.api).toHaveBeenCalledWith('/departments/60', { method: 'PUT', body: { managerId: 200 } })
+    expect(wrapper.emitted('saved')).toHaveLength(1)
+    // 超出 30 个码点仍然被拦下
+    const inputs = wrapper.findAllComponents(ElInput)
+    await inputs[0]!.find('input').setValue('𠮷' + 'a'.repeat(30))
+    await wrapper.findComponent(ElForm).trigger('submit')
+    await flushPromises()
+    expect(mocks.api).toHaveBeenCalledTimes(1)
+  })
+
   it('forwards pagination events without changing the API page contract', () => {
     const wrapper = mount(Pagination, { ...options, props: { page: 1, pageSize: 10, total: 107 } })
     mounted.push(wrapper)
