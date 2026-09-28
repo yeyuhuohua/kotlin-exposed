@@ -1,6 +1,7 @@
 package com.atguigu.hr.health
 
 import com.atguigu.hr.common.api.ApiResult
+import com.atguigu.hr.common.api.ErrorCode
 import com.atguigu.hr.common.api.respondOk
 import com.atguigu.hr.docs.responseExamples
 import io.ktor.http.HttpStatusCode
@@ -18,9 +19,15 @@ fun Route.healthRoutes() {
         if (health.status == "UP") {
             call.respondOk(health)
         } else {
+            // 保留健康详情在 data 里，error 给出稳定错误码供监控与前端区分。
             call.respond(
                 HttpStatusCode.ServiceUnavailable,
-                ApiResult(code = 503, message = "dependency unavailable", data = health),
+                ApiResult(
+                    code = 503,
+                    message = "dependency unavailable",
+                    data = health,
+                    error = ErrorCode.DEPENDENCY_UNAVAILABLE,
+                ),
             )
         }
     }.describe {

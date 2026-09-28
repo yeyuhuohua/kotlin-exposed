@@ -42,6 +42,14 @@ const { data, loading, error, refresh } = useResource((signal) =>
   ),
 )
 const filtered = computed(() => Boolean(keyword.value || departmentId.value || jobId.value))
+/** 部门筛选选项：除部门列表外附带"未分配部门"（departmentId=none）。 */
+const departmentOptions = computed(() => [
+  { value: 'none', label: '未分配部门' },
+  ...departments.value.map((item) => ({
+    value: String(item.departmentId),
+    label: item.departmentName,
+  })),
+])
 const canDetail = computed(
   () => auth.canApi('GET', employeesPaths.item) || auth.canApi('GET', employeesPaths.itemDetails),
 )
@@ -190,10 +198,10 @@ async function remove() {
             @change="page = 1"
           >
             <el-option
-              v-for="department in departments"
-              :key="department.departmentId"
-              :value="String(department.departmentId)"
-              :label="department.departmentName"
+              v-for="department in departmentOptions"
+              :key="department.value"
+              :value="department.value"
+              :label="department.label"
             />
           </el-select>
           <el-select

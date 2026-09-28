@@ -71,7 +71,7 @@ data class AuthUser(
     val rolePermissions: Set<String> = emptySet(),
 ) {
     val active: Boolean get() = enabled && roleEnabled
-    val protectedAccount: Boolean get() = username.equals("admin", ignoreCase = true)
+    val protectedAccount: Boolean get() = username.equals(AuthService.PROTECTED_USERNAME, ignoreCase = true)
     fun toDto() = UserDto(id, username, roleCode, enabled)
     fun effectivePermissions() = PermissionCatalog.effective(this)
     fun hasPermission(code: String) = active && code in effectivePermissions()

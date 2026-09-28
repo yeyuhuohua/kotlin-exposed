@@ -67,6 +67,11 @@ function recordLabel(row: Row): string {
   const column = props.resource.columns[1] ?? props.resource.columns[0]
   return String(row[column.key] ?? row[props.resource.id])
 }
+/** 打开删除弹窗时清掉上一条记录留下的错误。 */
+function askDelete(row: Row) {
+  deleteError.value = ''
+  deleting.value = row
+}
 async function confirmDelete() {
   if (!deleting.value || !props.resource.updateTemplate) return
   deleteBusy.value = true
@@ -277,7 +282,7 @@ function saved() {
                     :icon="Trash2"
                     :disabled="protectedRow(row)"
                     :aria-label="`删除 ${recordLabel(row)}`"
-                    @click="deleting = row"
+                    @click="askDelete(row)"
                   />
                 </span>
               </el-tooltip>

@@ -14,6 +14,8 @@ class AuthService(
     private val dummyHash: String,
     /** 每个受保护请求都要解析一次用户与权限，用短 TTL 缓存吸收并发重复查询。 */
     private val userCache: AuthUserCache = AuthUserCache(),
+    /** 多实例部署时的跨实例失效同步；null 表示仅本实例生效。 */
+    private val sharedInvalidation: SharedInvalidation? = null,
 ) {
     suspend fun login(body: LoginRequest): TokenDto {
         val username = body.username.trim().lowercase(Locale.ROOT)
@@ -25,6 +27,8 @@ class AuthService(
     }
 
     suspend fun authenticate(id: Int, version: Int): AuthUser? {
+        // 其它实例撤销过权限时先清本地缓存，再决定是否命中
+        if (sharedInvalidation?.advanced() == true) userCache.clear()
         userCache.get(id, version)?.let { return it }
         // 只缓存通过校验的活跃用户；停用或版本不符时保持 401
         val loadedAt = userCache.now()
@@ -50,6 +54,7 @@ class AuthService(
             store.replaceRolePermissions(code, body)
         } finally {
             userCache.invalidateRole(code)
+            sharedInvalidation?.broadcast()
         }
     }
 
@@ -78,6 +83,7 @@ class AuthService(
                 ?: throw AuthException(HttpStatusCode.NotFound, "role not found")
         } finally {
             userCache.invalidateRole(code)
+            sharedInvalidation?.broadcast()
         }
     }
 
@@ -88,6 +94,10 @@ class AuthService(
 
     suspend fun createUser(body: UserCreateRequest): UserDto {
         val username = normalizeUsername(body.username)
+        // admin 是保留用户名：保护规则按它识别内置管理员，重名账号会无法停用、删除或重置密码
+        if (username == PROTECTED_USERNAME) {
+            throw AuthException(HttpStatusCode.Conflict, "username is reserved", ErrorCode.USERNAME_TAKEN)
+        }
         validatePassword(body.password)
         validateRole(body.roleCode)
         val hash = PasswordHasher.hash(body.password)
@@ -132,6 +142,7 @@ class AuthService(
                 ?: throw AuthException(HttpStatusCode.NotFound, "user not found")
         } finally {
             userCache.invalidateUser(id)
+            sharedInvalidation?.broadcast()
         }
     }
 
@@ -159,6 +170,7 @@ class AuthService(
             store.deleteUser(id)
         } finally {
             userCache.invalidateUser(id)
+            sharedInvalidation?.broadcast()
         }
     }
 
@@ -176,6 +188,7 @@ class AuthService(
             store.revokeTokens(id)
         } finally {
             userCache.invalidateUser(id)
+            sharedInvalidation?.broadcast()
         }
     }
 
@@ -186,6 +199,9 @@ class AuthService(
     }
 
     companion object {
+        /** 保留用户名：内置管理员的标识，createUser 拒绝、保护规则按它识别。 */
+        const val PROTECTED_USERNAME = "admin"
+
         fun normalizeUsername(value: String): String {
             val username = value.trim().lowercase(Locale.ROOT)
             if (!validUsername(username)) badRequest("username must contain 3-64 ASCII letters, digits, dots, underscores or hyphens")

@@ -9,7 +9,14 @@ import java.security.MessageDigest
 object EmployeeCache {
     fun employee(id: Int) = "hr:employee:$id"
     fun employeeDetails(id: Int) = "hr:employee:$id:details"
-    fun employeesList(limit: Int, offset: Long, departmentId: Int?, jobId: String?, q: String?): String {
+    fun employeesList(
+        limit: Int,
+        offset: Long,
+        departmentId: Int?,
+        jobId: String?,
+        q: String?,
+        unassignedOnly: Boolean = false,
+    ): String {
         val payload = JsonObject(
             mapOf(
                 "limit" to JsonPrimitive(limit),
@@ -17,6 +24,7 @@ object EmployeeCache {
                 "departmentId" to (departmentId?.let(::JsonPrimitive) ?: JsonNull),
                 "jobId" to (jobId?.let(::JsonPrimitive) ?: JsonNull),
                 "q" to (q?.let(::JsonPrimitive) ?: JsonNull),
+                "unassignedOnly" to JsonPrimitive(unassignedOnly),
             ),
         ).toString()
         return "hr:employees:list:${sha256Hex(payload)}"

@@ -4,6 +4,7 @@ import com.atguigu.hr.config.RedisFactory
 import io.lettuce.core.KeyScanCursor
 import io.lettuce.core.ScanArgs
 import io.lettuce.core.ScanCursor
+import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.SetArgs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -35,6 +36,13 @@ object RedisCache {
     private const val RECOVER_BACKOFF_MS = 5_000L
     private const val SCAN_BATCH = 256L
     private const val DELETE_BATCH = 256
+
+    /** 原子回填：共享版本未变才写入，否则丢弃（其它实例已失效该分组）。 */
+    private const val CHECK_AND_SET = """
+local current = redis.call('GET', KEYS[2]) or '0'
+if current ~= ARGV[1] then return 0 end
+return redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+"""
     private val log = LoggerFactory.getLogger(RedisCache::class.java)
     private val json = Json {
         encodeDefaults = true
@@ -114,13 +122,14 @@ object RedisCache {
     ): Cached<T> {
         val group = groupOf(key) ?: return Cached(loader(), hit = false)
         val snap = group.version.get().number
+        val sharedSnap = sharedVersion(group)
         readRaw(key)?.let { raw ->
             runCatching { json.decodeFromString(serializer, raw) }
                 .onSuccess { return Cached(it, hit = true) }
                 .onFailure { log.warn("Cache decode failed for {}", key, it) }
         }
         val value = loader()
-        fill(key, group, snap) { json.encodeToString(serializer, value) }
+        fill(key, group, snap, sharedSnap) { json.encodeToString(serializer, value) }
         return Cached(value, hit = false)
     }
 
@@ -136,13 +145,14 @@ object RedisCache {
     ): Cached<T?> {
         val group = groupOf(key) ?: return Cached(loader(), hit = false)
         val snap = group.version.get().number
+        val sharedSnap = sharedVersion(group)
         readRaw(key)?.let { raw ->
             runCatching { json.decodeFromString(serializer, raw) }
                 .onSuccess { return Cached(it, hit = true) }
                 .onFailure { log.warn("Cache decode failed for {}", key, it) }
         }
         val value = loader()
-        if (value != null) fill(key, group, snap) { json.encodeToString(serializer, value) }
+        if (value != null) fill(key, group, snap, sharedSnap) { json.encodeToString(serializer, value) }
         return Cached(value, hit = false)
     }
 
@@ -157,7 +167,25 @@ object RedisCache {
     /** 先同步标记全部分组，再逐个清理；清理失败的分组保持旁路，不会重新暴露旧缓存。 */
     private suspend fun invalidate(groups: List<Group>) {
         groups.forEach { group -> group.version.updateAndGet { Version(it.number + 1, dirty = true) } }
+        // 共享版本号 +1：其它实例的回填会被原子校验拒绝；失败只降级为单实例语义
+        groups.forEach { group ->
+            cacheAttempt("bump ${group.name}") { RedisFactory.async.incr(versionKey(group)).await() }
+        }
         groups.forEach { group -> ensureClean(group) }
+    }
+
+    /** 共享版本 key 不在任何清理模式的命名空间内，recover 的 SCAN 不会碰到它。 */
+    private fun versionKey(group: Group) = "hr:cache:ver:${group.name}"
+
+    /**
+     * 读共享版本号：Redis 不可用返回 null（回填退回本地版本校验），
+     * key 不存在视为 0（第一次失效前的初始版本）。
+     */
+    private suspend fun sharedVersion(group: Group): Long? {
+        if (System.nanoTime() < group.failNotBefore.get()) return null
+        val outcome = cacheOutcome("version ${group.name}") { RedisFactory.async.get(versionKey(group)).await() }
+            ?: return null
+        return outcome.value?.toLongOrNull() ?: 0L
     }
 
     suspend fun readRaw(key: String): String? {
@@ -178,7 +206,7 @@ object RedisCache {
     }
 
     /** 回填前重新核对版本，避免把失效期间读到的旧值写回缓存。 */
-    private suspend fun fill(key: String, group: Group, snap: Long, encode: () -> String) {
+    private suspend fun fill(key: String, group: Group, snap: Long, sharedSnap: Long?, encode: () -> String) {
         if (group.version.get().dirty) return
         if (System.nanoTime() < group.failNotBefore.get()) return
         group.lock.withLock {
@@ -187,7 +215,19 @@ object RedisCache {
             val outcome = cacheOutcome("fill $key") {
                 val version = group.version.get()
                 if (!version.dirty && version.number == snap) {
-                    RedisFactory.async.set(key, encode(), ttl()).await()
+                    if (sharedSnap != null) {
+                        // 原子校验共享版本再写入：其它实例失效后，本次旧回填被拒绝
+                        RedisFactory.async.eval<String>(
+                            CHECK_AND_SET,
+                            ScriptOutputType.STATUS,
+                            arrayOf(key, versionKey(group)),
+                            sharedSnap.toString(),
+                            encode(),
+                            RedisFactory.ttlSeconds.toString(),
+                        ).await()
+                    } else {
+                        RedisFactory.async.set(key, encode(), ttl()).await()
+                    }
                 }
             }
             if (outcome == null) group.backoffOnFailure()

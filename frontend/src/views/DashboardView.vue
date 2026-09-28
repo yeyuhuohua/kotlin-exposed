@@ -178,7 +178,11 @@ function departmentName(id: number | null) {
                 <span class="rank">{{ String(index + 1).padStart(2, '0') }}</span>
                 <component
                   :is="auth.canPage('employees') ? RouterLink : 'span'"
-                  :to="department.id === null ? '/employees' : `/employees?departmentId=${department.id}`"
+                  :to="
+                    department.id === null
+                      ? '/employees?departmentId=none'
+                      : `/employees?departmentId=${department.id}`
+                  "
                 >
                   {{ department.label }}
                 </component>

@@ -5,7 +5,8 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * 鉴权用的短 TTL 用户缓存（含角色权限），避免每个受保护请求都查一次库。
  *
- * key 里带 `tokenVersion`：改密码、改角色、停用账号都会 +1，因此这些操作立即失效。
+ * key 里带 `tokenVersion`：改密码、改角色、停用账号都会 +1，因此这些操作在本实例立即失效；
+ * 多实例部署由 SharedInvalidation 同步，其它实例最迟下一个请求感知。
  * 退出登录、删除账号、调整角色权限等操作由 [invalidateUser] / [invalidateRole] 主动失效；
  * 条目记录数据读出的时刻，读出早于失效时刻的条目视为脏数据，挡住并发回填。
  * 直接在数据库里改数据时最多滞后 [ttlMillis]；设为 0 表示关闭缓存。
@@ -21,6 +22,9 @@ class AuthUserCache(
     private val entries = ConcurrentHashMap<String, Entry>()
     private val invalidatedUsers = ConcurrentHashMap<Int, Long>()
     private val invalidatedRoles = ConcurrentHashMap<String, Long>()
+
+    @Volatile
+    private var lastPruneAt = 0L
 
     val enabled: Boolean get() = ttlMillis > 0
 
@@ -46,7 +50,11 @@ class AuthUserCache(
         // 后者保证失效标记被 prune 清理后，迟到的旧回填也不会让已撤销的 Token 复活。
         val entry = Entry(user, loadedAt, now + ttlMillis)
         if (loadedAt <= now - ttlMillis || entry.stale()) return
-        if (entries.size >= maxEntries) prune()
+        // 定期清理失效标记：与条目数解耦，否则低流量时过期标记会一直占着内存
+        if (now - lastPruneAt >= ttlMillis || entries.size >= maxEntries) {
+            lastPruneAt = now
+            prune()
+        }
         entries[key(user.id, user.tokenVersion)] = entry
     }
 
@@ -71,6 +79,9 @@ class AuthUserCache(
             invalidatedRoles[user.roleCode]?.let { loadedAt <= it } == true
 
     fun trackedEntries(): Int = entries.size
+
+    /** 失效标记数量；internal 供测试断言标记会被定期清理。 */
+    internal fun trackedInvalidations(): Int = invalidatedUsers.size + invalidatedRoles.size
 
     fun clear() {
         entries.clear()

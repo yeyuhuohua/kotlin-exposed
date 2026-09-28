@@ -209,7 +209,7 @@ export const resources: Resource[] = [
       { key: 'deptName', label: '部门名称' },
       { key: 'address', label: '地址' },
     ],
-    fields: [text('deptName', '部门名称', true), text('address', '地址')],
+    fields: [text('deptName', '部门名称', false, 30), text('address', '地址', false, 30)],
   },
   {
     key: 't-emp',
@@ -226,7 +226,7 @@ export const resources: Resource[] = [
       { key: 'empno', label: '工号' },
     ],
     fields: [
-      text('name', '姓名'),
+      text('name', '姓名', false, 20),
       { ...number('age', '年龄'), min: 0 },
       lookup('deptId', '示例部门', 't-dept'),
       number('empno', '工号', true),

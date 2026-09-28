@@ -28,9 +28,8 @@ object RedisFactory {
     private var uri: RedisURI? = null
     private val reconnectMutex = Mutex()
 
-    /** 重连失败后的退避截止时间（System.nanoTime）；internal 供测试断言。 */
+    /** 重连失败后的退避截止时间（System.nanoTime）；internal 供测试断言与重置。 */
     internal var reconnectNotBefore = 0L
-        private set
 
     /** 缓存过期秒数，默认 10 分钟，来自 application.yaml redis.ttlSeconds。 */
     var ttlSeconds: Long = 600
@@ -53,6 +52,22 @@ object RedisFactory {
         runBlocking { tryOpen() }
     }
 
+    /** 默认建连：Lettuce 异步建连，失败时负责关掉新 client。 */
+    private val defaultConnector: suspend (RedisURI) -> Pair<RedisClient, StatefulRedisConnection<String, String>> =
+        { redisUri ->
+            val newClient = RedisClient.create(redisUri)
+            try {
+                newClient to newClient.connectAsync(StringCodec.UTF8, redisUri).await()
+            } catch (cause: Exception) {
+                newClient.shutdown()
+                throw cause
+            }
+        }
+
+    /** 建连入口可替换（测试用）。 */
+    internal var connectFn: suspend (RedisURI) -> Pair<RedisClient, StatefulRedisConnection<String, String>> =
+        defaultConnector
+
     /**
      * 已连接直接返回 true；未连接时尝试建连，失败只记日志并退避。
      * 互斥锁让并发调用共享同一次建连，排队只是挂起协程，不占用线程。
@@ -64,15 +79,13 @@ object RedisFactory {
             if (connection != null) return@withLock true
             if (System.nanoTime() < reconnectNotBefore) return@withLock false
             val redisUri = uri ?: return@withLock false
-            val newClient = RedisClient.create(redisUri)
             val opened = runCatching {
-                val newConnection = newClient.connectAsync(StringCodec.UTF8, redisUri).await()
+                val (newClient, newConnection) = connectFn(redisUri)
                 connection = newConnection
                 client?.shutdown()
                 client = newClient
                 log.info("Configured non-blocking Lettuce Redis at {}:{}", redisUri.host, redisUri.port)
             }.onFailure { cause ->
-                newClient.shutdown()
                 log.warn(
                     "Redis at {}:{} unavailable; cache bypassed until reconnect: {}",
                     redisUri.host,
@@ -103,5 +116,6 @@ object RedisFactory {
         client = null
         uri = null
         reconnectNotBefore = 0
+        connectFn = defaultConnector
     }
 }

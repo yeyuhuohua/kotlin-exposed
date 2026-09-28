@@ -124,4 +124,16 @@ class AuthUserCacheTest {
         cache.put(user(version = 1, roleCode = "READER"), loadedAt = 150)
         assertNull(cache.get(7, 1))
     }
+
+    @Test
+    fun `过期失效标记在低流量时也会被定期清理`() {
+        val cache = AuthUserCache(ttlMillis = 3_000) { now }
+        repeat(100) { index -> cache.invalidateUser(index) }
+        assertEquals(100, cache.trackedInvalidations())
+        // 只有一个有效条目、未达到容量上限，时间走过一个 TTL 后的下一次 put 也要清理标记
+        now += 3_001
+        cache.put(user(version = 1))
+        assertEquals(0, cache.trackedInvalidations(), "标记清理不能依赖条目数达到上限")
+        assertNotNull(cache.get(7, 1), "正常条目不受清理影响")
+    }
 }

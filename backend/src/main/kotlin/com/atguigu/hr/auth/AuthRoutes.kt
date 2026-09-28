@@ -12,6 +12,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.install
 import io.ktor.server.auth.principal
+import io.ktor.server.request.header
 import io.ktor.server.request.receive
 import io.ktor.server.request.userAgent
 import io.ktor.server.response.header
@@ -27,10 +28,18 @@ import java.util.Locale
 
 /** 注册认证、用户和角色管理接口，管理路由统一启用 ADMIN 限制。 */
 
+/** 登录请求体上限：正常载荷不足百字节，4 KiB 已非常宽裕。 */
+private const val MAX_LOGIN_BODY_BYTES = 4 * 1024L
+
 @OptIn(ExperimentalKtorApi::class)
 fun Route.authPublicRoutes(service: AuthService, throttle: LoginThrottle) {
     post("/auth/login") {
         call.response.header("Cache-Control", "no-store")
+        // 登录体积极小（用户名+密码），读取前先限制大小，超限直接 413，不消耗解析资源。
+        val contentLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
+        if (contentLength != null && contentLength > MAX_LOGIN_BODY_BYTES) {
+            return@post call.respondFail(HttpStatusCode.PayloadTooLarge, "request body too large")
+        }
         val body = call.receive<LoginRequest>()
         // 限流与审计用同一个真实来源：经可信代理解析 X-Forwarded-For，直连伪造不生效。
         val clientIp = call.clientIp()

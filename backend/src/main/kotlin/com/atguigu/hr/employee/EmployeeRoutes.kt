@@ -24,10 +24,13 @@ fun Route.employeeRoutes() {
     get("/employees") {
         val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 200) ?: 50
         val offset = call.request.queryParameters["offset"]?.toLongOrNull()?.coerceAtLeast(0) ?: 0L
-        val departmentId = call.request.queryParameters["departmentId"]?.toIntOrNull()
+        // departmentId=none 表示只查未分配部门的员工
+        val departmentParam = call.request.queryParameters["departmentId"]
+        val unassignedOnly = departmentParam == "none"
+        val departmentId = if (unassignedOnly) null else departmentParam?.toIntOrNull()
         val jobId = call.request.queryParameters["jobId"]
         val q = call.request.queryParameters["q"]
-        val cached = EmployeeService.listEmployees(limit, offset, departmentId, jobId, q)
+        val cached = EmployeeService.listEmployees(limit, offset, departmentId, jobId, q, unassignedOnly)
         call.cacheHeader(cached)
         call.respondOk(cached.value)
     }.describe {
@@ -36,7 +39,7 @@ fun Route.employeeRoutes() {
         parameters {
             query("limit") { description = "每页条数，默认 50，最大 200" }
             query("offset") { description = "跳过条数，默认 0。limit=50&offset=50 为第二页" }
-            query("departmentId") { description = "按部门 ID 过滤，例如 90=Executive" }
+            query("departmentId") { description = "按部门 ID 过滤，例如 90=Executive；none 表示只看未分配部门" }
             query("jobId") { description = "按岗位编码精确过滤，例如 IT_PROG" }
             query("q") { description = "姓名或邮箱模糊搜索，例如 King" }
         }

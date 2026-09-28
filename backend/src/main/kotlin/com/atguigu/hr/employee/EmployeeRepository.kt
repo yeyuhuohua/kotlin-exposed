@@ -21,6 +21,7 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.avg
 import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.like
 import org.jetbrains.exposed.v1.core.max
 import org.jetbrains.exposed.v1.core.min
@@ -41,9 +42,11 @@ object EmployeeRepository {
         departmentId: Int?,
         jobId: String?,
         q: String?,
+        unassignedOnly: Boolean = false,
     ): ApiList<EmployeeDto> = dbQuery {
         val query = Employees.selectAll()
-        departmentId?.let { query.andWhere { Employees.departmentId eq it } }
+        if (unassignedOnly) query.andWhere { Employees.departmentId.isNull() }
+        else departmentId?.let { query.andWhere { Employees.departmentId eq it } }
         jobId?.let { query.andWhere { Employees.jobId eq it } }
         q?.takeIf { it.isNotBlank() }?.let { keyword ->
             // 依赖列的 *_ci 排序规则做大小写不敏感匹配，不再对列套 LOWER()：

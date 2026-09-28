@@ -27,5 +27,7 @@ suspend fun createAuthService(config: ApplicationConfig, database: R2dbcDatabase
         tokens,
         PasswordHasher.hash(UUID.randomUUID().toString()),
         AuthUserCache(ttlMillis = cacheSeconds.coerceAtLeast(0) * 1000),
+        // 多实例部署时跨实例同步撤销；Redis 不可用时自动退回单实例语义
+        SharedInvalidation(),
     )
 }

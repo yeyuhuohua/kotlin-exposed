@@ -30,7 +30,9 @@ internal fun withAuthDocumentation(element: JsonElement): JsonElement {
             )
             JsonObject(operation + mapOf(
                 "security" to requirement,
-                "x-required-roles" to JsonArray((if (adminOnly) listOf("ADMIN") else listOf("ADMIN", "READER")).map(::JsonPrimitive)),
+                "x-required-roles" to JsonArray(
+                    (if (adminOnly) listOf("ADMIN") else listOf("ADMIN", "具有该接口权限的任意角色")).map(::JsonPrimitive),
+                ),
                 "x-permission" to JsonPrimitive(permission?.code ?: "authenticated"),
                 "responses" to JsonObject(errors + responses),
             ))

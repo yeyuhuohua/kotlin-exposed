@@ -15,6 +15,7 @@ import Pagination from '../src/components/Pagination.vue'
 import RolePermissionEditor from '../src/components/RolePermissionEditor.vue'
 import Modal from '../src/components/Modal.vue'
 import LoginView from '../src/views/LoginView.vue'
+import ResourceView from '../src/views/ResourceView.vue'
 import { readSession, saveSession } from '../src/lib/session'
 
 /** 在内存 DOM 中验证组件契约，不读取本机账号、不访问浏览器或真实 API。 */
@@ -26,7 +27,10 @@ const mocks = vi.hoisted(() => ({
   clear: vi.fn(),
   canPage: vi.fn(() => false),
 }))
-vi.mock('../src/lib/api', () => ({ api: mocks.api }))
+vi.mock('../src/lib/api', async (importOriginal) => {
+  const module = await importOriginal<typeof import('../src/lib/api')>()
+  return { ...module, api: mocks.api }
+})
 vi.mock('../src/stores/notices', () => ({ useNotices: () => ({ show: mocks.show }) }))
 vi.mock('../src/stores/auth', () => ({
   useAuth: () => ({
@@ -355,5 +359,66 @@ describe('Element Plus components', () => {
     mounted.push(wrapper)
     await flushPromises()
     expect(document.body.querySelector('.el-dialog__footer .danger-confirm')).toBeTruthy()
+  })
+
+  it('示例部门名称为空也合法，仅修改地址即可保存', async () => {
+    const { resources } = await import('../src/config/resources')
+    const tdept = resources.find((resource) => resource.key === 't-dept')!
+    const wrapper = mount(RecordDialog, {
+      ...options,
+      props: {
+        title: '编辑示例部门',
+        endpoint: '/t-dept',
+        updateTemplate: '/t-dept/{id}',
+        idKey: 'id',
+        original: { id: 1, deptName: null, address: '大同' },
+        fields: tdept.fields!,
+      },
+    })
+    mounted.push(wrapper)
+    await flushPromises()
+    const inputs = wrapper.findAllComponents(ElInput)
+    await inputs[1]!.find('input').setValue('太原')
+    await wrapper.findComponent(ElForm).trigger('submit')
+    await flushPromises()
+    expect(mocks.api).toHaveBeenCalledWith('/t-dept/1', { method: 'PUT', body: { address: '太原' } })
+  })
+
+  it('重新打开删除弹窗时清掉上一条记录的错误', async () => {
+    const { resources } = await import('../src/config/resources')
+    const users = resources.find((resource) => resource.key === 'users')!
+    mocks.api.mockImplementation((path: string, options?: { method?: string }) => {
+      if (options?.method === 'DELETE') return Promise.reject(new Error('该角色仍有账号在使用'))
+      return Promise.resolve({
+        total: 2,
+        items: [
+          { id: 2, username: 'reader', roleCode: 'READER', enabled: true },
+          { id: 3, username: 'writer', roleCode: 'READER', enabled: true },
+        ],
+      })
+    })
+    const wrapper = mount(ResourceView, { ...options, props: { resource: users } })
+    mounted.push(wrapper)
+    await flushPromises()
+    const deleteButtons = () =>
+      wrapper.findAllComponents(ElButton).filter((b) => b.attributes('aria-label')?.startsWith('删除 '))
+    // 删除 A 失败：错误显示在弹窗里
+    await deleteButtons()[0]!.trigger('click')
+    await flushPromises()
+    const footer = () =>
+      Array.from(document.body.querySelectorAll<HTMLButtonElement>('.el-dialog__footer button'))
+    footer()
+      .find((b) => b.textContent?.includes('删除'))!
+      .click()
+    await flushPromises()
+    expect(document.body.textContent).toContain('该角色仍有账号在使用')
+    // 取消后打开 B 的弹窗：上一条错误不残留
+    footer()
+      .find((b) => b.textContent?.includes('取消'))!
+      .click()
+    await flushPromises()
+    await deleteButtons()[1]!.trigger('click')
+    await flushPromises()
+    expect(document.body.textContent).not.toContain('该角色仍有账号在使用')
   })
 })

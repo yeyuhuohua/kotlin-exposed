@@ -1,6 +1,7 @@
 package com.atguigu.hr.docs
 
 import com.atguigu.hr.common.api.ApiResult
+import com.atguigu.hr.common.api.ErrorCode
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.ExampleObject
@@ -35,7 +36,10 @@ internal inline fun <reified T : Any> Operation.Builder.responseExamples(
                         "error",
                         ExampleObject(
                             summary = errorMessage,
-                            value = GenericElement(ApiResult.fail(status.value, errorMessage)),
+                            // 示例与真实响应一致带上稳定错误码，方便按 error 字段对接。
+                            value = GenericElement(
+                                ApiResult.fail(status.value, errorMessage, ErrorCode.forStatus(status)),
+                            ),
                         ),
                     )
                 }

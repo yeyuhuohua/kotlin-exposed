@@ -74,6 +74,18 @@ class AuthServiceDeleteTest {
         assertFalse(service(FakeStore()).deleteRole("MISSING"))
     }
 
+    @Test
+    fun `保留用户名 admin 不能通过接口创建`() = runBlocking {
+        // 初始管理员是自定义账号、库里还没有 admin 时，创建 admin/READER 会得到一个
+        // 无法停用、删除或重置密码的账号；创建入口统一拒绝。
+        val error = assertFailsWith<AuthException> {
+            service(FakeStore()).createUser(UserCreateRequest(username = "admin", password = "reader-pass-1", roleCode = "READER"))
+        }
+        assertEquals(HttpStatusCode.Conflict, error.status)
+        assertEquals(ErrorCode.USERNAME_TAKEN, error.error)
+        assertTrue(service(FakeStore()).createUser(UserCreateRequest("admin2", "reader-pass-1", "READER")).username == "admin2")
+    }
+
     private class FakeStore : AuthStore {
         val users = mutableMapOf<Int, AuthUser>()
         val roles = mutableMapOf(RoleCode.ADMIN.name to RoleDto("ADMIN", "Administrator", true),

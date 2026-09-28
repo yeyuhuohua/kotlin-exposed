@@ -14,10 +14,11 @@ object EmployeeService {
         departmentId: Int?,
         jobId: String?,
         q: String?,
+        unassignedOnly: Boolean = false,
     ): Cached<ApiList<EmployeeDto>> = RedisCache.getOrLoad(
-        EmployeeCache.employeesList(limit, offset, departmentId, jobId, q),
+        EmployeeCache.employeesList(limit, offset, departmentId, jobId, q, unassignedOnly),
     ) {
-        EmployeeRepository.listEmployees(limit, offset, departmentId, jobId, q)
+        EmployeeRepository.listEmployees(limit, offset, departmentId, jobId, q, unassignedOnly)
     }
 
     suspend fun findEmployee(id: Int): Cached<EmployeeDto?> =
