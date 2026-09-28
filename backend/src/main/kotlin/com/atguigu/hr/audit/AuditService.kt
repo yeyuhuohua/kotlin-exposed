@@ -12,6 +12,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.slf4j.LoggerFactory
 import java.time.LocalDateTime
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * 审计日志的异步写入入口：有界队列 + 固定 worker 消费，写入并发有上限。
@@ -29,9 +30,6 @@ object AuditService {
     private var queue = Channel<suspend () -> Unit>(QUEUE_CAPACITY)
     private val workers = mutableListOf<Job>()
     private val dropped = AtomicLong(0)
-
-    /** 已取出但尚未写完的记录数；停机超时取消时计入损失。 */
-    private val inFlight = AtomicLong(0)
 
     /** 停机排空等待上限；internal 供测试缩短。 */
     internal var drainTimeoutMs = 5_000L
@@ -85,11 +83,14 @@ object AuditService {
     private fun enqueue(task: suspend () -> Unit) {
         ensureStarted()
         // 队列满或停机关闭后入队失败，都计入丢弃
-        if (queue.trySend(task).isFailure) {
-            val total = dropped.incrementAndGet()
-            if (total == 1L || total % 1_000L == 0L) {
-                log.warn("审计写入积压，新记录开始丢弃，累计 {} 条", total)
-            }
+        if (queue.trySend(task).isFailure) recordLoss()
+    }
+
+    /** 每条丢失记录只计一次：入队被拒、在途被取消、停机滞留队列，三者互不相交。 */
+    private fun recordLoss(count: Long = 1) {
+        val total = dropped.addAndGet(count)
+        if (total == 1L || total % 1_000L == 0L) {
+            log.warn("审计记录丢失，累计 {} 条", total)
         }
     }
 
@@ -100,11 +101,14 @@ object AuditService {
             repeat(WORKERS) {
                 workers += scope.launch {
                     for (task in queue) {
-                        inFlight.incrementAndGet()
                         try {
-                            runCatching { task() }.onFailure { log.warn("写入审计记录失败", it) }
-                        } finally {
-                            inFlight.decrementAndGet()
+                            task()
+                        } catch (cause: CancellationException) {
+                            // 在途写入被取消（停机）：计一次损失后向外传播，让 worker 正常结束
+                            recordLoss()
+                            throw cause
+                        } catch (cause: Exception) {
+                            log.warn("写入审计记录失败", cause)
                         }
                     }
                 }
@@ -123,11 +127,17 @@ object AuditService {
         }
         if (!drained) {
             scope.cancel()
-            // 队列剩余 + 已取出但未写完的被取消记录；两个集合不相交，不会重复计数
-            var lost = inFlight.get()
-            while (queue.tryReceive().isSuccess) lost++
-            if (lost > 0) {
-                log.warn("审计停机等待超时，丢弃 {} 条未写出记录（累计 {} 条）", lost, dropped.addAndGet(lost))
+            // 给被取消的 worker 一次机会完成各自的取消记账（每条在途记录只计一次）
+            runBlocking {
+                withTimeoutOrNull(1_000) {
+                    workers.forEach { it.join() }
+                }
+            }
+            var queued = 0L
+            while (queue.tryReceive().isSuccess) queued++
+            if (queued > 0) {
+                log.warn("审计停机等待超时，丢弃 {} 条排队记录", queued)
+                recordLoss(queued)
             }
         }
     }
@@ -141,7 +151,6 @@ object AuditService {
             queue = Channel(QUEUE_CAPACITY)
             workers.clear()
             dropped.set(0)
-            inFlight.set(0)
             started = false
         }
     }

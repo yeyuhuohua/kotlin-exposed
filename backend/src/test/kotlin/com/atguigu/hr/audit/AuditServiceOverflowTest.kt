@@ -37,7 +37,7 @@ class AuditServiceOverflowTest {
             )
             // 打开闸门并恢复快速写入端，用完成信号等队列排空：每条记录要么写出、要么被丢弃
             gate.complete(Unit)
-            AuditService.loginWriter = { _, _, _, _, _, _, _ -> written.incrementAndGet(); Unit }
+            AuditService.loginWriter = { _, _, _, _, _, _, _ -> written.incrementAndGet() }
             withTimeout(10_000) {
                 while (written.get() + (AuditService.droppedCount() - droppedBefore) < submitted) {
                     delay(10)

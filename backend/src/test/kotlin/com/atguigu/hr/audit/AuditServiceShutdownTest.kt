@@ -1,7 +1,10 @@
 package com.atguigu.hr.audit
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.BeforeTest
@@ -29,21 +32,35 @@ class AuditServiceShutdownTest {
     }
 
     @Test
-    fun `排空超时取消消费者并统计损失`() = runBlocking {
-        AuditService.drainTimeoutMs = 200
-        val gate = CompletableDeferred<Unit>()
-        val written = AtomicInteger(0)
-        try {
-            // 两个 worker 各挂住一条在途写入，队列里还有 3 条等待
-            AuditService.loginWriter = { _, _, _, _, _, _, _ -> gate.await(); written.incrementAndGet() }
-            repeat(5) { index ->
-                AuditService.recordLogin("user-$index", null, "127.0.0.1", null, success = true, errorCode = null)
+    fun `排空超时取消消费者时，在途与排队记录都恰好计一次`() = runBlocking {
+        // 写入端在取消后还有清理耗时：复现"先执行 finally 再读快照"的竞态窗口
+        repeat(10) {
+            AuditService.resetForTest()
+            AuditService.drainTimeoutMs = 100
+            val gate = CompletableDeferred<Unit>()
+            val written = AtomicInteger(0)
+            try {
+                AuditService.loginWriter = { _, _, _, _, _, _, _ ->
+                    try {
+                        gate.await()
+                        written.incrementAndGet()
+                    } finally {
+                        withContext(NonCancellable) { delay(30) }
+                    }
+                }
+                repeat(5) { index ->
+                    AuditService.recordLogin("user-$index", null, "127.0.0.1", null, success = true, errorCode = null)
+                }
+                AuditService.shutdown()
+                assertEquals(0, written.get(), "挂起的在途写入被取消，不应完成")
+                assertEquals(
+                    5,
+                    AuditService.droppedCount(),
+                    "在途 2 条 + 队列 3 条都必须恰好计一次，不能漏计或重复计",
+                )
+            } finally {
+                gate.complete(Unit)
             }
-            AuditService.shutdown()
-            assertEquals(0, written.get(), "挂起的在途写入被取消，不应完成")
-            assertEquals(5, AuditService.droppedCount(), "在途 2 条 + 队列 3 条都必须计入丢弃，不能漏计")
-        } finally {
-            gate.complete(Unit)
         }
     }
 }
