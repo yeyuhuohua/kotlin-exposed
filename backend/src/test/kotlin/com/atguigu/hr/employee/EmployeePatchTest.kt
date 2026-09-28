@@ -90,6 +90,17 @@ class EmployeePatchTest {
     }
 
     @Test
+    fun `长度按 Unicode 码点计数而不是 UTF-16 单元`() {
+        // 𠮷 占 1 个码点 2 个 UTF-16 单元：共 20 个码点应放行，21 个应拒绝
+        assertNull(EmployeeUpdateRequest(phoneNumber = "𠮷" + "1".repeat(19)).contentError())
+        assertEquals(
+            "phoneNumber must be at most 20 characters",
+            EmployeeUpdateRequest(phoneNumber = "𠮷" + "1".repeat(20)).contentError(),
+        )
+        assertEquals("𠮷" + "1".repeat(19), parse("""{"phoneNumber": "𠮷${"1".repeat(19)}"}""").phoneNumber)
+    }
+
+    @Test
     fun `新增与更新请求体的数值约束`() {
         assertEquals(
             "salary must be a non-negative number",

@@ -33,6 +33,7 @@ fun Route.tDeptRoutes() {
         if (!body.hasValues()) {
             return@post call.respondFail(HttpStatusCode.BadRequest, "deptName or address is required")
         }
+        body.contentError()?.let { return@post call.respondFail(HttpStatusCode.BadRequest, it) }
         val created = TDeptService.createTDept(body)
         call.respondOk(created, message = "created")
     }.describe {
@@ -58,6 +59,7 @@ fun Route.tDeptRoutes() {
         if (!patch.hasUpdates()) {
             return@put call.respondFail(HttpStatusCode.BadRequest, "no fields to update")
         }
+        patch.contentError()?.let { return@put call.respondFail(HttpStatusCode.BadRequest, it) }
         val updated = TDeptService.updateTDept(id, patch)
             ?: return@put call.respondFail(HttpStatusCode.NotFound, "t_dept not found")
         call.respondOk(updated, message = "updated")

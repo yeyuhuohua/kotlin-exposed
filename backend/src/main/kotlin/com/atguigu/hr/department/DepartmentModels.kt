@@ -1,5 +1,6 @@
 package com.atguigu.hr.department
 
+import com.atguigu.hr.common.api.exceedsMaxLength
 import io.ktor.openapi.JsonSchema
 import kotlinx.serialization.Serializable
 
@@ -26,8 +27,11 @@ data class DepartmentUpdateRequest(
     fun hasUpdates(): Boolean =
         departmentName != null || managerId != null || locationId != null
 
-    fun contentError(): String? =
-        if (departmentName != null && departmentName.isBlank()) "departmentName must not be blank" else null
+    fun contentError(): String? = when {
+        departmentName != null && departmentName.isBlank() -> "departmentName must not be blank"
+        departmentName != null && departmentName.exceedsMaxLength(30) -> "departmentName must be at most 30 characters"
+        else -> null
+    }
 }
 
 /** POST /api/departments。departmentId 由调用方提供。 */
@@ -42,4 +46,10 @@ data class DepartmentCreateRequest(
     val managerId: Int? = null,
     @JsonSchema.Description("地点 location_id")
     val locationId: Int? = null,
-)
+) {
+    fun contentError(): String? = when {
+        departmentName.isBlank() -> "departmentName is required"
+        departmentName.exceedsMaxLength(30) -> "departmentName must be at most 30 characters"
+        else -> null
+    }
+}

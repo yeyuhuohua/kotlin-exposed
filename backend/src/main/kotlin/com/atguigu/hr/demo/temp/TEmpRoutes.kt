@@ -30,6 +30,7 @@ fun Route.tEmpRoutes() {
     /** 新增人物并刷新缓存。id 由数据库自增。 */
     post("/t-emp") {
         val body = call.receive<TEmpCreateRequest>()
+        body.contentError()?.let { return@post call.respondFail(HttpStatusCode.BadRequest, it) }
         val created = TEmpService.createTEmp(body)
         call.respondOk(created, message = "created")
     }.describe {
@@ -54,6 +55,7 @@ fun Route.tEmpRoutes() {
         if (!patch.hasUpdates()) {
             return@put call.respondFail(HttpStatusCode.BadRequest, "no fields to update")
         }
+        patch.contentError()?.let { return@put call.respondFail(HttpStatusCode.BadRequest, it) }
         val updated = TEmpService.updateTEmp(id, patch)
             ?: return@put call.respondFail(HttpStatusCode.NotFound, "t_emp not found")
         call.respondOk(updated, message = "updated")

@@ -1,5 +1,6 @@
 package com.atguigu.hr.location
 
+import com.atguigu.hr.common.api.exceedsMaxLength
 import io.ktor.openapi.JsonSchema
 import kotlinx.serialization.Serializable
 
@@ -33,8 +34,19 @@ data class LocationUpdateRequest(
         streetAddress != null || postalCode != null || city != null ||
             stateProvince != null || countryId != null
 
-    fun contentError(): String? =
-        if (city != null && city.isBlank()) "city must not be blank" else null
+    fun contentError(): String? {
+        if (city != null && city.isBlank()) return "city must not be blank"
+        if (streetAddress != null && streetAddress.exceedsMaxLength(40)) {
+            return "streetAddress must be at most 40 characters"
+        }
+        if (postalCode != null && postalCode.exceedsMaxLength(12)) return "postalCode must be at most 12 characters"
+        if (city != null && city.exceedsMaxLength(30)) return "city must be at most 30 characters"
+        if (stateProvince != null && stateProvince.exceedsMaxLength(25)) {
+            return "stateProvince must be at most 25 characters"
+        }
+        if (countryId != null && countryId.exceedsMaxLength(2)) return "countryId must be at most 2 characters"
+        return null
+    }
 }
 
 /** POST /api/locations。locationId 由调用方提供。 */
@@ -53,4 +65,18 @@ data class LocationCreateRequest(
     val stateProvince: String? = null,
     @JsonSchema.Description("国家编码，例如 US")
     val countryId: String? = null,
-)
+) {
+    fun contentError(): String? {
+        if (city.isBlank()) return "city is required"
+        if (streetAddress != null && streetAddress.exceedsMaxLength(40)) {
+            return "streetAddress must be at most 40 characters"
+        }
+        if (postalCode != null && postalCode.exceedsMaxLength(12)) return "postalCode must be at most 12 characters"
+        if (city.exceedsMaxLength(30)) return "city must be at most 30 characters"
+        if (stateProvince != null && stateProvince.exceedsMaxLength(25)) {
+            return "stateProvince must be at most 25 characters"
+        }
+        if (countryId != null && countryId.exceedsMaxLength(2)) return "countryId must be at most 2 characters"
+        return null
+    }
+}

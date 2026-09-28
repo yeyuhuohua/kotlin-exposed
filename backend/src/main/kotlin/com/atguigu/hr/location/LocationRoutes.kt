@@ -30,9 +30,7 @@ fun Route.locationRoutes() {
     /** 新增地点并刷新缓存。locationId 由调用方提供。 */
     post("/locations") {
         val body = call.receive<LocationCreateRequest>()
-        if (body.city.isBlank()) {
-            return@post call.respondFail(HttpStatusCode.BadRequest, "city is required")
-        }
+        body.contentError()?.let { return@post call.respondFail(HttpStatusCode.BadRequest, it) }
         val created = LocationService.createLocation(body)
         call.respondOk(created, message = "created")
     }.describe {

@@ -92,4 +92,14 @@ class JobModelsTest {
         )
         assertNull(JobCreateRequest(jobId = "K".repeat(10), jobTitle = "a".repeat(35)).contentError())
     }
+
+    @Test
+    fun `岗位名称长度按 Unicode 码点计数`() {
+        // 𠮷 + 34 个普通字符共 35 个码点应放行；36 个码点才拒绝
+        assertNull(JobUpdateRequest(jobTitle = "𠮷" + "a".repeat(34)).contentError())
+        assertEquals(
+            "jobTitle must be at most 35 characters",
+            JobUpdateRequest(jobTitle = "𠮷" + "a".repeat(35)).contentError(),
+        )
+    }
 }

@@ -31,9 +31,7 @@ fun Route.departmentRoutes() {
     /** 新增部门并刷新缓存。departmentId 由调用方提供。 */
     post("/departments") {
         val body = call.receive<DepartmentCreateRequest>()
-        if (body.departmentName.isBlank()) {
-            return@post call.respondFail(HttpStatusCode.BadRequest, "departmentName is required")
-        }
+        body.contentError()?.let { return@post call.respondFail(HttpStatusCode.BadRequest, it) }
         val created = DepartmentService.createDepartment(body)
         call.respondOk(created, message = "created")
     }.describe {
@@ -45,7 +43,7 @@ fun Route.departmentRoutes() {
             message = "created",
             okDescription = "创建成功",
             fails = arrayOf(
-                HttpStatusCode.BadRequest to "departmentName is required",
+                HttpStatusCode.BadRequest to "departmentName is required / departmentName must be at most 30 characters",
                 HttpStatusCode.Conflict to "create failed",
             ),
         )

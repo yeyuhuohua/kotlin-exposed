@@ -1,5 +1,6 @@
 package com.atguigu.hr.demo.temp
 
+import com.atguigu.hr.common.api.exceedsMaxLength
 import io.ktor.openapi.JsonSchema
 import kotlinx.serialization.Serializable
 
@@ -28,6 +29,9 @@ data class TEmpUpdateRequest(
 ) {
     fun hasUpdates(): Boolean =
         name != null || age != null || deptId != null || empno != null
+
+    fun contentError(): String? =
+        if (name != null && name.exceedsMaxLength(20)) "name must be at most 20 characters" else null
 }
 
 /** POST /api/t-emp，id 自增，empno 必填。 */
@@ -42,4 +46,7 @@ data class TEmpCreateRequest(
     val deptId: Int? = null,
     @JsonSchema.Description("工号 empno，必填")
     val empno: Int,
-)
+) {
+    fun contentError(): String? =
+        if (name != null && name.exceedsMaxLength(20)) "name must be at most 20 characters" else null
+}
