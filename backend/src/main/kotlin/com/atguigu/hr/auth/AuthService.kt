@@ -27,13 +27,14 @@ class AuthService(
     }
 
     suspend fun authenticate(id: Int, version: Int): AuthUser? {
-        // 其它实例撤销过权限时先清本地缓存，再决定是否命中
+        // 其它实例撤销过权限时先清本地缓存（递增代次），再决定是否命中
         if (sharedInvalidation?.advanced() == true) userCache.clear()
         userCache.get(id, version)?.let { return it }
         // 只缓存通过校验的活跃用户；停用或版本不符时保持 401
         val loadedAt = userCache.now()
+        val loadedGeneration = userCache.currentGeneration()
         val user = store.findById(id)?.takeIf { it.active && it.tokenVersion == version } ?: return null
-        userCache.put(user, loadedAt)
+        userCache.put(user, loadedAt, loadedGeneration)
         return user
     }
 

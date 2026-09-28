@@ -2,6 +2,7 @@ package com.atguigu.hr.auth
 
 import com.atguigu.hr.audit.AuditService
 import com.atguigu.hr.common.api.ApiList
+import com.atguigu.hr.common.api.ErrorCode
 import com.atguigu.hr.common.api.clientIp
 import com.atguigu.hr.common.api.respondFail
 import com.atguigu.hr.common.api.respondOk
@@ -14,6 +15,7 @@ import io.ktor.server.application.install
 import io.ktor.server.auth.principal
 import io.ktor.server.request.header
 import io.ktor.server.request.receive
+import io.ktor.server.request.receiveChannel
 import io.ktor.server.request.userAgent
 import io.ktor.server.response.header
 import io.ktor.server.routing.Route
@@ -24,6 +26,9 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
+import io.ktor.utils.io.readRemaining
+import kotlinx.io.readByteArray
+import kotlinx.serialization.json.Json
 import java.util.Locale
 
 /** 注册认证、用户和角色管理接口，管理路由统一启用 ADMIN 限制。 */
@@ -31,16 +36,28 @@ import java.util.Locale
 /** 登录请求体上限：正常载荷不足百字节，4 KiB 已非常宽裕。 */
 private const val MAX_LOGIN_BODY_BYTES = 4 * 1024L
 
+/** 登录体手工解析：与全局 ContentNegotiation 同样忽略未知字段。 */
+private val loginBodyJson = Json { ignoreUnknownKeys = true }
+
 @OptIn(ExperimentalKtorApi::class)
 fun Route.authPublicRoutes(service: AuthService, throttle: LoginThrottle) {
     post("/auth/login") {
         call.response.header("Cache-Control", "no-store")
-        // 登录体积极小（用户名+密码），读取前先限制大小，超限直接 413，不消耗解析资源。
+        // 登录体积极小（用户名+密码）：先按 Content-Length 快速拒绝，
+        // 再按实际读取字节兜底，无 Content-Length 的分块请求同样受限。
         val contentLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
         if (contentLength != null && contentLength > MAX_LOGIN_BODY_BYTES) {
             return@post call.respondFail(HttpStatusCode.PayloadTooLarge, "request body too large")
         }
-        val body = call.receive<LoginRequest>()
+        val channel = call.receiveChannel()
+        val bytes = channel.readRemaining(MAX_LOGIN_BODY_BYTES + 1).readByteArray()
+        if (bytes.size > MAX_LOGIN_BODY_BYTES) {
+            channel.cancel(null)
+            return@post call.respondFail(HttpStatusCode.PayloadTooLarge, "request body too large")
+        }
+        val body = runCatching { loginBodyJson.decodeFromString(LoginRequest.serializer(), bytes.decodeToString()) }
+            .getOrNull()
+            ?: return@post call.respondFail(HttpStatusCode.BadRequest, "invalid request body")
         // 限流与审计用同一个真实来源：经可信代理解析 X-Forwarded-For，直连伪造不生效。
         val clientIp = call.clientIp()
         val auditUserAgent = call.request.userAgent()
@@ -70,6 +87,7 @@ fun Route.authPublicRoutes(service: AuthService, throttle: LoginThrottle) {
         requestExample(sampleLogin, "用户名和密码")
         responseExamples(
             sampleToken,
+            errorCodes = mapOf(HttpStatusCode.Unauthorized to ErrorCode.INVALID_CREDENTIALS),
             fails = arrayOf(
                 HttpStatusCode.Unauthorized to "invalid username or password",
                 HttpStatusCode.TooManyRequests to "too many login attempts, retry later",
@@ -120,6 +138,7 @@ fun Route.authProtectedRoutes(service: AuthService) {
             tag("auth")
             requestExample(sampleUserCreate, "密码长度为 8-128 个字符；roleCode 必须是已启用的角色编码")
             responseExamples(sampleUser.copy(id = 2, username = "reader", roleCode = "READER"), message = "created",
+                errorCodes = mapOf(HttpStatusCode.Conflict to ErrorCode.USERNAME_TAKEN),
                 fails = arrayOf(HttpStatusCode.BadRequest to "invalid user", HttpStatusCode.Conflict to "username already exists"))
         }
         put("/{id}") {
@@ -189,11 +208,13 @@ fun Route.authProtectedRoutes(service: AuthService) {
             tag("auth")
             parameters { path("code") { description = "角色编码" } }
             requestExample(RolePermissionsRequest(0, samplePermissions.permissions), "使用 GET 返回的版本号；空集合表示拒绝全部可配置访问；ADMIN 角色不可修改")
-            responseExamples(samplePermissions, fails = arrayOf(
-                HttpStatusCode.BadRequest to "unknown permission code",
-                HttpStatusCode.Forbidden to "ADMIN role is protected",
-                HttpStatusCode.Conflict to "permissions changed; reload before saving",
-            ))
+            responseExamples(samplePermissions,
+                errorCodes = mapOf(HttpStatusCode.Conflict to ErrorCode.REVISION_CONFLICT),
+                fails = arrayOf(
+                    HttpStatusCode.BadRequest to "unknown permission code",
+                    HttpStatusCode.Forbidden to "ADMIN role is protected",
+                    HttpStatusCode.Conflict to "permissions changed; reload before saving",
+                ))
         }
         delete("/{code}") {
             if (!service.deleteRole(call.roleCode())) {
@@ -204,11 +225,13 @@ fun Route.authProtectedRoutes(service: AuthService) {
             summary = "删除角色（仅 ADMIN；ADMIN 角色受保护，仍有账号引用时返回 409）"
             tag("auth")
             parameters { path("code") { description = "角色编码" } }
-            responseExamples("deleted", fails = arrayOf(
-                HttpStatusCode.Forbidden to "ADMIN role is protected",
-                HttpStatusCode.NotFound to "role not found",
-                HttpStatusCode.Conflict to "role still has 2 user(s)",
-            ))
+            responseExamples("deleted",
+                errorCodes = mapOf(HttpStatusCode.Conflict to ErrorCode.ROLE_IN_USE),
+                fails = arrayOf(
+                    HttpStatusCode.Forbidden to "ADMIN role is protected",
+                    HttpStatusCode.NotFound to "role not found",
+                    HttpStatusCode.Conflict to "role still has 2 user(s)",
+                ))
         }
         get {
             call.respondOk(service.listRoles())

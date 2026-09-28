@@ -13,6 +13,7 @@ internal inline fun <reified T : Any> Operation.Builder.responseExamples(
     data: T,
     message: String = "ok",
     okDescription: String = "成功",
+    errorCodes: Map<HttpStatusCode, String> = emptyMap(),
     vararg fails: Pair<HttpStatusCode, String>,
 ) {
     responses {
@@ -36,9 +37,14 @@ internal inline fun <reified T : Any> Operation.Builder.responseExamples(
                         "error",
                         ExampleObject(
                             summary = errorMessage,
-                            // 示例与真实响应一致带上稳定错误码，方便按 error 字段对接。
+                            // 示例与真实响应一致带上稳定错误码；专用业务码（如 invalid_credentials）
+                            // 通过 errorCodes 显式指定，缺省按状态码归类。
                             value = GenericElement(
-                                ApiResult.fail(status.value, errorMessage, ErrorCode.forStatus(status)),
+                                ApiResult.fail(
+                                    status.value,
+                                    errorMessage,
+                                    errorCodes[status] ?: ErrorCode.forStatus(status),
+                                ),
                             ),
                         ),
                     )

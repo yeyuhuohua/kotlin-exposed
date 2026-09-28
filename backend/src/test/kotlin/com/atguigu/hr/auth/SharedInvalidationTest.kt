@@ -32,6 +32,19 @@ class SharedInvalidationTest {
     }
 
     @Test
+    fun `计数回退按可能错过失效处理`() = runBlocking {
+        // Redis 重启或键被删后新计数小于本地 seen：广播不能一直被忽略
+        val epoch = AtomicLong(5)
+        val sync = SharedInvalidation(reader = { epoch.get().toString() })
+        assertTrue(sync.advanced())
+        epoch.set(1)
+        assertTrue(sync.advanced(), "计数回退必须触发一次清理")
+        assertFalse(sync.advanced(), "回退后的同一计数不重复上报")
+        epoch.incrementAndGet()
+        assertTrue(sync.advanced(), "回退后的新广播恢复生效")
+    }
+
+    @Test
     fun `广播失败不影响主流程`() = runBlocking {
         val sync = SharedInvalidation(writer = { throw RuntimeException("redis down") })
         sync.broadcast()

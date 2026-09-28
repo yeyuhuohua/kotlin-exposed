@@ -136,4 +136,21 @@ class AuthUserCacheTest {
         assertEquals(0, cache.trackedInvalidations(), "标记清理不能依赖条目数达到上限")
         assertNotNull(cache.get(7, 1), "正常条目不受清理影响")
     }
+
+    @Test
+    fun `clear 之后旧代次的查询不能回填`() {
+        val cache = AuthUserCache(ttlMillis = 3_000) { now }
+        // 查询开始于 clear 之前：读出时刻与代次都已过时
+        val loadedAt = cache.now()
+        val loadedGeneration = cache.currentGeneration()
+        cache.put(user(version = 1), loadedAt, loadedGeneration)
+        assertNotNull(cache.get(7, 1))
+        cache.clear()
+        // 另一个 clear 前开始的旧查询现在才返回：不能因为标记被清而重新接受
+        cache.put(user(version = 1), loadedAt, loadedGeneration)
+        assertNull(cache.get(7, 1), "旧代次的回填必须被拒绝，已撤销的 Token 不能借此复活")
+        // clear 之后开始的新查询属于新代次，可以正常缓存
+        cache.put(user(version = 1), cache.now(), cache.currentGeneration())
+        assertNotNull(cache.get(7, 1))
+    }
 }

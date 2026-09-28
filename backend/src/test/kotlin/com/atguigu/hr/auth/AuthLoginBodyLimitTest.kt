@@ -13,6 +13,7 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
+import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -58,6 +59,22 @@ class AuthLoginBodyLimitTest {
             setBody("""{"username":"reader","password":"wrong-password"}""")
         }
         assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `无 Content-Length 的分块请求同样按实际读取字节受限`() = testApplication {
+        application(testModule())
+        val fat = "x".repeat(8 * 1024)
+        val response = client.post("/auth/login") {
+            contentType(ContentType.Application.Json)
+            // ByteReadChannel 不带长度，按分块传输发送
+            setBody(
+                ByteReadChannel(
+                    """{"username":"reader","password":"reader-pass-1","padding":"$fat"}""".toByteArray(),
+                ),
+            )
+        }
+        assertEquals(HttpStatusCode.PayloadTooLarge, response.status)
     }
 
     private object EmptyStore : AuthStore {

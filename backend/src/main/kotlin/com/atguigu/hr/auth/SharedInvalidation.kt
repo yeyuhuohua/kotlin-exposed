@@ -22,11 +22,13 @@ class SharedInvalidation(
         runCatching { writer(key) }
     }
 
-    /** 共享计数较上次前进时返回 true，调用方应清空本地缓存；Redis 不可用返回 false。 */
+    /**
+     * 共享计数变化（前进或回退）时返回 true，调用方应清空本地缓存；Redis 不可用返回 false。
+     * 计数回退说明 Redis 重启或键被删，期间可能错过失效广播，按前进处理更稳妥。
+     */
     suspend fun advanced(): Boolean {
         val current = runCatching { reader(key)?.toLongOrNull() ?: 0L }.getOrNull() ?: return false
-        if (current <= seen.get()) return false
-        seen.accumulateAndGet(current, ::maxOf)
-        return true
+        val previous = seen.getAndSet(current)
+        return current != previous
     }
 }

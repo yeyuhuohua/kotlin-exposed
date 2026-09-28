@@ -17,6 +17,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.serializer
 import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicLong
@@ -30,6 +33,8 @@ import java.util.concurrent.atomic.AtomicReference
  * - 清理分组用 SCAN 游标，不用 KEYS，避免在请求路径上阻塞 Redis。
  * - 失效失败的分组保持旁路（dirty），清理成功后才重新启用，并在失败后退避一段时间。
  * - 读取或回填失败同样进入退避：Redis 故障期间请求直接回源，不会持锁逐个等待超时。
+ * - 多实例：每组另有共享版本号，随恢复流程原子递增；缓存值内嵌所属版本，
+ *   读取校验版本、回填用 Lua 原子"版本未变才写入"，其它实例的旧值与旧回填都不会复活。
  */
 object RedisCache {
     private const val OPERATION_TIMEOUT_MS = 2_000L
@@ -37,11 +42,12 @@ object RedisCache {
     private const val SCAN_BATCH = 256L
     private const val DELETE_BATCH = 256
 
-    /** 原子回填：共享版本未变才写入，否则丢弃（其它实例已失效该分组）。 */
+    /** 原子回填：共享版本未变才写入；返回 1 写入、0 丢弃（其它实例已失效该分组）。 */
     private const val CHECK_AND_SET = """
 local current = redis.call('GET', KEYS[2]) or '0'
 if current ~= ARGV[1] then return 0 end
-return redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
+return 1
 """
     private val log = LoggerFactory.getLogger(RedisCache::class.java)
     private val json = Json {
@@ -122,11 +128,17 @@ return redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
     ): Cached<T> {
         val group = groupOf(key) ?: return Cached(loader(), hit = false)
         val snap = group.version.get().number
+        val raw = readRaw(key)
+        // 共享版本在恢复之后、回源之前读取：快照必须早于 loader，又不能早于 recover 的版本递增
         val sharedSnap = sharedVersion(group)
-        readRaw(key)?.let { raw ->
-            runCatching { json.decodeFromString(serializer, raw) }
-                .onSuccess { return Cached(it, hit = true) }
-                .onFailure { log.warn("Cache decode failed for {}", key, it) }
+        raw?.let {
+            // 缓存值内嵌所属版本：版本对不上（其它实例失效后的清理窗口、
+            // 以及共享版本不可确认）一律视为未命中回源
+            versionedData(it, sharedSnap)?.let { data ->
+                runCatching { json.decodeFromJsonElement(serializer, data) }
+                    .onSuccess { return Cached(it, hit = true) }
+                    .onFailure { log.warn("Cache decode failed for {}", key, it) }
+            }
         }
         val value = loader()
         fill(key, group, snap, sharedSnap) { json.encodeToString(serializer, value) }
@@ -145,11 +157,14 @@ return redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
     ): Cached<T?> {
         val group = groupOf(key) ?: return Cached(loader(), hit = false)
         val snap = group.version.get().number
+        val raw = readRaw(key)
         val sharedSnap = sharedVersion(group)
-        readRaw(key)?.let { raw ->
-            runCatching { json.decodeFromString(serializer, raw) }
-                .onSuccess { return Cached(it, hit = true) }
-                .onFailure { log.warn("Cache decode failed for {}", key, it) }
+        raw?.let {
+            versionedData(it, sharedSnap)?.let { data ->
+                runCatching { json.decodeFromJsonElement(serializer, data) }
+                    .onSuccess { return Cached(it, hit = true) }
+                    .onFailure { log.warn("Cache decode failed for {}", key, it) }
+            }
         }
         val value = loader()
         if (value != null) fill(key, group, snap, sharedSnap) { json.encodeToString(serializer, value) }
@@ -167,10 +182,6 @@ return redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
     /** 先同步标记全部分组，再逐个清理；清理失败的分组保持旁路，不会重新暴露旧缓存。 */
     private suspend fun invalidate(groups: List<Group>) {
         groups.forEach { group -> group.version.updateAndGet { Version(it.number + 1, dirty = true) } }
-        // 共享版本号 +1：其它实例的回填会被原子校验拒绝；失败只降级为单实例语义
-        groups.forEach { group ->
-            cacheAttempt("bump ${group.name}") { RedisFactory.async.incr(versionKey(group)).await() }
-        }
         groups.forEach { group -> ensureClean(group) }
     }
 
@@ -178,13 +189,18 @@ return redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
     private fun versionKey(group: Group) = "hr:cache:ver:${group.name}"
 
     /**
-     * 读共享版本号：Redis 不可用返回 null（回填退回本地版本校验），
-     * key 不存在视为 0（第一次失效前的初始版本）。
+     * 读共享版本号：key 不存在视为 0（第一次失效前的初始版本）。
+     * 与读取/回填遵守同一套退避规则；查询失败进入退避并返回 null，
+     * 调用方在版本不可确认时只回源、不回填。
      */
     private suspend fun sharedVersion(group: Group): Long? {
         if (System.nanoTime() < group.failNotBefore.get()) return null
+        if (group.version.get().dirty && System.nanoTime() < group.recoverNotBefore.get()) return null
         val outcome = cacheOutcome("version ${group.name}") { RedisFactory.async.get(versionKey(group)).await() }
-            ?: return null
+        if (outcome == null) {
+            group.backoffOnFailure()
+            return null
+        }
         return outcome.value?.toLongOrNull() ?: 0L
     }
 
@@ -209,29 +225,38 @@ return redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
     private suspend fun fill(key: String, group: Group, snap: Long, sharedSnap: Long?, encode: () -> String) {
         if (group.version.get().dirty) return
         if (System.nanoTime() < group.failNotBefore.get()) return
+        // 版本不可确认时只回源、不回填：无条件 SET 会绕过跨实例保护
+        if (sharedSnap == null) return
         group.lock.withLock {
             // 排队期间可能已有回填失败并设置了退避，拿到锁后必须复查，否则串行等待超时
             if (System.nanoTime() < group.failNotBefore.get()) return@withLock
             val outcome = cacheOutcome("fill $key") {
                 val version = group.version.get()
                 if (!version.dirty && version.number == snap) {
-                    if (sharedSnap != null) {
-                        // 原子校验共享版本再写入：其它实例失效后，本次旧回填被拒绝
-                        RedisFactory.async.eval<String>(
-                            CHECK_AND_SET,
-                            ScriptOutputType.STATUS,
-                            arrayOf(key, versionKey(group)),
-                            sharedSnap.toString(),
-                            encode(),
-                            RedisFactory.ttlSeconds.toString(),
-                        ).await()
-                    } else {
-                        RedisFactory.async.set(key, encode(), ttl()).await()
-                    }
+                    // 值内嵌所属版本；原子校验共享版本再写入，其它实例失效后旧回填被拒
+                    RedisFactory.async.eval<Long>(
+                        CHECK_AND_SET,
+                        ScriptOutputType.INTEGER,
+                        arrayOf(key, versionKey(group)),
+                        sharedSnap.toString(),
+                        """{"v":$sharedSnap,"d":${encode()}}""",
+                        RedisFactory.ttlSeconds.toString(),
+                    ).await()
                 }
             }
             if (outcome == null) group.backoffOnFailure()
         }
+    }
+
+    /** 解开内嵌版本：版本不符、格式不符（旧格式值）或共享版本不可确认时返回 null。 */
+    private fun versionedData(raw: String, expectedVersion: Long?): kotlinx.serialization.json.JsonElement? {
+        if (expectedVersion == null) return null
+        return runCatching {
+            val obj = json.parseToJsonElement(raw).jsonObject
+            val version = obj["v"]?.jsonPrimitive?.longOrNull ?: return null
+            if (version != expectedVersion) return null
+            obj["d"] ?: return null
+        }.getOrNull()
     }
 
     private fun Group.backoffOnFailure() {
@@ -247,15 +272,22 @@ return redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
             // 排队期间可能已有请求清理失败并设置了退避，拿到锁后必须复查，否则串行重试拖慢请求
             if (System.nanoTime() < group.recoverNotBefore.get()) return@withLock false
             val cleaned = cacheAttempt("recover ${group.name}") { recover(group) }
-            if (cleaned == null) group.recoverNotBefore.set(System.nanoTime() + RECOVER_BACKOFF_MS * 1_000_000)
+            // 恢复失败（含共享版本递增失败）一律退避重试，不放宽跨实例保护
+            if (cleaned != true) group.recoverNotBefore.set(System.nanoTime() + RECOVER_BACKOFF_MS * 1_000_000)
             cleaned == true
         }
     }
 
-    /** 必须持有该分组的锁。清理时不能只删某个 key，否则会留下同组的其它旧缓存。 */
+    /**
+     * 必须持有该分组的锁。恢复 = 共享版本递增 + 清理整组缓存：
+     * 递增失败时保持 dirty 并退避重试，其它实例的旧回填不能借机通过版本校验。
+     * 清理时不能只删某个 key，否则会留下同组的其它旧缓存。
+     */
     private suspend fun recover(group: Group): Boolean {
         val before = group.version.get()
         if (!before.dirty) return true
+        val bumped = cacheOutcome("bump ${group.name}") { RedisFactory.async.incr(versionKey(group)).await() }
+        if (bumped == null) return false
         val keys = group.patterns.flatMap { pattern -> scanKeys(pattern) }
         keys.chunked(DELETE_BATCH).forEach { batch -> RedisFactory.async.del(*batch.toTypedArray()).await() }
         // 清理期间若有新的失效，版本号会变，这里保持 dirty 让下次重试。

@@ -1,6 +1,7 @@
 package com.atguigu.hr.auth
 
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * 鉴权用的短 TTL 用户缓存（含角色权限），避免每个受保护请求都查一次库。
@@ -17,19 +18,24 @@ class AuthUserCache(
     private val maxEntries: Int = 5_000,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    private class Entry(val user: AuthUser, val loadedAt: Long, val expiresAt: Long)
+    private class Entry(val user: AuthUser, val loadedAt: Long, val expiresAt: Long, val generation: Long)
 
     private val entries = ConcurrentHashMap<String, Entry>()
     private val invalidatedUsers = ConcurrentHashMap<Int, Long>()
     private val invalidatedRoles = ConcurrentHashMap<String, Long>()
+
+    /** 跨实例同步触发整体清理时递增：clear 之前开始的查询属于旧代次，禁止回填。 */
+    private val generation = AtomicLong(0)
 
     @Volatile
     private var lastPruneAt = 0L
 
     val enabled: Boolean get() = ttlMillis > 0
 
-    /** 数据读出时刻，供 [put] 与失效时间比较。 */
+    /** 数据读出时刻与当时的代次，供 [put] 与失效时间、代次比较。 */
     fun now(): Long = clock()
+
+    fun currentGeneration(): Long = generation.get()
 
     fun get(id: Int, tokenVersion: Int): AuthUser? {
         if (!enabled) return null
@@ -43,12 +49,12 @@ class AuthUserCache(
     }
 
     /** [loadedAt] 是数据从数据库读出的时刻；失效之后才回填的旧读数在这里被识别为脏数据。 */
-    fun put(user: AuthUser, loadedAt: Long = clock()) {
+    fun put(user: AuthUser, loadedAt: Long = clock(), loadedGeneration: Long = generation.get()) {
         if (!enabled) return
         val now = clock()
-        // 拒绝两类回填：读出时刻早于失效时刻的脏数据，以及比 TTL 还老的迟到数据。
-        // 后者保证失效标记被 prune 清理后，迟到的旧回填也不会让已撤销的 Token 复活。
-        val entry = Entry(user, loadedAt, now + ttlMillis)
+        // 拒绝三类回填：读出时刻早于失效时刻的脏数据、比 TTL 还老的迟到数据、
+        // 整体清理（代次递增）之前开始的旧代次查询。
+        val entry = Entry(user, loadedAt, now + ttlMillis, loadedGeneration)
         if (loadedAt <= now - ttlMillis || entry.stale()) return
         // 定期清理失效标记：与条目数解耦，否则低流量时过期标记会一直占着内存
         if (now - lastPruneAt >= ttlMillis || entries.size >= maxEntries) {
@@ -75,7 +81,8 @@ class AuthUserCache(
     }
 
     private fun Entry.stale(): Boolean =
-        invalidatedUsers[user.id]?.let { loadedAt <= it } == true ||
+        generation != this@AuthUserCache.generation.get() ||
+            invalidatedUsers[user.id]?.let { loadedAt <= it } == true ||
             invalidatedRoles[user.roleCode]?.let { loadedAt <= it } == true
 
     fun trackedEntries(): Int = entries.size
@@ -83,7 +90,9 @@ class AuthUserCache(
     /** 失效标记数量；internal 供测试断言标记会被定期清理。 */
     internal fun trackedInvalidations(): Int = invalidatedUsers.size + invalidatedRoles.size
 
+    /** 清空并递增代次：clear 之前开始的查询即使之后回填也会被拒绝。 */
     fun clear() {
+        generation.incrementAndGet()
         entries.clear()
         invalidatedUsers.clear()
         invalidatedRoles.clear()
