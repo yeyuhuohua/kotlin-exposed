@@ -1,10 +1,13 @@
 package com.atguigu.hr.audit
 
 import com.atguigu.hr.common.api.ApiList
+import com.atguigu.hr.common.database.LIKE_ESCAPE_CHAR
+import com.atguigu.hr.common.database.escapeLike
 import com.atguigu.hr.config.DatabaseFactory.dbQuery
 import com.atguigu.hr.config.DatabaseFactory.dbUpdate
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
+import org.jetbrains.exposed.v1.core.LikePattern
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
@@ -74,7 +77,9 @@ object AuditRepository {
         success: Boolean?,
     ): ApiList<LoginRecordDto> = dbQuery {
         val query = LoginRecords.selectAll()
-        username?.takeIf { it.isNotBlank() }?.let { query.andWhere { LoginRecords.username like "%${it.trim()}%" } }
+        username?.takeIf { it.isNotBlank() }?.let {
+            query.andWhere { LoginRecords.username like LikePattern("%${escapeLike(it.trim())}%", LIKE_ESCAPE_CHAR) }
+        }
         success?.let { query.andWhere { LoginRecords.success eq it } }
         val total = query.count()
         val items = query
@@ -94,10 +99,14 @@ object AuditRepository {
         path: String?,
     ): ApiList<ApiCallRecordDto> = dbQuery {
         val query = ApiCallRecords.selectAll()
-        username?.takeIf { it.isNotBlank() }?.let { query.andWhere { ApiCallRecords.username like "%${it.trim()}%" } }
+        username?.takeIf { it.isNotBlank() }?.let {
+            query.andWhere { ApiCallRecords.username like LikePattern("%${escapeLike(it.trim())}%", LIKE_ESCAPE_CHAR) }
+        }
         method?.takeIf { it.isNotBlank() }?.let { query.andWhere { ApiCallRecords.method eq it.trim().uppercase() } }
         // 路径前缀匹配（如 /api/employees），可以走 (method, path) 索引方向
-        path?.takeIf { it.isNotBlank() }?.let { query.andWhere { ApiCallRecords.path like "${it.trim()}%" } }
+        path?.takeIf { it.isNotBlank() }?.let {
+            query.andWhere { ApiCallRecords.path like LikePattern("${escapeLike(it.trim())}%", LIKE_ESCAPE_CHAR) }
+        }
         val total = query.count()
         val items = query
             .orderBy(ApiCallRecords.id to SortOrder.DESC)

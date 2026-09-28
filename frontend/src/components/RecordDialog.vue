@@ -6,6 +6,7 @@ import Modal from './Modal.vue'
 import { fillTemplate, itemUrl, rolesPaths, usersPaths } from '../api/paths'
 import { api } from '../lib/api'
 import { formPayload, codePointLength } from '../lib/format'
+import { readSession } from '../lib/session'
 import { lookupSources } from '../config/resources'
 import { useAuth } from '../stores/auth'
 import { useNotices } from '../stores/notices'
@@ -173,9 +174,11 @@ async function save() {
     const clearing = Object.values(payload).some((value) => value === null)
     const canPut = !props.updateTemplate || auth.canApi('PUT', props.updateTemplate)
     const method = props.original ? (canPut && !clearing ? 'PUT' : 'PATCH') : 'POST'
+    // 提交时记录会话：响应延迟期间若已重新登录，旧响应不能清掉新会话。
+    const sessionToken = readSession()?.token
     await api(path, { method, body: payload })
     notices.show(props.original ? '修改已保存' : '记录已创建')
-    if (self.value) {
+    if (self.value && readSession()?.token === sessionToken) {
       // 先给出原因再清会话：App 的 expired 处理在 user 为空时不会再弹提示。
       notices.show('账号信息已修改，请重新登录', true)
       auth.clear()

@@ -15,6 +15,7 @@ import Pagination from '../src/components/Pagination.vue'
 import RolePermissionEditor from '../src/components/RolePermissionEditor.vue'
 import Modal from '../src/components/Modal.vue'
 import LoginView from '../src/views/LoginView.vue'
+import { readSession, saveSession } from '../src/lib/session'
 
 /** 在内存 DOM 中验证组件契约，不读取本机账号、不访问浏览器或真实 API。 */
 const mocks = vi.hoisted(() => ({
@@ -22,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   show: vi.fn(),
   login: vi.fn(),
   replace: vi.fn(),
+  clear: vi.fn(),
   canPage: vi.fn(() => false),
 }))
 vi.mock('../src/lib/api', () => ({ api: mocks.api }))
@@ -34,7 +36,7 @@ vi.mock('../src/stores/auth', () => ({
     canPage: mocks.canPage,
     home: '/account',
     login: mocks.login,
-    clear: vi.fn(),
+    clear: mocks.clear,
   }),
 }))
 vi.mock('vue-router', () => ({
@@ -177,6 +179,43 @@ describe('Element Plus components', () => {
       method: 'POST',
       body: { username: 'reader', password: '𠮷'.repeat(64) },
     })
+  })
+
+  it('clears the session after changing own password only when it is unchanged', async () => {
+    saveSession('token-old', 600)
+    let release!: () => void
+    mocks.api.mockImplementationOnce(() => new Promise((resolve) => (release = () => resolve({}))))
+    const props = {
+      title: '编辑用户',
+      endpoint: '/auth/users',
+      updateTemplate: '/auth/users/{id}',
+      idKey: 'id',
+      original: { id: 1, username: 'admin', roleCode: 'ADMIN', enabled: true },
+      fields: [{ key: 'password', label: '密码', type: 'password' as const }],
+    }
+    const wrapper = mount(RecordDialog, { ...options, props })
+    mounted.push(wrapper)
+    await flushPromises()
+    await wrapper.findComponent(ElInput).find('input').setValue('new-password-1')
+    const submitted = wrapper.findComponent(ElForm).trigger('submit')
+    await flushPromises()
+    // 响应延迟期间会话过期并以同账号重新登录：旧响应回来不能清掉新会话
+    saveSession('token-new', 600)
+    release()
+    await submitted
+    await flushPromises()
+    expect(mocks.clear).not.toHaveBeenCalled()
+    expect(readSession()?.token).toBe('token-new')
+
+    // 会话未变化时正常清理并要求重新登录
+    mocks.api.mockResolvedValueOnce({})
+    const wrapper2 = mount(RecordDialog, { ...options, props })
+    mounted.push(wrapper2)
+    await flushPromises()
+    await wrapper2.findComponent(ElInput).find('input').setValue('new-password-2')
+    await wrapper2.findComponent(ElForm).trigger('submit')
+    await flushPromises()
+    expect(mocks.clear).toHaveBeenCalledTimes(1)
   })
 
   it('forwards pagination events without changing the API page contract', () => {

@@ -1,6 +1,8 @@
 package com.atguigu.hr.employee
 
 import com.atguigu.hr.common.api.ApiList
+import com.atguigu.hr.common.database.LIKE_ESCAPE_CHAR
+import com.atguigu.hr.common.database.escapeLike
 import com.atguigu.hr.config.DatabaseFactory.dbQuery
 import com.atguigu.hr.config.DatabaseFactory.dbUpdate
 import com.atguigu.hr.department.Departments
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import org.jetbrains.exposed.v1.core.JoinType
+import org.jetbrains.exposed.v1.core.LikePattern
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.avg
@@ -47,7 +50,7 @@ object EmployeeRepository {
             // 函数包裹会让每行都要重新计算，且彻底断掉用索引的可能。
             // 注意首尾都有 % 的包含匹配本身仍然无法走 B-tree 索引，数据量大时
             // 需要改成前缀匹配或引入全文检索（见 README 的"已知限制"）。
-            val pattern = "%${keyword.trim()}%"
+            val pattern = LikePattern("%${escapeLike(keyword.trim())}%", LIKE_ESCAPE_CHAR)
             query.andWhere {
                 (Employees.firstName like pattern) or
                     (Employees.lastName like pattern) or
