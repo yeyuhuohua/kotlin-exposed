@@ -28,6 +28,7 @@ data class JobUpdateRequest(
 
     fun contentError(): String? = when {
         jobTitle != null && jobTitle.isBlank() -> "jobTitle must not be blank"
+        jobTitle != null && jobTitle.length > 35 -> "jobTitle must be at most 35 characters"
         minSalary != null && minSalary < 0 -> "minSalary must be non-negative"
         maxSalary != null && maxSalary < 0 -> "maxSalary must be non-negative"
         else -> null
@@ -56,6 +57,8 @@ data class JobCreateRequest(
 ) {
     fun contentError(): String? = when {
         jobId.isBlank() || jobTitle.isBlank() -> "jobId and jobTitle are required"
+        jobId.length > 10 -> "jobId must be at most 10 characters"
+        jobTitle.length > 35 -> "jobTitle must be at most 35 characters"
         minSalary != null && minSalary < 0 -> "minSalary must be non-negative"
         maxSalary != null && maxSalary < 0 -> "maxSalary must be non-negative"
         minSalary != null && maxSalary != null && minSalary > maxSalary -> "minSalary must not exceed maxSalary"

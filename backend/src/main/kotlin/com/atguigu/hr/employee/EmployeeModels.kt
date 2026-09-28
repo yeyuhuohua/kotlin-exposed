@@ -78,6 +78,8 @@ data class EmployeeUpdateRequest(
 
     fun contentError(): String? {
         if (jobId != null && jobId.isBlank()) return "jobId must not be blank"
+        if (jobId != null && jobId.length > 10) return "jobId must be at most 10 characters"
+        if (phoneNumber != null && phoneNumber.length > 20) return "phoneNumber must be at most 20 characters"
         salary?.let { value -> if (salaryError(value) != null) return salaryError(value) }
         return null
     }
@@ -128,6 +130,11 @@ data class EmployeeCreateRequest(
         if (lastName.isBlank() || email.isBlank() || jobId.isBlank() || hireDate.isBlank()) {
             return "lastName, email, hireDate, jobId are required"
         }
+        if (firstName != null && firstName.length > 20) return "firstName must be at most 20 characters"
+        if (lastName.length > 25) return "lastName must be at most 25 characters"
+        if (email.length > 25) return "email must be at most 25 characters"
+        if (phoneNumber != null && phoneNumber.length > 20) return "phoneNumber must be at most 20 characters"
+        if (jobId.length > 10) return "jobId must be at most 10 characters"
         salary?.let { value -> salaryError(value)?.let { return it } }
         commissionPct?.let { value -> commissionPctError(value)?.let { return it } }
         return null
@@ -197,13 +204,20 @@ data class EmployeePatch(
             }
             return EmployeePatch(
                 present = body.keys.toSet(),
-                firstName = body.text("firstName"),
+                firstName = body.text("firstName")?.also {
+                    require(it.length <= 20) { "firstName must be at most 20 characters" }
+                },
                 salary = body.number("salary")?.also { validateSalary(it) },
                 commissionPct = body.number("commissionPct")?.also { validateCommissionPct(it) },
                 departmentId = body.integer("departmentId"),
                 managerId = body.integer("managerId"),
-                phoneNumber = body.text("phoneNumber"),
-                jobId = body.text("jobId")?.also { require(it.isNotBlank()) { "jobId must not be blank" } },
+                phoneNumber = body.text("phoneNumber")?.also {
+                    require(it.length <= 20) { "phoneNumber must be at most 20 characters" }
+                },
+                jobId = body.text("jobId")?.also {
+                    require(it.isNotBlank()) { "jobId must not be blank" }
+                    require(it.length <= 10) { "jobId must be at most 10 characters" }
+                },
             )
         }
 

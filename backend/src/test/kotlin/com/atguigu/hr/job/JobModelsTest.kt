@@ -74,4 +74,22 @@ class JobModelsTest {
         )
         assertNull(JobCreateRequest(jobId = "KT_DEV", jobTitle = "Kotlin Developer", minSalary = 0).contentError())
     }
+
+    @Test
+    fun `文本长度不能超过列上限`() {
+        assertEquals(
+            "jobTitle must be at most 35 characters",
+            JobUpdateRequest(jobTitle = "a".repeat(36)).contentError(),
+        )
+        assertNull(JobUpdateRequest(jobTitle = "a".repeat(35)).contentError())
+        assertEquals(
+            "jobTitle must be at most 35 characters",
+            JobCreateRequest(jobId = "KT_DEV", jobTitle = "a".repeat(36)).contentError(),
+        )
+        assertEquals(
+            "jobId must be at most 10 characters",
+            JobCreateRequest(jobId = "K".repeat(11), jobTitle = "Kotlin Developer").contentError(),
+        )
+        assertNull(JobCreateRequest(jobId = "K".repeat(10), jobTitle = "a".repeat(35)).contentError())
+    }
 }

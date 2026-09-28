@@ -79,6 +79,17 @@ class EmployeePatchTest {
     }
 
     @Test
+    fun `文本长度不能超过列上限`() {
+        val phone = assertFailsWith<IllegalArgumentException> { parse("""{"phoneNumber": "123456789012345678901"}""") }
+        assertTrue(phone.message!!.contains("20 characters"))
+        val firstName = assertFailsWith<IllegalArgumentException> { parse("""{"firstName": "${"a".repeat(21)}"}""") }
+        assertTrue(firstName.message!!.contains("20 characters"))
+        val jobId = assertFailsWith<IllegalArgumentException> { parse("""{"jobId": "ABCDEFGHIJK"}""") }
+        assertTrue(jobId.message!!.contains("10 characters"))
+        assertEquals("12345678901234567890", parse("""{"phoneNumber": "12345678901234567890"}""").phoneNumber)
+    }
+
+    @Test
     fun `新增与更新请求体的数值约束`() {
         assertEquals(
             "salary must be a non-negative number",
@@ -98,6 +109,36 @@ class EmployeePatchTest {
             "lastName, email, hireDate, jobId are required",
             createRequest().copy(lastName = " ").contentError(),
         )
+    }
+
+    @Test
+    fun `新增与更新请求体的文本长度约束`() {
+        assertEquals(
+            "phoneNumber must be at most 20 characters",
+            EmployeeUpdateRequest(phoneNumber = "1".repeat(21)).contentError(),
+        )
+        assertEquals(
+            "jobId must be at most 10 characters",
+            EmployeeUpdateRequest(jobId = "A".repeat(11)).contentError(),
+        )
+        assertNull(EmployeeUpdateRequest(phoneNumber = "1".repeat(20)).contentError())
+        assertEquals(
+            "lastName must be at most 25 characters",
+            createRequest().copy(lastName = "a".repeat(26)).contentError(),
+        )
+        assertEquals(
+            "email must be at most 25 characters",
+            createRequest().copy(email = "a".repeat(26)).contentError(),
+        )
+        assertEquals(
+            "firstName must be at most 20 characters",
+            createRequest().copy(firstName = "a".repeat(21)).contentError(),
+        )
+        assertEquals(
+            "jobId must be at most 10 characters",
+            createRequest().copy(jobId = "J".repeat(11)).contentError(),
+        )
+        assertNull(createRequest().copy(phoneNumber = "1".repeat(20)).contentError())
     }
 
     private fun createRequest(salary: Double? = null, commissionPct: Double? = null) = EmployeeCreateRequest(
