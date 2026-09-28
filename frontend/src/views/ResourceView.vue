@@ -22,6 +22,8 @@ const router = useRouter()
 const notices = useNotices()
 const page = ref(1)
 const pageSize = ref(20)
+/** 最近一次成功拿到的总数。请求失败时沿用它，避免总数变成 0 把页码打回第一页。 */
+const knownTotal = ref(0)
 const search = ref('')
 const open = ref(false)
 const editing = ref<Row>()
@@ -103,6 +105,7 @@ watch(
   () => {
     page.value = 1
     search.value = ''
+    knownTotal.value = 0
     void refresh()
   },
   { immediate: true },
@@ -130,10 +133,17 @@ const rows = computed(() =>
     ? filtered.value
     : filtered.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value),
 )
-const total = computed(() => (props.resource.paginated ? data.value?.total || 0 : filtered.value.length))
-watch(total, (value) => {
+/** 只在本次请求成功后校正页码；失败时总数未知，保留当前页以便重试。 */
+const loadedTotal = computed(() => {
+  if (!data.value || error.value) return undefined
+  return props.resource.paginated ? data.value.total : filtered.value.length
+})
+watch(loadedTotal, (value) => {
+  if (value === undefined) return
+  knownTotal.value = value
   page.value = Math.min(page.value, Math.max(1, Math.ceil(value / pageSize.value)))
 })
+const total = computed(() => loadedTotal.value ?? knownTotal.value)
 function setPageSize(value: number) {
   pageSize.value = value
   page.value = 1

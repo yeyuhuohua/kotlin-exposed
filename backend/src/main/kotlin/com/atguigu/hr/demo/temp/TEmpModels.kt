@@ -20,7 +20,7 @@ data class TEmpDto(
 data class TEmpUpdateRequest(
     @JsonSchema.Description("姓名，不传则不改")
     val name: String? = null,
-    @JsonSchema.Description("年龄，不传则不改")
+    @JsonSchema.Description("年龄，不传则不改，不能为负")
     val age: Int? = null,
     @JsonSchema.Description("所属门派 t_dept.id，不传则不改")
     val deptId: Int? = null,
@@ -30,8 +30,11 @@ data class TEmpUpdateRequest(
     fun hasUpdates(): Boolean =
         name != null || age != null || deptId != null || empno != null
 
-    fun contentError(): String? =
-        if (name != null && name.exceedsMaxLength(20)) "name must be at most 20 characters" else null
+    fun contentError(): String? = when {
+        name != null && name.exceedsMaxLength(20) -> "name must be at most 20 characters"
+        age != null && age < 0 -> "age must be non-negative"
+        else -> null
+    }
 }
 
 /** POST /api/t-emp，id 自增，empno 必填。 */
@@ -40,13 +43,16 @@ data class TEmpUpdateRequest(
 data class TEmpCreateRequest(
     @JsonSchema.Description("姓名")
     val name: String? = null,
-    @JsonSchema.Description("年龄")
+    @JsonSchema.Description("年龄，不能为负")
     val age: Int? = null,
     @JsonSchema.Description("所属门派 t_dept.id")
     val deptId: Int? = null,
     @JsonSchema.Description("工号 empno，必填")
     val empno: Int,
 ) {
-    fun contentError(): String? =
-        if (name != null && name.exceedsMaxLength(20)) "name must be at most 20 characters" else null
+    fun contentError(): String? = when {
+        name != null && name.exceedsMaxLength(20) -> "name must be at most 20 characters"
+        age != null && age < 0 -> "age must be non-negative"
+        else -> null
+    }
 }

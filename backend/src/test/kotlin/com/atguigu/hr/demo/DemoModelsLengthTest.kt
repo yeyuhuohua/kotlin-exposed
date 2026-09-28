@@ -38,4 +38,13 @@ class DemoModelsLengthTest {
         assertNull(TEmpUpdateRequest(name = "仪琳").contentError())
         assertNull(TEmpCreateRequest(name = "𠮷" + "a".repeat(19), empno = 2001).contentError())
     }
+
+    @Test
+    fun `t_emp 年龄为负被拒绝`() {
+        assertEquals("age must be non-negative", TEmpUpdateRequest(age = -1).contentError())
+        assertEquals("age must be non-negative", TEmpCreateRequest(age = -1, empno = 2001).contentError())
+        assertNull(TEmpUpdateRequest(age = 0).contentError())
+        assertNull(TEmpCreateRequest(age = 0, empno = 2001).contentError())
+        assertNull(TEmpCreateRequest(empno = 2001).contentError())
+    }
 }

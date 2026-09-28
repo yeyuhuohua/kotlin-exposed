@@ -42,6 +42,7 @@ fun Route.tEmpRoutes() {
             message = "created",
             okDescription = "创建成功",
             fails = arrayOf(
+                HttpStatusCode.BadRequest to "name must be at most 20 characters / age must be non-negative",
                 HttpStatusCode.Conflict to "create failed",
             ),
         )
@@ -71,7 +72,7 @@ fun Route.tEmpRoutes() {
             message = "updated",
             okDescription = "更新成功",
             fails = arrayOf(
-                HttpStatusCode.BadRequest to "no fields to update",
+                HttpStatusCode.BadRequest to "no fields to update / name must be at most 20 characters / age must be non-negative",
                 HttpStatusCode.NotFound to "t_emp not found",
                 HttpStatusCode.Conflict to "update failed",
             ),

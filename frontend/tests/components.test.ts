@@ -421,4 +421,35 @@ describe('Element Plus components', () => {
     await flushPromises()
     expect(document.body.textContent).not.toContain('该角色仍有账号在使用')
   })
+
+  it('分页请求失败时留在当前页并保留错误', async () => {
+    const { resources } = await import('../src/config/resources')
+    const users = resources.find((resource) => resource.key === 'users')!
+    const page = {
+      total: 40,
+      items: [{ id: 2, username: 'reader', roleCode: 'READER', enabled: true }],
+    }
+    mocks.api.mockResolvedValueOnce(page)
+    mocks.api.mockRejectedValueOnce(new Error('列表加载失败'))
+    mocks.api.mockResolvedValueOnce(page)
+    const wrapper = mount(ResourceView, { ...options, props: { resource: users } })
+    mounted.push(wrapper)
+    await flushPromises()
+    expect(String(mocks.api.mock.calls[0]?.[0])).toContain('offset=0')
+
+    wrapper.findComponent(Pagination).vm.$emit('update:page', 2)
+    await flushPromises()
+    await flushPromises()
+
+    expect(mocks.api).toHaveBeenCalledTimes(2)
+    expect(String(mocks.api.mock.calls[1]?.[0])).toContain('offset=20')
+    expect(wrapper.text()).toContain('列表加载失败')
+    expect(wrapper.findComponent(ElPagination).props('currentPage')).toBe(2)
+
+    await wrapper.get('button.secondary').trigger('click')
+    await flushPromises()
+    expect(mocks.api).toHaveBeenCalledTimes(3)
+    expect(String(mocks.api.mock.calls[2]?.[0])).toContain('offset=20')
+    expect(wrapper.text()).not.toContain('列表加载失败')
+  })
 })
