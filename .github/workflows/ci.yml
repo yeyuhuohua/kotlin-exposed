@@ -17,7 +17,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       # wrapper 的 distributionUrl 指向国内镜像（本机开发加速用），海外 runner 下载极慢；
       # CI 上改写为官方地址，仓库里的镜像配置保持不变。
       - name: Use official Gradle distribution on CI
