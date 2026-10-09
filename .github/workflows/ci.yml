@@ -37,7 +37,7 @@ jobs:
         with:
           # pnpm/action-setup 默认读仓库根的 package.json，本项目前端在 frontend/ 子目录。
           package_json_file: frontend/package.json
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: pnpm
