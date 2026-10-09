@@ -19,9 +19,9 @@ jobs:
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v6
       # wrapper 的 distributionUrl 指向国内镜像（本机开发加速用），海外 runner 下载极慢；
-      # CI 上改写为官方地址，仓库里的镜像配置保持不变。
+      # CI 上改写为官方地址（版本无关：阿里云路径带 v 前缀目录，官方是扁平结构），仓库里的镜像配置保持不变。
       - name: Use official Gradle distribution on CI
-        run: sed -i 's#mirrors.aliyun.com/gradle/distributions/v9.5.1#services.gradle.org/distributions#' gradle/wrapper/gradle-wrapper.properties
+        run: sed -i -E 's#://mirrors\.aliyun\.com/gradle/distributions/v[0-9.]+/(gradle-[0-9.]+-bin\.zip)#://services.gradle.org/distributions/\1#' gradle/wrapper/gradle-wrapper.properties
       # 后端单元测试不依赖 MySQL/Redis，直接在 CI 运行。
       - name: Backend tests
         run: ./gradlew test
