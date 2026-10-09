@@ -8,6 +8,7 @@
 - `auth_users`：自增 ID、唯一用户名、加盐密码哈希、角色编码（外键）、启用状态和 Token 版本。
 - `auth_role_permission_profiles`：角色权限配置版本号。
 - `auth_role_permissions`：角色拥有的页面或接口权限编码。
+- `auth_menus`：侧栏页面菜单（页面权限码 `page:<key>` 的来源），含标题、路径、图标、分组、排序、仅 ADMIN 标记、内置标记和启用状态。
 
 每个用户通过 `auth_users.role_code` 对应一个角色，权限只绑定到角色，不存在用户覆盖权限。
 所有 `ADMIN` 用户均拥有全部已登记权限，该内置角色不可修改或停用。
@@ -88,6 +89,9 @@ JWT 签名密钥和可选的初始管理员写在 `src/main/resources/applicatio
    项目没有公开注册接口。用户只能分配已启用的角色，不能提交独立权限。
 6. `GET /api/auth/me` 返回当前账号信息；`POST /api/auth/logout` 撤销该账号在所有设备上的 Token。
    退出后需要重新登录以获取新 Token。
+7. `GET /api/auth/routes` 返回当前用户可访问的页面清单（key、标题、路径、图标、分组、排序），
+   数据来自菜单表 `auth_menus`：ADMIN 获得全部启用菜单，其他角色获得已授权且启用的菜单。
+   前端登录后据此动态注册路由和菜单，不在前端维护页面清单。
 
 ## 页面与接口权限
 
@@ -95,11 +99,15 @@ JWT 签名密钥和可选的初始管理员写在 `src/main/resources/applicatio
 在“用户管理”中将账号分配给角色。同一角色下所有用户获得完全相同的有效权限。
 保存角色权限会更新数据库，并撤销该角色所有用户已有的 Token；停用角色后重新启用也不会恢复旧 Token。
 
-- `GET /api/auth/permissions`：获取已登记的页面和接口权限目录。
+- `GET /api/auth/permissions`：获取已登记的页面和接口权限目录。页面条目来自菜单表（含动态新增菜单），接口条目硬编码在后端。
 - `POST /api/auth/roles`：创建普通角色，提交 `code` 和 `name`，初始权限为空。
 - `PUT /api/auth/roles/{code}`：修改普通角色的名称或启用状态。
 - `GET /api/auth/roles/{code}/permissions`：获取角色权限和配置版本号。
 - `PUT /api/auth/roles/{code}/permissions`：在事务中完整替换角色权限。
+- `GET /api/menus`：列出全部菜单（含停用），仅 ADMIN。
+- `POST /api/menus`：新增菜单，提交 `key`、`title`、`path`，可选 `icon`、`group`、`sort`；仅 ADMIN。
+- `PUT /api/menus/{key}`：修改菜单标题、路径、图标、分组、排序或启用状态；仅 ADMIN。`adminOnly` 创建后不可改，`menus`/`users`/`roles` 三个管理入口不可停用。
+- `DELETE /api/menus/{key}`：删除菜单，并在同一事务中清理所有角色的 `page:<key>` 授权；仅 ADMIN。内置菜单（`builtin`）不可删除。
 - `DELETE /api/auth/users/{id}`：删除账号。内置 `admin` 账号返回 403（`admin_account_protected`），
   删除当前登录账号返回 400（`self_deletion`），账号不存在返回 404。删除后该账号的 Token 立即失效。
 - `DELETE /api/auth/roles/{code}`：删除角色及其权限配置。`ADMIN` 角色返回 403（`role_protected`），

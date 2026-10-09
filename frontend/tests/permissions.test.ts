@@ -1,14 +1,21 @@
 import { describe, expect, it } from 'vitest'
 /** 验证角色有效授权在页面和接口上的独立性，以及管理权限的角色限制。 */
-import {
-  canApi,
-  canPage,
-  homePath,
-  isProtectedRole,
-  isProtectedUser,
-  pagePaths,
-} from '../src/lib/permissions'
-import type { User } from '../src/types'
+import { canApi, canPage, homePath, isProtectedRole, isProtectedUser } from '../src/lib/permissions'
+import type { PageRoute, User } from '../src/types'
+
+/** 后端 /api/auth/routes 下发的页面清单样例，顺序即后端菜单排序。 */
+const pages: PageRoute[] = [
+  { key: 'overview', title: '工作概览', path: '/', icon: 'LayoutDashboard', group: '工作空间', sort: 10 },
+  { key: 'employees', title: '员工管理', path: '/employees', icon: 'Users', group: '工作空间', sort: 20 },
+  {
+    key: 'departments',
+    title: '部门管理',
+    path: '/departments',
+    icon: 'Building2',
+    group: '工作空间',
+    sort: 30,
+  },
+]
 
 const reader: User = {
   id: 2,
@@ -23,7 +30,7 @@ describe('page and API permissions', () => {
     expect(canPage(reader, 'employees')).toBe(true)
     expect(canPage(reader, '/jobs')).toBe(false)
     expect(canPage(reader, '/')).toBe(false)
-    expect(homePath(reader)).toBe('/employees')
+    expect(homePath(reader, pages)).toBe('/employees')
   })
   it('distinguishes API methods and list vs detail endpoints', () => {
     expect(canApi(reader, 'GET', '/employees')).toBe(true)
@@ -41,7 +48,7 @@ describe('page and API permissions', () => {
     const empty = { ...reader, roleCode: 'ADMIN' as const, permissions: [] }
     expect(canPage(empty, '/employees')).toBe(false)
     expect(canApi(empty, 'POST', '/employees')).toBe(false)
-    expect(homePath(empty)).toBe('/account')
+    expect(homePath(empty, pages)).toBe('/account')
     expect(canPage(null, '/employees')).toBe(false)
   })
   it('management remains admin-only even with an erroneous grant', () => {
@@ -79,7 +86,9 @@ describe('page and API permissions', () => {
     expect(isProtectedUser({ id: 2, username: 'operator' }, 2)).toBe(true)
     expect(isProtectedUser({ id: 3, username: 'operator' }, 2)).toBe(false)
   })
-  it('keeps routable permission paths unique', () => {
-    expect(new Set(pagePaths).size).toBe(pagePaths.length)
+  it('落地页取后端清单中第一个有权限的页面', () => {
+    expect(homePath({ ...reader, permissions: ['page:overview', 'page:employees'] }, pages)).toBe('/')
+    expect(homePath({ ...reader, permissions: ['page:departments'] }, pages)).toBe('/departments')
+    expect(homePath(reader, [])).toBe('/account')
   })
 })

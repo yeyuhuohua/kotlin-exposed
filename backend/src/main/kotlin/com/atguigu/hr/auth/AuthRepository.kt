@@ -18,6 +18,25 @@ import org.jetbrains.exposed.v1.r2dbc.deleteWhere
 import org.jetbrains.exposed.v1.r2dbc.selectAll
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.r2dbc.update
+import com.atguigu.hr.menu.Menus
+
+/**
+ * 授权码是否允许普通角色持有：接口码按目录判定；page: 前缀的页面码来自菜单表，
+ * 放行后在读取页面时由菜单模块按存在性与 adminOnly 再过滤。
+ */
+internal fun grantableCode(code: String): Boolean =
+    code.startsWith("page:") || PermissionCatalog.byCode[code]?.adminOnly == false
+
+/** 角色授权校验：未知编码或仅 ADMIN 的编码返回对应错误码，合法返回 null。 */
+internal fun grantError(code: String, menuAdminOnlyByKey: Map<String, Boolean>): String? {
+    val definition = PermissionCatalog.byCode[code]
+    if (definition != null) return if (definition.adminOnly) ErrorCode.ADMIN_ONLY else null
+    if (code.startsWith("page:")) {
+        val adminOnly = menuAdminOnlyByKey[code.removePrefix("page:")] ?: return ErrorCode.UNKNOWN_PERMISSION
+        return if (adminOnly) ErrorCode.ADMIN_ONLY else null
+    }
+    return ErrorCode.UNKNOWN_PERMISSION
+}
 
 class AuthRepository(private val database: R2dbcDatabase) : AuthStore {
     suspend fun initialize() = suspendTransaction(db = database) {
@@ -160,10 +179,11 @@ class AuthRepository(private val database: R2dbcDatabase) : AuthStore {
                 ErrorCode.REVISION_CONFLICT,
             )
         }
-        if (request.permissions.any { PermissionCatalog.byCode[it] == null }) {
+        val menuAdminOnlyByKey = Menus.selectAll().map { it[Menus.key] to it[Menus.adminOnly] }.toList().toMap()
+        if (request.permissions.any { grantError(it, menuAdminOnlyByKey) == ErrorCode.UNKNOWN_PERMISSION }) {
             throw AuthException(HttpStatusCode.BadRequest, "unknown permission code", ErrorCode.UNKNOWN_PERMISSION)
         }
-        if (request.permissions.any { PermissionCatalog.byCode[it]?.adminOnly == true }) {
+        if (request.permissions.any { grantError(it, menuAdminOnlyByKey) == ErrorCode.ADMIN_ONLY }) {
             throw AuthException(
                 HttpStatusCode.BadRequest,
                 "management permissions require ADMIN role",
@@ -204,7 +224,7 @@ class AuthRepository(private val database: R2dbcDatabase) : AuthStore {
         if (code == RoleCode.ADMIN.name) return PermissionCatalog.defaults(code)
         return RolePermissions.selectAll().where { RolePermissions.roleCode eq code }
             .map { it[RolePermissions.permissionCode] }.toList()
-            .filterTo(linkedSetOf()) { PermissionCatalog.byCode[it]?.adminOnly == false }
+            .filterTo(linkedSetOf()) { grantableCode(it) }
     }
 
     private suspend fun insertRoleGrants(code: String, permissions: Set<String>) {

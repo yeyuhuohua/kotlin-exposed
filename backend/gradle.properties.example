@@ -1,4 +1,7 @@
-# 可选的本地构建配置。请使用 JDK 21；不要提交本机 JDK 绝对路径。
+# 可选的本地构建配置。编译与测试由 build.gradle.kts 的 kotlin { jvmToolchain(21) } 固定
+# 到 JDK 21；Gradle 守护进程本身只需 JDK 17+（Ktor 插件要求），无需在此指定。
+# 若本机 JDK 不在标准目录，可用 org.gradle.java.installations.paths 指给 toolchain，
+# 但不要提交本机 JDK 绝对路径。
 kotlin.code.style=official
 org.gradle.jvmargs=-Xmx1G
 org.gradle.parallel=true

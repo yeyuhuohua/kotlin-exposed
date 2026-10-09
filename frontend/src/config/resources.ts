@@ -310,33 +310,7 @@ export const lookupSources: Record<string, { endpoint: string; id: string; label
 }
 
 /**
- * 页面清单的唯一来源：权限码 `page:<key>`、路由 path、菜单标题都由这里派生，
- * 避免出现"后端登记了页面、前端却忘了加路由"或反过来的漂移。
+ * 本文件只保留资源业务配置（表格列、表单字段、lookup）。
+ * 页面清单（key、标题、路径、图标、分组、adminOnly）的唯一来源是后端菜单表，
+ * 由 GET /api/auth/routes 按当前用户权限下发，前端在 router.ts 里动态注册路由。
  */
-export interface PageDefinition {
-  key: string
-  title: string
-  path: string
-  adminOnly?: boolean
-}
-
-/** 有独立视图组件的页面，顺序即登录后的默认落地顺序。 */
-export const staticPages: PageDefinition[] = [
-  { key: 'overview', title: '工作概览', path: '/' },
-  { key: 'employees', title: '员工管理', path: '/employees' },
-  { key: 'system', title: '系统状态', path: '/system' },
-  { key: 'audit', title: '审计日志', path: '/audit', adminOnly: true },
-]
-
-/** 全部可授权的业务页面，资源页面的 key 与 path 一律取资源定义。 */
-export const pages: PageDefinition[] = [
-  ...staticPages,
-  ...resources.map((resource) => ({
-    key: resource.key,
-    title: resource.title,
-    path: `/${resource.key}`,
-    adminOnly: resource.adminOnly,
-  })),
-]
-
-export const pagePaths = pages.map((page) => page.path)

@@ -2,7 +2,7 @@ package com.atguigu.hr.auth
 
 import kotlinx.serialization.Serializable
 
-/** 登记页面和接口权限编码；未登记的受保护接口默认拒绝访问。 */
+/** 登记接口权限编码；未登记的受保护接口默认拒绝访问。页面清单已移到菜单表（menu 包），不再硬编码。 */
 
 @Serializable
 data class PermissionDefinition(
@@ -16,30 +16,10 @@ data class PermissionDefinition(
 )
 
 object PermissionCatalog {
-    private fun page(key: String, label: String, path: String, adminOnly: Boolean = false) =
-        PermissionDefinition("page:$key", "PAGE", label, label, path, adminOnly = adminOnly)
-
     private fun api(method: String, path: String, label: String, group: String, adminOnly: Boolean = false) =
         PermissionDefinition("api:$method:/api$path", "API", label, group, "/api$path", method, adminOnly)
 
     val definitions: List<PermissionDefinition> = listOf(
-        page("overview", "工作概览", "/"),
-        page("employees", "员工管理", "/employees"),
-        page("departments", "部门管理", "/departments"),
-        page("jobs", "岗位管理", "/jobs"),
-        page("locations", "办公地点", "/locations"),
-        page("countries", "国家与地区", "/countries"),
-        page("regions", "区域目录", "/regions"),
-        page("job-history", "任职历史", "/job-history"),
-        page("job-grades", "薪资等级", "/job-grades"),
-        page("emp-details", "员工详情视图", "/emp-details"),
-        page("t-dept", "示例部门", "/t-dept"),
-        page("t-emp", "示例人员", "/t-emp"),
-        page("orders", "示例订单", "/orders"),
-        page("system", "系统状态", "/system"),
-        page("users", "用户管理", "/users", true),
-        page("roles", "角色权限", "/roles", true),
-        page("audit", "审计日志", "/audit", true),
         api("GET", "/overview", "查询概览（包含跨模块统计和员工样本）", "工作概览"),
         api("GET", "/employees", "分页查询员工", "员工管理"),
         api("POST", "/employees", "新增员工", "员工管理"),
@@ -84,10 +64,14 @@ object PermissionCatalog {
         api("PUT", "/auth/roles/{code}/permissions", "修改角色权限", "权限管理", true),
         api("GET", "/audit/logins", "查询登录记录", "审计日志", true),
         api("GET", "/audit/api-calls", "查询接口调用记录", "审计日志", true),
+        api("GET", "/menus", "查询菜单列表", "菜单管理", true),
+        api("POST", "/menus", "新增菜单", "菜单管理", true),
+        api("PUT", "/menus/{key}", "修改菜单", "菜单管理", true),
+        api("DELETE", "/menus/{key}", "删除菜单", "菜单管理", true),
     )
 
     val byCode = definitions.associateBy { it.code }
-    private val apiPatterns = definitions.filter { it.kind == "API" }.map { definition ->
+    private val apiPatterns = definitions.map { definition ->
         definition to apiPathPattern(definition.path)
     }
 
@@ -99,13 +83,18 @@ object PermissionCatalog {
     }
 
     fun defaults(roleCode: String): Set<String> = definitions.filter {
-        roleCode == RoleCode.ADMIN.name ||
-            (roleCode == RoleCode.READER.name && !it.adminOnly && (it.kind == "PAGE" || it.method == "GET"))
+        roleCode == RoleCode.ADMIN.name || (roleCode == RoleCode.READER.name && !it.adminOnly && it.method == "GET")
     }.mapTo(linkedSetOf()) { it.code }
 
+    /**
+     * 用户的有效权限。接口码必须在目录里登记且遵守 ADMIN 限制；
+     * page: 前缀的页面码来自菜单表（运行时数据），这里原样放行，
+     * 是否存在、是否仅管理员可见由菜单读取方（MenuService）判定。
+     */
     fun effective(user: AuthUser): Set<String> {
         val configured = if (user.roleCode == RoleCode.ADMIN.name) defaults(user.roleCode) else user.rolePermissions
         return configured.filterTo(linkedSetOf()) { code ->
+            if (code.startsWith("page:")) return@filterTo true
             val definition = byCode[code]
             definition != null && (!definition.adminOnly || user.roleCode == RoleCode.ADMIN.name)
         }

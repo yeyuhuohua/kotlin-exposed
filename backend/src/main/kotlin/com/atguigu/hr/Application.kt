@@ -30,6 +30,8 @@ import com.atguigu.hr.job.jobRoutes
 import com.atguigu.hr.jobgrade.jobGradeRoutes
 import com.atguigu.hr.jobhistory.jobHistoryRoutes
 import com.atguigu.hr.location.locationRoutes
+import com.atguigu.hr.menu.MenuRepository
+import com.atguigu.hr.menu.menuRoutes
 import com.atguigu.hr.overview.overviewRoutes
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -71,9 +73,14 @@ fun Application.module() {
     val tokens = TokenService(AuthSettings.from(environment.config))
     DatabaseFactory.connect(environment.config)
     ClientIp.configure(environment.config)
+    val initializeSchema = environment.config.propertyOrNull("auth.initializeSchema")?.getString()?.toBooleanStrict() != false
+    // 菜单表必须先于认证初始化建好并播种：初始角色授权会读取启用菜单生成页面授权码。
+    if (initializeSchema) {
+        runBlocking { MenuRepository.initialize() }
+    }
     // Complete schema/bootstrap work before accepting authenticated requests.
     val authService = runBlocking { createAuthService(environment.config, DatabaseFactory.database, tokens) }
-    if (environment.config.propertyOrNull("auth.initializeSchema")?.getString()?.toBooleanStrict() != false) {
+    if (initializeSchema) {
         runBlocking { AuditRepository.initialize() }
     }
     installTokenAuthentication(authService, tokens)
@@ -215,6 +222,7 @@ internal fun Route.businessRoutes() {
     tEmpRoutes()
     orderRoutes()
     auditRoutes()
+    menuRoutes()
 }
 
 /** 本机开发来源：http(s)://localhost、127.0.0.1 或 ::1，端口不限。 */

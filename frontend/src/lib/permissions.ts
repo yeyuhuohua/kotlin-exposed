@@ -1,10 +1,6 @@
-import type { User } from '../types'
-import { authPaths, rolesPaths, systemPaths, usersPaths } from '../api/paths'
-import { pagePaths } from '../config/resources'
+import type { PageRoute, User } from '../types'
+import { authPaths, menusPaths, rolesPaths, systemPaths, usersPaths } from '../api/paths'
 /** 使用服务端返回的角色权限控制界面；管理入口仍额外要求 ADMIN 角色。 */
-
-// 页面清单来自 config/resources，这里只做转发，避免两处清单不同步。
-export { pagePaths }
 
 /** 只有 ADMIN 能调用的管理类接口；后端也会用 adminOnly 权限再校验一次。 */
 const adminOnlyApis: string[] = [
@@ -14,6 +10,8 @@ const adminOnlyApis: string[] = [
   rolesPaths.item,
   rolesPaths.permissions,
   rolesPaths.catalog,
+  menusPaths.collection,
+  menusPaths.item,
 ]
 
 export function canPage(user: User | null, keyOrPath: string): boolean {
@@ -27,8 +25,8 @@ export function canPage(user: User | null, keyOrPath: string): boolean {
 export function canApi(user: User | null, method: string, path: string): boolean {
   if (method === 'GET' && path === systemPaths.health) return true
   if (!user?.enabled) return false
-  if ((method === 'GET' && path === authPaths.me) || (method === 'POST' && path === authPaths.logout))
-    return true
+  if (method === 'GET' && (path === authPaths.me || path === authPaths.routes)) return true
+  if (method === 'POST' && path === authPaths.logout) return true
   if (adminOnlyApis.includes(path) && user.roleCode !== 'ADMIN') return false
   const normalized = method.toUpperCase() === 'HEAD' ? 'GET' : method.toUpperCase()
   return (user.permissions || []).includes(`api:${normalized}:/api${path}`)
@@ -44,6 +42,7 @@ export function isProtectedUser(row: { id?: unknown; username?: unknown }, curre
   return String(row.username ?? '').toLowerCase() === 'admin' || row.id === currentUserId
 }
 
-export function homePath(user: User | null) {
-  return pagePaths.find((path) => canPage(user, path)) || '/account'
+/** 落地页：在后端下发的页面清单中找第一个有权限的，没有任何页面权限时退到「我的账号」。 */
+export function homePath(user: User | null, pages: PageRoute[]) {
+  return pages.find((page) => canPage(user, page.key))?.path || '/account'
 }

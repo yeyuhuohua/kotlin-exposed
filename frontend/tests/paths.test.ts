@@ -80,7 +80,7 @@ describe('api path registry', () => {
     }
     // 反向：有专属视图的页面都应该有自己的路径文件
     for (const view of views) {
-      if (['resource', 'login', 'account', 'forbidden'].includes(view)) continue
+      if (['resource', 'login', 'account', 'forbidden', 'routemissing'].includes(view)) continue
       expect(files, `views/${view}View.vue 没有对应的路径文件`).toContain(view)
     }
   })
@@ -100,8 +100,13 @@ describe('api path registry', () => {
 
   it('注册的路径能拼出后端使用的权限码', () => {
     const user = { id: 1, username: 't', roleCode: 'ADMIN', enabled: true, permissions: [] } as User
-    // 健康检查公开；/auth/me、/auth/logout 对所有已登录账号开放，不参与权限判断
-    const alwaysAllowed: string[] = [paths.systemPaths.health, paths.authPaths.me, paths.authPaths.logout]
+    // 健康检查公开；/auth/me、/auth/logout、/auth/routes 对所有已登录账号开放，不参与权限判断
+    const alwaysAllowed: string[] = [
+      paths.systemPaths.health,
+      paths.authPaths.me,
+      paths.authPaths.logout,
+      paths.authPaths.routes,
+    ]
     for (const { key, value } of allPaths) {
       user.permissions = [`api:GET:/api${value}`]
       expect(canApi(user, 'GET', value), `${key} = ${value}`).toBe(true)

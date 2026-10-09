@@ -1,5 +1,6 @@
 package com.atguigu.hr.auth
 
+import com.atguigu.hr.menu.MenuService
 import io.ktor.server.config.ApplicationConfig
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import java.util.UUID
@@ -29,5 +30,7 @@ suspend fun createAuthService(config: ApplicationConfig, database: R2dbcDatabase
         AuthUserCache(ttlMillis = cacheSeconds.coerceAtLeast(0) * 1000),
         // 多实例部署时跨实例同步撤销；Redis 不可用时自动退回单实例语义
         SharedInvalidation(),
+        // 当前用户的页面权限码与启用菜单保持同步（菜单模块的运行时数据）
+        menuKeys = { MenuService.enabledKeys() },
     )
 }

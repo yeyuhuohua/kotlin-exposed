@@ -27,6 +27,41 @@ export interface PermissionDefinition {
   method: string | null
   adminOnly: boolean
 }
+/** 后端按当前用户权限下发的可访问页面；前端按 key 映射视图组件并动态注册路由。 */
+export interface PageRoute {
+  key: string
+  title: string
+  path: string
+  /** 侧栏图标名（lib/menuIcons.ts 注册表里的 key），为空用默认图标。 */
+  icon: string | null
+  /** 侧栏分组名；空串表示固定在侧栏底部。 */
+  group: string
+  sort: number
+  adminOnly?: boolean
+}
+/** 菜单管理页（views/MenusView.vue）使用的完整菜单记录。 */
+export interface MenuItem {
+  key: string
+  title: string
+  path: string
+  icon: string | null
+  group: string
+  sort: number
+  adminOnly: boolean
+  builtin: boolean
+  enabled: boolean
+}
+/** 保存菜单的载荷：新增带 key 与 adminOnly，编辑时这两项不可改。 */
+export interface MenuSavePayload {
+  key?: string
+  title: string
+  path: string
+  icon: string | null
+  group: string
+  sort: number
+  adminOnly?: boolean
+  enabled: boolean
+}
 export interface RolePermissions {
   role: { code: string; name: string; enabled: boolean }
   revision: number

@@ -1,5 +1,6 @@
 package com.atguigu.hr.auth
 
+import com.atguigu.hr.menu.Menus
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import org.jetbrains.exposed.v1.core.Table
@@ -19,7 +20,8 @@ private object LegacyUserGrants : Table("auth_user_permissions") {
 }
 
 internal suspend fun initialRolePermissions(roleCode: String, tables: Set<String>): Set<String> {
-    val defaults = PermissionCatalog.defaults(roleCode)
+    // 页面授权来自菜单表（运行时数据）：ADMIN 全量，其他角色只给启用的非仅管理员菜单。
+    val defaults = PermissionCatalog.defaults(roleCode) + menuGrants(roleCode)
     if (roleCode == RoleCode.ADMIN.name || "auth_user_permission_profiles" !in tables) return defaults
     val members = Users.selectAll().where { Users.roleCode eq roleCode }.map { it[Users.id] }.toList()
     if (members.isEmpty()) return defaults
@@ -31,8 +33,12 @@ internal suspend fun initialRolePermissions(roleCode: String, tables: Set<String
         .groupBy({ it[LegacyUserGrants.userId] }, { it[LegacyUserGrants.permissionCode] }) else emptyMap()
     // Intersection avoids granting any member privileges they did not previously have.
     return members.map { id ->
-        if (id in customMembers) grants[id].orEmpty().filterTo(linkedSetOf()) { code ->
-            PermissionCatalog.byCode[code]?.adminOnly == false
-        } else defaults
+        if (id in customMembers) grants[id].orEmpty().filterTo(linkedSetOf(), ::grantableCode) else defaults
     }.reduce { shared, next -> shared.intersect(next) }
 }
+
+private suspend fun menuGrants(roleCode: String): Set<String> =
+    Menus.selectAll().where { Menus.enabled eq true }
+        .map { it[Menus.key] to it[Menus.adminOnly] }.toList()
+        .filter { !it.second || roleCode == RoleCode.ADMIN.name }
+        .mapTo(linkedSetOf()) { "page:${it.first}" }

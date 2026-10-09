@@ -8,6 +8,7 @@ import com.atguigu.hr.common.api.respondFail
 import com.atguigu.hr.common.api.respondOk
 import com.atguigu.hr.docs.requestExample
 import com.atguigu.hr.docs.responseExamples
+import com.atguigu.hr.menu.MenuService
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -100,7 +101,7 @@ fun Route.authPublicRoutes(service: AuthService, throttle: LoginThrottle) {
 fun Route.authProtectedRoutes(service: AuthService) {
     get("/auth/me") {
         call.response.header("Cache-Control", "no-store")
-        call.respondOk(call.authUser().toCurrentUser())
+        call.respondOk(service.currentUser(call.authUser()))
     }.describe {
         summary = "查询当前用户、角色及有效权限"
         tag("auth")
@@ -113,6 +114,14 @@ fun Route.authProtectedRoutes(service: AuthService) {
         summary = "退出登录并撤销当前账号在所有设备上的 Token"
         tag("auth")
         responseExamples("logged out on all devices")
+    }
+    get("/auth/routes") {
+        call.response.header("Cache-Control", "no-store")
+        call.respondOk(MenuService.pagesFor(call.authUser()))
+    }.describe {
+        summary = "查询当前用户可访问的页面清单（前端据此动态注册路由与菜单；页面来自菜单表）"
+        tag("auth")
+        responseExamples(samplePageRoutes)
     }
 
     route("/auth/users") {
@@ -245,9 +254,9 @@ fun Route.authProtectedRoutes(service: AuthService) {
         install(RoleAuthorization) { adminOnly = true }
         get {
             call.response.header("Cache-Control", "no-store")
-            call.respondOk(PermissionCatalog.definitions)
+            call.respondOk(MenuService.pageDefinitions() + PermissionCatalog.definitions)
         }.describe {
-            summary = "查询页面及按 HTTP 方法、路径划分的接口权限目录（仅 ADMIN）"
+            summary = "查询权限目录（仅 ADMIN）：页面部分来自菜单表，接口部分为后端登记"
             tag("auth")
             responseExamples(PermissionCatalog.definitions)
         }

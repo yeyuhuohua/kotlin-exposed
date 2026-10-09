@@ -19,7 +19,7 @@ class TokenService(private val settings: AuthSettings) {
         .withClaimPresence("ver")
         .build()
 
-    fun issue(user: AuthUser): TokenDto {
+    fun issue(user: AuthUser, currentUser: CurrentUserDto): TokenDto {
         val now = Instant.now()
         val token = JWT.create()
             .withIssuer(settings.issuer)
@@ -30,6 +30,6 @@ class TokenService(private val settings: AuthSettings) {
             .withIssuedAt(now)
             .withExpiresAt(now.plusSeconds(settings.ttlSeconds))
             .sign(algorithm)
-        return TokenDto(token, settings.ttlSeconds, user.toCurrentUser())
+        return TokenDto(token, settings.ttlSeconds, currentUser)
     }
 }

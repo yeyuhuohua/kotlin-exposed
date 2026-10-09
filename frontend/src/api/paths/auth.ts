@@ -11,4 +11,6 @@ export const authPaths = {
   me: '/auth/me',
   /** POST 退出登录并撤销该账号所有 Token */
   logout: '/auth/logout',
+  /** GET 当前账号可访问的页面清单（动态路由数据源） */
+  routes: '/auth/routes',
 } as const

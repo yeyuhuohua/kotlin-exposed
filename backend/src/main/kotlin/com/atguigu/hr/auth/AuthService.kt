@@ -16,6 +16,8 @@ class AuthService(
     private val userCache: AuthUserCache = AuthUserCache(),
     /** 多实例部署时的跨实例失效同步；null 表示仅本实例生效。 */
     private val sharedInvalidation: SharedInvalidation? = null,
+    /** 启用菜单的 key 集合（来自菜单模块）；为 null 时当前用户权限不补充页面码。 */
+    private val menuKeys: (suspend () -> Set<String>)? = null,
 ) {
     suspend fun login(body: LoginRequest): TokenDto {
         val username = body.username.trim().lowercase(Locale.ROOT)
@@ -23,7 +25,24 @@ class AuthService(
         val user = store.findByUsername(username)
         val verified = PasswordHasher.verify(body.password, user?.passwordHash ?: dummyHash)
         if (!verified || user == null || !user.active) unauthorized()
-        return tokens.issue(user)
+        return tokens.issue(user, currentUser(user))
+    }
+
+    /**
+     * 返回给前端的当前用户：页面权限码与启用菜单保持同步。
+     * ADMIN 隐含全部启用菜单；其他角色只保留仍启用菜单的页面码（停用菜单的授权码不下发，
+     * 前端指纹随之变化并重新拉取页面清单）。
+     */
+    suspend fun currentUser(user: AuthUser): CurrentUserDto {
+        val current = user.toCurrentUser()
+        val keys = menuKeys?.invoke() ?: return current
+        val menuCodes = keys.mapTo(linkedSetOf()) { "page:$it" }
+        val permissions = if (user.roleCode == RoleCode.ADMIN.name) {
+            current.permissions + menuCodes
+        } else {
+            current.permissions.filterTo(linkedSetOf()) { !it.startsWith("page:") || it in menuCodes }
+        }
+        return current.copy(permissions = permissions)
     }
 
     suspend fun authenticate(id: Int, version: Int): AuthUser? {

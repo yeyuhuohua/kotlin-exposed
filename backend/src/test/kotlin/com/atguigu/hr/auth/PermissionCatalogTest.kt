@@ -1,5 +1,6 @@
 package com.atguigu.hr.auth
 
+import com.atguigu.hr.common.api.ErrorCode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -7,8 +8,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * 权限目录是鉴权的唯一依据：漏登记等于静默 403，登记错等于越权。
- * 这里把匹配规则、默认权限和过滤规则固定下来。
+ * 权限目录是接口鉴权的唯一依据：漏登记等于静默 403，登记错等于越权。
+ * 页面清单已移到菜单表，这里只固定接口码的匹配规则、默认权限和过滤规则。
  */
 class PermissionCatalogTest {
     @Test
@@ -39,6 +40,15 @@ class PermissionCatalogTest {
     }
 
     @Test
+    fun `菜单管理接口已登记为仅 ADMIN`() {
+        assertEquals("api:GET:/api/menus", PermissionCatalog.requiredApi("GET", "/api/menus")?.code)
+        assertEquals("api:PUT:/api/menus/{key}", PermissionCatalog.requiredApi("PUT", "/api/menus/handbook")?.code)
+        assertEquals("api:DELETE:/api/menus/{key}", PermissionCatalog.requiredApi("DELETE", "/api/menus/handbook")?.code)
+        assertTrue(PermissionCatalog.requiredApi("POST", "/api/menus")?.adminOnly == true)
+        assertTrue(PermissionCatalog.definitions.filter { it.path.startsWith("/api/menus") }.all { it.adminOnly })
+    }
+
+    @Test
     fun `路径参数不分名字都当通配符`() {
         assertTrue(apiPathPattern("/api/employees/{employeeId}").matches("/api/employees/100"))
         assertTrue(apiPathPattern("/api/roles/{code}/permissions").matches("/api/roles/ADMIN/permissions"))
@@ -51,21 +61,21 @@ class PermissionCatalogTest {
     }
 
     @Test
-    fun `ADMIN 默认全量权限，READER 默认页面加只读接口`() {
+    fun `ADMIN 默认全量接口权限，READER 默认只读接口`() {
         val admin = PermissionCatalog.defaults(RoleCode.ADMIN.name)
         assertEquals(PermissionCatalog.definitions.size, admin.size)
         val reader = PermissionCatalog.defaults(RoleCode.READER.name)
         assertTrue(reader.isNotEmpty())
         assertTrue(reader.all { code ->
             val definition = PermissionCatalog.byCode.getValue(code)
-            !definition.adminOnly && (definition.kind == "PAGE" || definition.method == "GET")
+            !definition.adminOnly && definition.method == "GET"
         })
         assertFalse("api:POST:/api/employees" in reader)
-        assertFalse("page:users" in reader)
+        assertFalse("api:GET:/api/menus" in reader)
     }
 
     @Test
-    fun `有效权限过滤未知编码与仅管理员权限`() {
+    fun `有效权限过滤未知接口编码与仅管理员权限，页面码放行`() {
         val custom = user(
             roleCode = "HR_VIEWER",
             permissions = linkedSetOf(
@@ -73,11 +83,12 @@ class PermissionCatalogTest {
                 "api:GET:/api/employees",
                 "page:users",
                 "api:GET:/api/auth/users",
-                "page:not-registered",
+                "api:GET:/api/not-registered",
             ),
         )
         assertEquals(
-            linkedSetOf("page:employees", "api:GET:/api/employees"),
+            // 页面码是否存在、是否仅管理员可见，由菜单读取方判定；未知接口码在这里丢弃
+            linkedSetOf("page:employees", "api:GET:/api/employees", "page:users"),
             PermissionCatalog.effective(custom),
         )
         assertTrue(custom.hasPermission("api:GET:/api/employees"))
@@ -95,33 +106,34 @@ class PermissionCatalogTest {
 
     @Test
     fun `停用账号或停用角色时没有任何权限`() {
-        val disabledUser = user("HR_VIEWER", linkedSetOf("page:employees")).copy(enabled = false)
-        val disabledRole = user("HR_VIEWER", linkedSetOf("page:employees")).copy(roleEnabled = false)
-        assertFalse(disabledUser.hasPermission("page:employees"))
-        assertFalse(disabledRole.hasPermission("page:employees"))
+        val disabledUser = user("HR_VIEWER", linkedSetOf("api:GET:/api/employees")).copy(enabled = false)
+        val disabledRole = user("HR_VIEWER", linkedSetOf("api:GET:/api/employees")).copy(roleEnabled = false)
+        assertFalse(disabledUser.hasPermission("api:GET:/api/employees"))
+        assertFalse(disabledRole.hasPermission("api:GET:/api/employees"))
     }
 
     @Test
-    fun `目录本身自洽：编码唯一、方法合法、页面编码与路径一致`() {
+    fun `角色授权校验区分未知编码与仅管理员编码`() {
+        val menus = mapOf("employees" to false, "audit" to true)
+        assertNull(grantError("api:GET:/api/employees", menus))
+        assertNull(grantError("page:employees", menus))
+        assertEquals(ErrorCode.UNKNOWN_PERMISSION, grantError("api:GET:/api/nope", menus))
+        assertEquals(ErrorCode.UNKNOWN_PERMISSION, grantError("page:nope", menus))
+        assertEquals(ErrorCode.ADMIN_ONLY, grantError("api:GET:/api/auth/users", menus))
+        assertEquals(ErrorCode.ADMIN_ONLY, grantError("page:audit", menus))
+    }
+
+    @Test
+    fun `目录本身自洽：编码唯一、方法合法、编码与路径一致`() {
         val codes = PermissionCatalog.definitions.map { it.code }
         assertEquals(codes.size, codes.toSet().size, "存在重复的权限编码")
         val methods = setOf("GET", "POST", "PUT", "PATCH", "DELETE")
         PermissionCatalog.definitions.forEach { definition ->
+            assertEquals("API", definition.kind, "目录只登记接口权限，页面在菜单表：${definition.code}")
             assertTrue(definition.label.isNotBlank(), "缺少名称：${definition.code}")
-            when (definition.kind) {
-                "PAGE" -> {
-                    assertEquals("page:${definition.path.trimStart('/').ifEmpty { "overview" }}", definition.code)
-                    assertNull(definition.method, "页面权限不应带方法：${definition.code}")
-                }
-
-                "API" -> {
-                    assertTrue(definition.method in methods, "接口权限方法非法：${definition.code}")
-                    assertTrue(definition.path.startsWith("/api/"), "接口权限路径必须以 /api 开头：${definition.code}")
-                    assertEquals("api:${definition.method}:${definition.path}", definition.code)
-                }
-
-                else -> error("未知权限类型：${definition.kind}")
-            }
+            assertTrue(definition.method in methods, "接口权限方法非法：${definition.code}")
+            assertTrue(definition.path.startsWith("/api/"), "接口权限路径必须以 /api 开头：${definition.code}")
+            assertEquals("api:${definition.method}:${definition.path}", definition.code)
         }
     }
 }

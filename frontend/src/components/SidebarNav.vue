@@ -1,74 +1,34 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import {
-  Activity,
-  ArrowUpRight,
-  BookOpen,
-  BriefcaseBusiness,
-  Building2,
-  Database,
-  FolderClock,
-  Globe2,
-  LayoutDashboard,
-  MapPin,
-  ScrollText,
-  ShieldCheck,
-  Users,
-  X,
-} from '@lucide/vue'
+import { ArrowUpRight, BookOpen, Users, X } from '@lucide/vue'
 import { docsPaths } from '../api/paths'
+import { menuIcon } from '../lib/menuIcons'
 import { useAuth } from '../stores/auth'
 
-/** 桌面侧栏与移动抽屉共用同一菜单，按服务端返回的角色页面权限过滤。 */
+/** 桌面侧栏与移动抽屉共用同一菜单；分组、图标、顺序全部来自后端下发的页面清单。 */
 defineProps<{ mobile?: boolean }>()
 const emit = defineEmits<{ navigate: [] }>()
 const auth = useAuth()
 const route = useRoute()
-const groups = computed(() =>
-  [
-    {
-      label: '工作空间',
-      items: [
-        { to: '/', label: '工作概览', icon: LayoutDashboard },
-        { to: '/employees', label: '员工管理', icon: Users },
-        { to: '/departments', label: '部门管理', icon: Building2 },
-        { to: '/jobs', label: '岗位管理', icon: BriefcaseBusiness },
-        { to: '/locations', label: '办公地点', icon: MapPin },
-      ],
-    },
-    {
-      label: '组织资料',
-      items: [
-        { to: '/job-history', label: '任职历史', icon: FolderClock },
-        { to: '/job-grades', label: '薪资等级', icon: BookOpen },
-        { to: '/countries', label: '国家与地区', icon: Globe2 },
-        { to: '/regions', label: '区域目录', icon: Globe2 },
-        { to: '/emp-details', label: '员工详情视图', icon: Users },
-      ],
-    },
-    ...(auth.isAdmin
-      ? [
-          {
-            label: '访问控制',
-            items: [
-              { to: '/users', label: '用户管理', icon: ShieldCheck },
-              { to: '/roles', label: '角色权限', icon: ShieldCheck },
-              { to: '/audit', label: '审计日志', icon: ScrollText },
-            ],
-          },
-        ]
-      : []),
-  ]
-    .map((group) => ({ ...group, items: group.items.filter((item) => auth.canPage(item.to)) }))
-    .filter((group) => group.items.length),
-)
-const demos = computed(() =>
-  [
-    { to: '/t-dept', label: '示例部门' },
-    { to: '/t-emp', label: '示例人员' },
-    { to: '/orders', label: '示例订单' },
-  ].filter((item) => auth.canPage(item.to)),
+
+// 清单与顺序数据源是后端 /api/auth/routes（菜单表按 sort 排序下发）；
+// group 为空的页面固定在侧栏底部，不参与分组。
+const visiblePages = computed(() => auth.pages.filter((page) => auth.canPage(page.key)))
+const groups = computed(() => {
+  const byGroup = new Map<string, { to: string; label: string; icon: ReturnType<typeof menuIcon> }[]>()
+  for (const page of visiblePages.value) {
+    if (page.group === '') continue
+    const items = byGroup.get(page.group) ?? []
+    items.push({ to: page.path, label: page.title, icon: menuIcon(page.icon) })
+    byGroup.set(page.group, items)
+  }
+  return [...byGroup].map(([label, items]) => ({ label, items }))
+})
+const bottomPages = computed(() =>
+  visiblePages.value
+    .filter((page) => page.group === '')
+    .map((page) => ({ to: page.path, label: page.title, icon: menuIcon(page.icon) })),
 )
 </script>
 <template>
@@ -102,20 +62,13 @@ const demos = computed(() =>
             <span>{{ item.label }}</span>
           </el-menu-item>
         </el-menu-item-group>
-        <el-sub-menu v-if="demos.length" index="demo">
-          <template #title>
-            <Database :size="18" />
-            <span>演示数据</span>
-          </template>
-          <el-menu-item v-for="item in demos" :key="item.to" :index="item.to">{{ item.label }}</el-menu-item>
-        </el-sub-menu>
       </el-menu>
     </nav>
     <div class="sidebar-bottom">
       <el-menu :default-active="route.path" router class="workspace-menu" @select="emit('navigate')">
-        <el-menu-item v-if="auth.canPage('system')" index="/system">
-          <Activity :size="18" />
-          <span>系统状态</span>
+        <el-menu-item v-for="item in bottomPages" :key="item.to" :index="item.to">
+          <component :is="item.icon" :size="18" />
+          <span>{{ item.label }}</span>
         </el-menu-item>
       </el-menu>
       <a class="nav-link" :href="docsPaths.swagger" target="_blank" rel="noopener">

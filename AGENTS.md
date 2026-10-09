@@ -2,7 +2,7 @@
 
 ## 项目结构与模块职责
 
-本仓库包含两个独立项目：`backend/` 是 Kotlin/JVM 服务，`frontend/` 是 Vue 3 + TypeScript + Vite 前端，基础 UI 组件统一使用 Element Plus。前端依赖只使用 pnpm，保留 `pnpm-lock.yaml`，禁止生成 npm/Yarn 锁文件。前端源码位于 `frontend/src/`，构建与开发命令在 `frontend/` 下执行。页面清单（权限码、路由路径、菜单标题）只在 `frontend/src/config/resources.ts` 声明一份，路由与权限判断都从它派生；提示文案按后端返回的错误码选择，不要匹配后端的英文 message；请求路径按页面放在 `frontend/src/api/paths/`，页面结构与 `views/` 一一对应。
+本仓库包含两个独立项目：`backend/` 是 Kotlin/JVM 服务，`frontend/` 是 Vue 3 + TypeScript + Vite 前端，基础 UI 组件统一使用 Element Plus。前端依赖只使用 pnpm，保留 `pnpm-lock.yaml`，禁止生成 npm/Yarn 锁文件。前端源码位于 `frontend/src/`，构建与开发命令在 `frontend/` 下执行。页面清单（权限码、路由路径、菜单标题、分组、图标、排序）的唯一来源是后端菜单表 `auth_menus`（`menu/` 业务包，管理员可在"菜单管理"页在线增删改），由 `GET /api/auth/routes` 按当前用户权限下发，前端登录后在 `frontend/src/router.ts` 动态注册路由；前端只在 `router.ts`（静态页）与 `frontend/src/config/resources.ts`（资源页）维护 key → 视图组件的映射，菜单图标在 `frontend/src/lib/menuIcons.ts` 注册（未知名称回退默认图标）；接口权限码仍硬编码在后端 `PermissionCatalog`。提示文案按后端返回的错误码选择，不要匹配后端的英文 message；请求路径按页面放在 `frontend/src/api/paths/`，页面结构与 `views/` 一一对应。
 
 样式分两层：`frontend/src/styles.css` 只放语义 token、基础元素重置、跨页面复用的基础件和 Element Plus 覆盖；页面与组件自己的样式写在对应 `.vue` 的 `<style scoped>` 里（选择器落到子组件内部时用 `:deep()`）。
 
@@ -13,7 +13,7 @@
 - `src/main/kotlin/com/atguigu/hr/Application.kt`：装配插件并注册文档路由与 `/api` 下各业务路由。
 - `config/`：MySQL、Redis 连接。`DatabaseFactory.ping()` 做库连通探测。
 - `common/`：无业务含义的复用代码。`api` 为统一信封、错误码与响应扩展，`cache` 为通用 Redis 工具，`database` 为主键分配。禁止笼统的 `Utils.kt`。
-- 业务包（如 `employee/`、`department/`、`job/`、`location/`、`geography/`、`jobhistory/`、`jobgrade/`、`demo/tdept/`、`demo/temp/`、`demo/order/`、`overview/`、`health/`、`audit/`）：Routes → Service → Repository；缓存 key 与失效在本模块 `*Cache`；跨业务 JOIN 可引用其它包的表定义；跨业务读取调对方 Service（其内部自带缓存），不要直接用对方 Repository；需要失效/广播时只调对方 `*Cache`。`audit/` 是例外：登录与接口调用日志 fire-and-forget 异步写入，查询实时读库，不进 Redis 缓存。
+- 业务包（如 `employee/`、`department/`、`job/`、`location/`、`geography/`、`jobhistory/`、`jobgrade/`、`demo/tdept/`、`demo/temp/`、`demo/order/`、`overview/`、`health/`、`audit/`、`menu/`）：Routes → Service → Repository；缓存 key 与失效在本模块 `*Cache`；跨业务 JOIN 可引用其它包的表定义；跨业务读取调对方 Service（其内部自带缓存），不要直接用对方 Repository；需要失效/广播时只调对方 `*Cache`。`audit/` 是例外：登录与接口调用日志 fire-and-forget 异步写入，查询实时读库，不进 Redis 缓存。`menu/` 维护侧栏页面菜单（`auth_menus` 表），进程内短 TTL 缓存，写后失效。
 - `docs/`：Knife4j / Swagger 页面与 OpenAPI JSON 兼容处理、共用示例 DSL。业务示例放在对应业务目录的 `*Examples.kt`。接口描述只写在路由的 `.describe {}` 里，KDoc 只保留一句话说明，不重复方法/路径/响应清单。
 - `src/main/resources/`：应用、日志与 CORS/限流配置示例，以及 Swagger 静态页面。运行时的 OpenAPI 由 `/v3/api-docs` 从路由生成，不再维护单独的 YAML。
 - `gradle/libs.versions.toml`：统一管理依赖和插件版本。
@@ -23,7 +23,7 @@
 
 ## 构建、测试与开发命令
 
-以下命令在 `backend/` 目录执行。使用 JDK 21 和 Gradle Wrapper。`gradle.properties` 包含本机专用 JDK 路径，请在本地覆盖，例如添加参数 `-Dorg.gradle.java.home="$JAVA_HOME"`。JWT 密钥和可选的初始管理员账号在 `src/main/resources/application.yaml` 的 `auth` 段。
+以下命令在 `backend/` 目录执行。使用 Gradle Wrapper；编译与测试由 `build.gradle.kts` 的 `kotlin { jvmToolchain(21) }` 固定到 JDK 21，Gradle 守护进程本身只需 JDK 17+。本机 JDK 若不在标准目录，在未跟踪的 `gradle.properties` 里用 `org.gradle.java.installations.paths` 指给 toolchain（参照 `gradle.properties.example`，不提交绝对路径）。JWT 密钥和可选的初始管理员账号在 `src/main/resources/application.yaml` 的 `auth` 段。
 
 - `./gradlew build`：编译并生成构建产物。
 - `./gradlew test`：运行后端单元测试（不需要 MySQL/Redis）。
