@@ -9,6 +9,7 @@ import { employeeCreateFields, employeeUpdateFields } from '../config/resources'
 import { useResource } from '../composables/useResource'
 import { departmentsPaths, employeesPaths, fillTemplate, jobsPaths } from '../api/paths'
 import { useAuth } from '../stores/auth'
+import { pagePath } from '../lib/pages'
 import { useNotices } from '../stores/notices'
 import StateBlock from '../components/StateBlock.vue'
 import Pagination from '../components/Pagination.vue'
@@ -17,6 +18,7 @@ import EmployeeDetail from '../components/EmployeeDetail.vue'
 import Modal from '../components/Modal.vue'
 import type { Department, Employee, Job, Page } from '../types'
 const auth = useAuth()
+const detailsTo = computed(() => pagePath(auth.pages, 'emp-details'))
 const notices = useNotices()
 const route = useRoute()
 const router = useRouter()
@@ -167,7 +169,7 @@ async function remove() {
     </header>
     <el-tabs
       model-value="directory"
-      @tab-change="(name) => name === 'details' && router.push('/emp-details')"
+      @tab-change="(name) => name === 'details' && detailsTo && router.push(detailsTo)"
     >
       <el-tab-pane name="directory" label="员工名录" />
       <el-tab-pane v-if="auth.canPage('emp-details')" name="details" label="详情视图" />

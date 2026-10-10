@@ -3,8 +3,11 @@
 import { ShieldCheck, UserRound } from '@lucide/vue'
 import { rolesPaths } from '../api/paths'
 import { useAuth } from '../stores/auth'
+import { pagePath } from '../lib/pages'
+import { computed } from 'vue'
 import { initials } from '../lib/format'
 const auth = useAuth()
+const usersTo = computed(() => pagePath(auth.pages, 'users'))
 </script>
 <template>
   <section>
@@ -61,7 +64,7 @@ const auth = useAuth()
           </div>
         </dl>
         <div v-if="auth.canPage('users')" class="card-foot">
-          <RouterLink v-if="auth.canPage('users')" to="/users" class="button secondary">管理用户</RouterLink>
+          <RouterLink v-if="auth.canPage('users') && usersTo" :to="usersTo" class="button secondary">管理用户</RouterLink>
         </div>
       </section>
     </div>

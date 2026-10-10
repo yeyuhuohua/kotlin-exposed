@@ -26,6 +26,25 @@ jobs:
       - name: Backend tests
         run: ./gradlew test
 
+  backend-spring:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend-spring
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      # 与 backend job 相同：wrapper 指向国内镜像，CI 上改写为官方地址。
+      - name: Use official Gradle distribution on CI
+        run: sed -i -E 's#://mirrors\.aliyun\.com/gradle/distributions/v[0-9.]+/(gradle-[0-9.]+-bin\.zip)#://services.gradle.org/distributions/\1#' gradle/wrapper/gradle-wrapper.properties
+      # Spring 后端单元测试同样不依赖 MySQL/Redis。
+      - name: Spring backend tests
+        run: ./gradlew test
+
   frontend:
     runs-on: ubuntu-latest
     defaults:

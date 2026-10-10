@@ -2,6 +2,7 @@ import type { Component } from 'vue'
 import {
   Activity,
   BookOpen,
+  Bot,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
@@ -29,6 +30,7 @@ import {
 const registry: Record<string, Component> = {
   Activity,
   BookOpen,
+  Bot,
   BriefcaseBusiness,
   Building2,
   CalendarDays,

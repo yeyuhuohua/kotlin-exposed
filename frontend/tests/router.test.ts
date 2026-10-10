@@ -101,4 +101,19 @@ describe('动态路由注册', () => {
     expect(router.getRoutes().some((route) => route.name === 'jobs')).toBe(true)
     expect(mockedApi).toHaveBeenCalledTimes(2)
   })
+
+  it('菜单路径变化后按新地址重新注册', async () => {
+    saveSession('token-r3', 600)
+    mockedApi.mockResolvedValueOnce(grantedPages)
+    const { useAuth } = await import('../src/stores/auth')
+    const { ensurePageRoutes, router } = await import('../src/router')
+    const auth = useAuth()
+    auth.user = admin
+    expect(await ensurePageRoutes()).toBe(true)
+    auth.pages = grantedPages.map((page) => (page.key === 'departments' ? { ...page, path: '/staff' } : page))
+    mockedApi.mockResolvedValueOnce(auth.pages)
+    expect(await ensurePageRoutes()).toBe(true)
+    expect(router.getRoutes().some((route) => route.path === '/staff')).toBe(true)
+    expect(router.getRoutes().some((route) => route.path === '/departments')).toBe(false)
+  })
 })

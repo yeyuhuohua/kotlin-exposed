@@ -1,7 +1,7 @@
 <script setup lang="ts">
-/** 菜单管理页：页面清单（侧栏分组、图标、路径、可见性）的运行时来源，仅 ADMIN 可见。 */
+/** 菜单管理页：页面清单（导航分组、图标、路径、可见性）的运行时来源，仅 ADMIN 可见。 */
 import { computed, onMounted, ref } from 'vue'
-import { LoaderCircle, Pencil, Plus, RefreshCw, Save, Trash2 } from '@lucide/vue'
+import { Folder, LoaderCircle, Pencil, Plus, RefreshCw, Save, Trash2 } from '@lucide/vue'
 import Modal from '../components/Modal.vue'
 import StateBlock from '../components/StateBlock.vue'
 import { fillTemplate, menusPaths } from '../api/paths'
@@ -17,6 +17,36 @@ const auth = useAuth()
 const notices = useNotices()
 const menus = useResource((signal) => api<MenuItem[]>(menusPaths.collection, { signal }))
 onMounted(menus.refresh)
+
+// ── 树形表格:分组为父行,菜单为子行,默认全部展开 ────────────
+/** 分组 '' 在界面上的显示名。 */
+const TAIL_GROUP_LABEL = '导航末尾'
+
+interface TreeRow {
+  rowKey: string
+  kind: 'group' | 'menu'
+  label: string
+  count: number
+  menu?: MenuItem
+  children?: TreeRow[]
+}
+
+const treeRows = computed<TreeRow[]>(() => {
+  const rows: TreeRow[] = []
+  const byGroup = new Map<string, TreeRow>()
+  for (const item of menus.data.value ?? []) {
+    const label = item.group || TAIL_GROUP_LABEL
+    let group = byGroup.get(label)
+    if (!group) {
+      group = { rowKey: `group:${label}`, kind: 'group', label, count: 0, children: [] }
+      byGroup.set(label, group)
+      rows.push(group)
+    }
+    group.children!.push({ rowKey: `menu:${item.key}`, kind: 'menu', label: item.title, count: 0, menu: item })
+  }
+  for (const group of rows) group.count = group.children!.length
+  return rows
+})
 
 // ── 新增 / 编辑弹窗 ─────────────────────────────────────────
 interface MenuForm {
@@ -46,7 +76,7 @@ const formError = ref('')
 const saving = ref(false)
 const groupOptions = computed(() => {
   const names = [...new Set((menus.data.value ?? []).map((item) => item.group).filter(Boolean))].sort()
-  return [...names, '侧栏底部']
+  return [...names, TAIL_GROUP_LABEL]
 })
 function openCreate() {
   editing.value = undefined
@@ -61,7 +91,7 @@ function openEdit(menu: MenuItem) {
     title: menu.title,
     path: menu.path,
     icon: menu.icon ?? '',
-    group: menu.group === '' ? '侧栏底部' : menu.group,
+    group: menu.group === '' ? TAIL_GROUP_LABEL : menu.group,
     sort: menu.sort,
     adminOnly: menu.adminOnly,
     enabled: menu.enabled,
@@ -85,8 +115,8 @@ function validate(): string {
   if (codePointLength(value.group) > 20) return '分组名最多 20 个字符'
   return ''
 }
-/** 界面上的「侧栏底部」对应后端空分组。 */
-const storedGroup = (label: string) => (label === '侧栏底部' ? '' : label.trim())
+/** 界面上的「导航末尾」对应后端空分组。 */
+const storedGroup = (label: string) => (label === TAIL_GROUP_LABEL ? '' : label.trim())
 async function save() {
   const message = validate()
   if (message) {
@@ -153,7 +183,7 @@ async function confirmDelete() {
   }
 }
 
-/** 菜单变化会影响当前会话的页面权限码与页面清单，强制刷新让侧栏与路由立即跟进。 */
+/** 菜单变化会影响当前会话的页面权限码与页面清单，强制刷新让导航与路由立即跟进。 */
 async function syncPages() {
   await auth.refreshUser({ force: true })
   await auth.loadPages({ force: true })
@@ -165,7 +195,7 @@ async function syncPages() {
       <div>
         <p class="eyebrow">MENU MANAGEMENT</p>
         <h1>菜单管理</h1>
-        <p class="page-subtitle">侧栏页面清单的运行时来源 · 仅管理员可见</p>
+        <p class="page-subtitle">顶部导航页面清单的运行时来源 · 仅管理员可见</p>
       </div>
       <div class="heading-actions">
         <el-button class="button primary" :disabled="menus.loading.value" @click="openCreate">
@@ -189,59 +219,70 @@ async function syncPages() {
       <StateBlock :loading="menus.loading.value" :error="menus.error.value" @retry="menus.refresh" />
       <el-table
         v-if="!menus.loading.value && !menus.error.value && menus.data.value"
-        :data="menus.data.value"
+        :data="treeRows"
+        row-key="rowKey"
+        :tree-props="{ children: 'children' }"
+        default-expand-all
         class="data-table"
       >
-        <el-table-column label="菜单" min-width="170">
+        <el-table-column label="菜单" min-width="190">
           <template #default="{ row }">
-            <span class="menu-title">
-              <component :is="menuIcon(row.icon)" :size="16" class="menu-title-icon" />
-              {{ row.title }}
+            <span v-if="row.kind === 'group'" class="group-title">
+              <Folder :size="15" class="group-title-icon" />
+              {{ row.label }}
+              <span class="group-count">{{ row.count }} 个页面</span>
+            </span>
+            <span v-else class="menu-title">
+              <component :is="menuIcon(row.menu.icon)" :size="16" class="menu-title-icon" />
+              {{ row.menu.title }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="key" label="key" min-width="110">
+        <el-table-column label="key" min-width="110">
           <template #default="{ row }">
-            <code class="menu-key">{{ row.key }}</code>
+            <code v-if="row.kind === 'menu'" class="menu-key">{{ row.menu.key }}</code>
           </template>
         </el-table-column>
-        <el-table-column prop="path" label="路径" min-width="120">
+        <el-table-column label="路径" min-width="120">
           <template #default="{ row }">
-            <code class="menu-key">{{ row.path }}</code>
+            <code v-if="row.kind === 'menu'" class="menu-key">{{ row.menu.path }}</code>
           </template>
         </el-table-column>
-        <el-table-column label="分组" width="110">
-          <template #default="{ row }">{{ row.group || '侧栏底部' }}</template>
+        <el-table-column label="排序" width="80" align="center">
+          <template #default="{ row }">
+            <template v-if="row.kind === 'menu'">{{ row.menu.sort }}</template>
+          </template>
         </el-table-column>
-        <el-table-column prop="sort" label="排序" width="80" align="center" />
         <el-table-column label="可见性" width="110" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.adminOnly ? 'warning' : 'info'" size="small" effect="light">
-              {{ row.adminOnly ? '仅 ADMIN' : '可授权' }}
+            <el-tag v-if="row.kind === 'menu'" :type="row.menu.adminOnly ? 'warning' : 'info'" size="small" effect="light">
+              {{ row.menu.adminOnly ? '仅 ADMIN' : '可授权' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.enabled ? 'success' : 'info'" size="small" effect="light">
-              {{ row.enabled ? '启用' : '停用' }}
+            <el-tag v-if="row.kind === 'menu'" :type="row.menu.enabled ? 'success' : 'info'" size="small" effect="light">
+              {{ row.menu.enabled ? '启用' : '停用' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="150" align="center">
           <template #default="{ row }">
-            <el-button text class="text-button" aria-label="编辑菜单" @click="openEdit(row as MenuItem)">
-              <Pencil :size="15" />
-            </el-button>
-            <el-button
-              text
-              class="text-button danger"
-              :aria-label="row.builtin ? '内置菜单不可删除' : '删除菜单'"
-              :disabled="row.builtin"
-              @click="openDelete(row as MenuItem)"
-            >
-              <Trash2 :size="15" />
-            </el-button>
+            <template v-if="row.kind === 'menu'">
+              <el-button text class="text-button" aria-label="编辑菜单" @click="openEdit(row.menu as MenuItem)">
+                <Pencil :size="15" />
+              </el-button>
+              <el-button
+                text
+                class="text-button danger"
+                :aria-label="row.menu.builtin ? '内置菜单不可删除' : '删除菜单'"
+                :disabled="row.menu.builtin"
+                @click="openDelete(row.menu as MenuItem)"
+              >
+                <Trash2 :size="15" />
+              </el-button>
+            </template>
           </template>
         </el-table-column>
       </el-table>
@@ -264,7 +305,7 @@ async function syncPages() {
           </label>
           <label class="form-field">
             <span>标题</span>
-            <el-input v-model="form.title" placeholder="侧栏显示的名称" maxlength="30" />
+            <el-input v-model="form.title" placeholder="导航显示的名称" maxlength="30" />
           </label>
           <label class="form-field">
             <span>路径</span>
@@ -301,7 +342,7 @@ async function syncPages() {
             <el-checkbox v-model="form.adminOnly">仅 ADMIN 可见（创建后不可改）</el-checkbox>
           </label>
           <label class="form-check">
-            <el-checkbox v-model="form.enabled">启用（停用后从侧栏与路由中移除）</el-checkbox>
+            <el-checkbox v-model="form.enabled">启用（停用后从导航与路由中移除）</el-checkbox>
           </label>
         </form>
         <p v-if="formError" class="save-error" role="alert">{{ formError }}</p>
@@ -328,7 +369,7 @@ async function syncPages() {
         <p class="delete-copy">
           删除后，各角色持有的
           <code>page:{{ deleting.key }}</code>
-          授权会一并清理，对应账号的侧栏与路由随即移除该页面。
+          授权会一并清理，对应账号的导航与路由随即移除该页面。
         </p>
         <p v-if="deleteError" class="save-error" role="alert">{{ deleteError }}</p>
       </div>
@@ -348,6 +389,27 @@ async function syncPages() {
 
 <style scoped>
 /* 本组件样式：颜色只用 styles.css 里的语义 token。 */
+.group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  color: var(--text-strong);
+}
+
+.group-title-icon {
+  color: var(--text-dim);
+}
+
+.group-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-faint);
+  background: var(--surface-subtle);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
 .menu-title {
   display: inline-flex;
   align-items: center;

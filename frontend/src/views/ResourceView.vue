@@ -9,6 +9,7 @@ import { useResource } from '../composables/useResource'
 import { fillTemplate, rolesPaths } from '../api/paths'
 import { isProtectedRole, isProtectedUser } from '../lib/permissions'
 import { useAuth } from '../stores/auth'
+import { pagePath } from '../lib/pages'
 import { useNotices } from '../stores/notices'
 import Modal from '../components/Modal.vue'
 import Pagination from '../components/Pagination.vue'
@@ -18,6 +19,7 @@ import RolePermissionEditor from '../components/RolePermissionEditor.vue'
 import type { Page, Resource, Row } from '../types'
 const props = defineProps<{ resource: Resource }>()
 const auth = useAuth()
+const employeesTo = computed(() => pagePath(auth.pages, 'employees'))
 const router = useRouter()
 const notices = useNotices()
 const page = ref(1)
@@ -185,7 +187,7 @@ function saved() {
     <el-tabs
       v-if="resource.key === 'emp-details'"
       model-value="details"
-      @tab-change="(name) => name === 'directory' && router.push('/employees')"
+      @tab-change="(name) => name === 'directory' && employeesTo && router.push(employeesTo)"
     >
       <el-tab-pane v-if="auth.canPage('employees')" name="directory" label="员工名录" />
       <el-tab-pane name="details" label="详情视图" />

@@ -70,18 +70,11 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
       window.dispatchEvent(new Event('hr:unauthorized'))
     if (response.status === 403) window.dispatchEvent(new Event('hr:forbidden'))
     if (!response.ok && !(options.acceptUnavailable && response.status === 503 && envelope?.data)) {
-      const fallback =
-        response.status === 401
-          ? '登录已失效，请重新登录'
-          : response.status === 409
-            ? '数据冲突，请检查唯一编号或关联记录'
-            : response.status >= 500
-              ? '服务暂时不可用，请稍后重试'
-              : '请求失败，请重试'
       const detail = envelope?.message
-      const mapped = envelope?.error ? errorMessages[envelope.error] : undefined
+      const coded = envelope?.error ? errorMessages[envelope.error] : undefined
+      const mapped = messageForStatus(response.status, envelope?.error)
       // 400 的具体原因由后端给出，比通用文案更有用
-      throw new ApiError(response.status, mapped || (response.status === 400 && detail ? detail : fallback))
+      throw new ApiError(response.status, !coded && response.status === 400 && detail ? detail : mapped)
     }
     if (!envelope || typeof envelope.code !== 'number' || !('data' in envelope))
       throw new ApiError(502, '服务返回了无法识别的数据')
@@ -97,6 +90,17 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     options.signal?.removeEventListener('abort', abort)
   }
 }
+/** 按错误码选提示。没有对应码时用状态码上的通用文案。 */
+export function messageForStatus(status: number, error: string | null | undefined): string {
+  if (error && errorMessages[error]) return errorMessages[error]
+  if (status === 401) return '登录已失效，请重新登录'
+  if (status === 403) return '当前账号没有此操作权限'
+  if (status === 409) return '数据冲突，请检查唯一编号或关联记录'
+  if (status >= 500) return '服务暂时不可用，请稍后重试'
+  if (status === 0) return '无法连接服务，请检查后端是否已启动'
+  return '请求失败，请重试'
+}
+
 export function query(params: Record<string, string | number | undefined | null>) {
   const result = new URLSearchParams()
   Object.entries(params).forEach(([key, value]) => {

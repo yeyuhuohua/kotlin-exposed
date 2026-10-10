@@ -4,6 +4,8 @@
 
 本仓库包含两个独立项目：`backend/` 是 Kotlin/JVM 服务，`frontend/` 是 Vue 3 + TypeScript + Vite 前端，基础 UI 组件统一使用 Element Plus。前端依赖只使用 pnpm，保留 `pnpm-lock.yaml`，禁止生成 npm/Yarn 锁文件。前端源码位于 `frontend/src/`，构建与开发命令在 `frontend/` 下执行。页面清单（权限码、路由路径、菜单标题、分组、图标、排序）的唯一来源是后端菜单表 `auth_menus`（`menu/` 业务包，管理员可在"菜单管理"页在线增删改），由 `GET /api/auth/routes` 按当前用户权限下发，前端登录后在 `frontend/src/router.ts` 动态注册路由；前端只在 `router.ts`（静态页）与 `frontend/src/config/resources.ts`（资源页）维护 key → 视图组件的映射，菜单图标在 `frontend/src/lib/menuIcons.ts` 注册（未知名称回退默认图标）；接口权限码仍硬编码在后端 `PermissionCatalog`。提示文案按后端返回的错误码选择，不要匹配后端的英文 message；请求路径按页面放在 `frontend/src/api/paths/`，页面结构与 `views/` 一一对应。
 
+另有两个独立目录：`backend-spring/` 是 Spring Boot 复刻版后端（Kotlin + MyBatis-Plus + Spring AI MCP，端口 8081，配置与启动见其 `README.md`），`dsh/` 是 DeepSeek Harness 对话助手容器（版本固定与部署见其 `README.md`）。CI 对 `backend/`、`backend-spring/`、`frontend/` 分别检查。
+
 样式分两层：`frontend/src/styles.css` 只放语义 token、基础元素重置、跨页面复用的基础件和 Element Plus 覆盖；页面与组件自己的样式写在对应 `.vue` 的 `<style scoped>` 里（选择器落到子组件内部时用 `:deep()`）。
 
 配色只在 `frontend/src/styles.css` 的 `html.light`（浅色）与 `html.dark`（夜间）两处定义成语义 token（`:root` 只放尺寸与指向 token 的别名），任何样式规则里都禁止写死颜色关键字或十六进制值，新增颜色先加 token。主题状态由 `frontend/src/stores/theme.ts` 管理，落在 `<html>` 的 `dark` class 上（`index.html` 里有首屏前置脚本防止闪白），Element Plus 的暗色变量由 `theme-chalk/dark/css-vars.css` 提供。

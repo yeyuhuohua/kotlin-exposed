@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** 概览的分布与薪资统计来自服务端聚合，不再拉取全量员工；缺少员工列表权限时隐藏该区块。 */
 import { computed, onMounted } from 'vue'
+import { pagePath } from '../lib/pages'
 import { RouterLink } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import {
@@ -20,6 +21,8 @@ import DepartmentChart from '../components/DepartmentChart.vue'
 import StateBlock from '../components/StateBlock.vue'
 import type { Employee, Overview } from '../types'
 const auth = useAuth()
+const departmentsTo = computed(() => pagePath(auth.pages, 'departments'))
+const employeesTo = computed(() => pagePath(auth.pages, 'employees'))
 const canDetail = computed(
   () =>
     auth.canPage('employees') &&
@@ -163,7 +166,7 @@ function departmentName(id: number | null) {
               <h2>部门人员分布</h2>
               <span>EMPLOYEES BY DEPARTMENT</span>
             </div>
-            <RouterLink v-if="auth.canPage('departments')" to="/departments" class="text-button">
+            <RouterLink v-if="auth.canPage('departments') && departmentsTo" :to="departmentsTo" class="text-button">
               全部部门
               <ArrowRight :size="14" />
             </RouterLink>
@@ -180,8 +183,8 @@ function departmentName(id: number | null) {
                   :is="auth.canPage('employees') ? RouterLink : 'span'"
                   :to="
                     department.id === null
-                      ? '/employees?departmentId=none'
-                      : `/employees?departmentId=${department.id}`
+                      ? `${employeesTo}?departmentId=none`
+                      : `${employeesTo}?departmentId=${department.id}`
                   "
                 >
                   {{ department.label }}
@@ -222,7 +225,7 @@ function departmentName(id: number | null) {
             <h2>员工速览</h2>
             <span>EMPLOYEE DIRECTORY</span>
           </div>
-          <RouterLink v-if="auth.canPage('employees')" to="/employees" class="text-button">
+          <RouterLink v-if="auth.canPage('employees') && employeesTo" :to="employeesTo" class="text-button">
             查看全部
             <ArrowRight :size="15" />
           </RouterLink>
@@ -232,7 +235,7 @@ function departmentName(id: number | null) {
             <template #default="{ row }">
               <component
                 :is="canDetail ? RouterLink : 'span'"
-                :to="`/employees?employeeId=${row.employeeId}`"
+                :to="`${employeesTo}?employeeId=${row.employeeId}`"
                 class="person"
               >
                 <span class="avatar" :class="`tone-${row.employeeId % 4}`">

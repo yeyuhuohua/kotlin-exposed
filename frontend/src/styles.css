@@ -1267,6 +1267,42 @@ input:is(:-webkit-autofill, :autofill):active {
   border-radius: 9px;
 }
 
+/* 顶部胶囊导航的下拉浮层：popper 挂在 body 下,组件 scoped 样式够不到,只能全局覆盖 */
+.el-menu--popup-container.el-popper.is-light,
+.el-menu--popup-container .el-menu--popup {
+  border: 1px solid var(--border);
+  border-radius: var(--popper-radius);
+  box-shadow: var(--popper-shadow);
+  background: var(--surface);
+}
+
+.el-menu--popup {
+  min-width: 190px;
+  padding: 6px;
+}
+
+.el-menu--popup .el-menu-item {
+  height: 38px;
+  line-height: 38px;
+  margin: 1px 0;
+  padding: 0 12px;
+  gap: 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-body);
+}
+
+.el-menu--popup .el-menu-item:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.el-menu--popup .el-menu-item.is-active {
+  background: var(--green-soft);
+  color: var(--green);
+  font-weight: 600;
+}
+
 /* ══════════════════════════════════════════════════════════════════
    9. 响应式
    断点：1500+ / 900- / 680- / 减少动效

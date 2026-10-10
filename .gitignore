@@ -5,6 +5,7 @@ out/
 *.iml
 .idea/
 .debug/
+dsh/home/
 .env.auth.local
 .DS_Store
 local.properties
@@ -23,6 +24,8 @@ dist/
 !.env.example
 /backend/src/main/resources/application.yaml
 /backend/gradle.properties
+/backend-spring/src/main/resources/application.yaml
+/backend-spring/gradle.properties
 *.pem
 *.key
 *.p12

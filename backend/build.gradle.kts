@@ -44,8 +44,6 @@ dependencies {
     implementation(libs.exposed.r2dbc)
     implementation(libs.exposed.java.time)
     implementation(libs.r2dbc.mysql)
-    implementation(libs.coroutines.reactive)
-    implementation(libs.coroutines.jdk8)
     implementation(libs.lettuce.core)
 
     implementation(libs.logback.classic)
@@ -53,6 +51,14 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(libs.ktor.server.test.host)
     testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.processResources {
+    val swaggerUiVersion = libs.swagger.ui.get().version
+        ?: error("swagger-ui version is missing from the version catalog")
+    filesMatching("static/swagger.html") {
+        expand("swaggerUiVersion" to swaggerUiVersion)
+    }
 }
 
 tasks.test {

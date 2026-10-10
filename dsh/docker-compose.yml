@@ -1,0 +1,16 @@
+services:
+  dsh:
+    build: .
+    container_name: hr-dsh
+    ports:
+      - "127.0.0.1:3080:3080"
+    environment:
+      DSH_HOME: /dsh-home
+      LM_STUDIO_API_KEY: ${LM_STUDIO_API_KEY:-lm-studio}
+      HR_MCP_TOKEN: ${HR_MCP_TOKEN:-local-dsh-mcp-token}
+      HR_API_BASE: ${HR_API_BASE:-http://host.docker.internal:8081}
+    volumes:
+      - ./home:/dsh-home
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

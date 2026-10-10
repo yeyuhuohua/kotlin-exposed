@@ -13,15 +13,19 @@ import type { PageRoute } from './types'
 type LazyView = () => Promise<{ default: Component }>
 const staticViews: Record<string, LazyView> = {
   overview: () => import('./views/DashboardView.vue'),
+  chat: () => import('./views/ChatView.vue'),
   employees: () => import('./views/EmployeesView.vue'),
   system: () => import('./views/SystemView.vue'),
   audit: () => import('./views/AuditView.vue'),
   menus: () => import('./views/MenusView.vue'),
 }
 
+/** 需要填满视口高度、不产生页面滚动的页面（如内嵌 iframe 的对话页）。 */
+const fillHeightViews = new Set(['chat'])
+
 /** 把后端下发的页面转成 AppLayout 下的子路由；前端没有对应组件的页面跳过并告警。 */
 export function buildRouteRecord(page: PageRoute): RouteRecordRaw | null {
-  const meta = { title: page.title, adminOnly: page.adminOnly, page: page.key }
+  const meta = { title: page.title, adminOnly: page.adminOnly, page: page.key, fillHeight: fillHeightViews.has(page.key) }
   const staticView = staticViews[page.key]
   if (staticView) {
     return {
@@ -90,30 +94,38 @@ function routeFingerprint(): string {
     .filter((code) => code.startsWith('page:'))
     .sort()
     .join(',')
-  return `${readSession()?.token ?? ''}|${granted}`
+  const pages = auth.pages
+    .map((page) => `${page.key}:${page.path}:${page.adminOnly ? 1 : 0}`)
+    .sort()
+    .join(',')
+  return `${readSession()?.token ?? ''}|${granted}|${pages}`
 }
 
 /** 按后端下发的页面清单注册动态路由；返回 true 表示本次有新路由，需要重新匹配当前导航。 */
 export function ensurePageRoutes(): Promise<boolean> {
   const fingerprint = routeFingerprint()
   if (fingerprint === registeredFingerprint) return Promise.resolve(false)
-  registering ??= (async () => {
+  if (registering) return registering.then(() => ensurePageRoutes())
+  const sessionToken = readSession()?.token ?? ''
+  const pending = (async () => {
     const auth = useAuth()
-    // 非首次注册说明权限或会话发生变化，必须重新拉取而不是复用内存里的清单。
+    // 非首次注册说明权限、会话或菜单路径发生变化，必须重新拉取而不是复用内存里的清单。
     await auth.loadPages({ force: registeredFingerprint !== '' })
+    // 加载期间换成了另一个会话：不要用旧请求的结果，也不要把新会话标成已注册。
+    if ((readSession()?.token ?? '') !== sessionToken) return false
     removePageRoutes.forEach((remove) => remove())
     removePageRoutes = []
     for (const page of auth.pages) {
       const record = buildRouteRecord(page)
       if (record) removePageRoutes.push(router.addRoute('app', record))
     }
-    // 以加载后的状态为准：加载期间会话切换时 loadPages 不会覆盖 pages，指纹也随之失效。
     registeredFingerprint = routeFingerprint()
     return true
   })().finally(() => {
-    registering = undefined
+    if (registering === pending) registering = undefined
   })
-  return registering
+  registering = pending
+  return pending
 }
 
 router.beforeEach(async (to) => {

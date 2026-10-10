@@ -80,7 +80,7 @@ describe('api path registry', () => {
     }
     // 反向：有专属视图的页面都应该有自己的路径文件
     for (const view of views) {
-      if (['resource', 'login', 'account', 'forbidden', 'routemissing'].includes(view)) continue
+      if (['resource', 'login', 'account', 'forbidden', 'routemissing', 'chat'].includes(view)) continue
       expect(files, `views/${view}View.vue 没有对应的路径文件`).toContain(view)
     }
   })

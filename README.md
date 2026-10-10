@@ -7,10 +7,14 @@ backend/                 Kotlin / Ktor / Exposed R2DBC 后端
   src/                   后端源码
   gradle/                Gradle Wrapper 与依赖版本目录
   AUTH.md                认证、账号初始化与权限配置说明
+backend-spring/          Spring Boot 复刻版后端（Kotlin + MyBatis-Plus + Spring AI MCP）
+  README.md              启动、配置与部署说明
 frontend/                Vue 3 / TypeScript / Vite / Element Plus 前端
   src/                   页面、组件、状态管理与带类型定义的 API 客户端
   tests/                 前端单元测试
   pnpm-lock.yaml         用于复现依赖安装结果的锁文件
+dsh/                     DeepSeek Harness 对话助手容器（品牌补丁 + HR 登录态代理）
+  README.md              启动、版本固定与部署说明
 ```
 
 ## 本地启动

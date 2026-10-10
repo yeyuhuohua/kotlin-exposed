@@ -1,0 +1,84 @@
+# Spring 版后端配置示例（无凭据）。复制为 application.yaml 后按本机填写；
+# application.yaml 已加入忽略规则，真实密码与密钥不得提交。
+
+server:
+  port: 8081
+  address: 0.0.0.0
+
+spring:
+  application:
+    name: hr-spring
+  datasource:
+    # 与 Ktor 后端共用 atguigudb 库
+    url: jdbc:mysql://localhost:3306/atguigudb?useSSL=true&requireSSL=true&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+    username: root
+    password: "改成你的数据库密码"
+    hikari:
+      transaction-isolation: TRANSACTION_READ_COMMITTED
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ""
+      timeout: 5s
+  jackson:
+    default-property-inclusion: always
+    generator:
+      write-bigdecimal-as-plain: true
+
+# 与 Ktor 后端一致的配置段；另建库表由 initialize-schema 控制
+hr:
+  cache:
+    ttl-seconds: 600
+  auth:
+    # 至少 32 字节的随机串；可用 openssl rand -base64 48 生成
+    jwt-secret: "改成至少32字节的随机密钥"
+    issuer: hr-api
+    audience: hr-api-client
+    ttl-seconds: 3600
+    initialize-schema: true
+    # 首次启动创建的管理员；仅在库中没有该用户时生效
+    admin-username: admin
+    admin-password: "改成初始管理员密码"
+    permission-cache-seconds: 3
+    login-rate-limit:
+      enabled: true
+      window-seconds: 300
+      max-account-failures: 8
+      max-address-failures: 30
+  security:
+    # 可信代理列表；默认只信本机回环
+    trusted-proxies: []
+  mcp:
+    # 本地 DSH 调用 /mcp 的固定口令；为空则只接受管理员 JWT
+    service-token: ""
+  cors:
+    # 为空则放行 localhost/127.0.0.1/::1 任意端口；* 表示全部放行
+    allowed-hosts: []
+
+# Spring AI 2.0 MCP：Streamable HTTP，入口 POST/GET /mcp。注解扫描 @McpTool。
+spring.ai.mcp.server:
+  enabled: true
+  name: hr-spring-mcp
+  version: 0.0.1
+  type: SYNC
+  protocol: STREAMABLE
+  instructions: "HR 系统 REST 接口的 MCP 镜像。调用前需要 ADMIN 用户的 Bearer JWT。"
+  annotation-scanner:
+    enabled: true
+  streamable-http:
+    mcp-endpoint: /mcp
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui/index.html
+
+logging:
+  level:
+    root: info
