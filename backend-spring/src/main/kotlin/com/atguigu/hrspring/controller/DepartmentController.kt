@@ -30,8 +30,7 @@ class DepartmentController(
     @Operation(summary = "全部部门")
     @GetMapping
     fun list(): ResponseEntity<ApiResult<List<DepartmentDto>>> {
-        val (items, hit) = departmentService.list()
-        return cachedOk(items, hit)
+        return cachedOk(departmentService.list())
     }
 
     @Operation(summary = "新增部门并刷新缓存")
@@ -42,8 +41,7 @@ class DepartmentController(
     @Operation(summary = "按主键查询部门")
     @GetMapping("/{id}")
     fun get(@PathVariable id: String): ResponseEntity<ApiResult<DepartmentDto>> {
-        val (dto, hit) = departmentService.find(departmentId(id))
-        return cachedOk(dto, hit)
+        return cachedOk(departmentService.find(departmentId(id)))
     }
 
     @Operation(summary = "部分更新部门并刷新缓存")
@@ -57,8 +55,7 @@ class DepartmentController(
     @Operation(summary = "某部门下的员工")
     @GetMapping("/{id}/employees")
     fun employees(@PathVariable id: String): ResponseEntity<ApiResult<List<EmployeeDto>>> {
-        val (items, hit) = employeeService.listByDepartment(departmentId(id))
-        return cachedOk(items, hit)
+        return cachedOk(employeeService.listByDepartment(departmentId(id)))
     }
 
     private fun departmentId(raw: String): Int =

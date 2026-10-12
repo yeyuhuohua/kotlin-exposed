@@ -5,7 +5,6 @@ import com.atguigu.hrspring.common.api.LikeEscape
 import com.atguigu.hrspring.common.api.PageParams
 import com.atguigu.hrspring.common.api.selectPage
 import com.atguigu.hrspring.common.cache.CacheNames
-import com.atguigu.hrspring.common.cache.RedisCache
 import com.atguigu.hrspring.dto.DepartmentHeadcountDto
 import com.atguigu.hrspring.dto.EmployeeCreateRequest
 import com.atguigu.hrspring.dto.EmployeeDetailDto
@@ -20,47 +19,54 @@ import com.atguigu.hrspring.mapper.EmpDetailsViewMapper
 import com.atguigu.hrspring.mapper.EmployeeMapper
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper
-import com.fasterxml.jackson.databind.JsonNode
+import jakarta.validation.Valid
 import org.slf4j.LoggerFactory
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.validation.annotation.Validated
+import kotlin.annotation.AnnotationRetention
+import kotlin.annotation.AnnotationTarget
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.time.LocalDate
 
 /** 员工查询与写入。写操作失效员工缓存和概览缓存。 */
+@Validated
 @Service
 class EmployeeService(
     private val employeeMapper: EmployeeMapper,
     private val empDetailsViewMapper: EmpDetailsViewMapper,
-    private val cache: RedisCache,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    @Cacheable(
+        cacheNames = [CacheNames.EMPLOYEES],
+        key = "T(com.atguigu.hrspring.common.cache.CacheKeys).employees(#page, #departmentId, #jobId, #q, #unassignedOnly)",
+    )
     fun list(
         page: PageParams,
         departmentId: Int?,
         jobId: String?,
         q: String?,
         unassignedOnly: Boolean,
-    ): Pair<ApiList<EmployeeDto>, Boolean> =
-        cache.withPage(listKey(page, departmentId, jobId, q, unassignedOnly), EmployeeDto::class.java) {
-            val rows = employeeMapper.selectPage(page) {
-                applyEmployeeFilters(departmentId, jobId, q, unassignedOnly)
-                orderByAsc("employee_id")
-            }
-            ApiList(rows.total, rows.items.map { it.toDto() })
+    ): ApiList<EmployeeDto> {
+        val rows = employeeMapper.selectPage(page) {
+            applyEmployeeFilters(departmentId, jobId, q, unassignedOnly)
+            orderByAsc("employee_id")
         }
+        return ApiList(rows.total, rows.items.map { it.toDto() })
+    }
 
-    fun listByDepartment(departmentId: Int): Pair<List<EmployeeDto>, Boolean> =
-        cache.withCacheList(CacheNames.employeesDept(departmentId), EmployeeDto::class.java) {
-            employeeMapper.selectList(
-                QueryWrapper<EmployeeEntity>()
-                    .eq("department_id", departmentId)
-                    .orderByAsc("employee_id"),
-            ).map { it.toDto() }
-        }
+    @Cacheable(cacheNames = [CacheNames.EMPLOYEES_BY_DEPT], key = "#departmentId")
+    fun listByDepartment(departmentId: Int): List<EmployeeDto> =
+        employeeMapper.selectList(
+            QueryWrapper<EmployeeEntity>()
+                .eq("department_id", departmentId)
+                .orderByAsc("employee_id"),
+        ).map { it.toDto() }
 
     /** 概览会缓存聚合结果，这里不单独进 Redis。 */
     fun countByDepartment(): List<DepartmentHeadcountDto> =
@@ -92,29 +98,27 @@ class EmployeeService(
         )
     }
 
-    fun get(id: Int): Pair<EmployeeDto, Boolean> =
-        cache.withCache(CacheNames.employee(id), EmployeeDto::class.java) {
-            employeeMapper.selectById(id)?.toDto()
-                ?: throw ApiException.notFound("employee not found")
-        }
+    @Cacheable(cacheNames = [CacheNames.EMPLOYEE], key = "#id")
+    fun get(id: Int): EmployeeDto =
+        employeeMapper.selectById(id)?.toDto()
+            ?: throw ApiException.notFound("employee not found")
 
-    fun getDetail(id: Int): Pair<EmployeeDetailDto, Boolean> =
-        cache.withCache(CacheNames.employeeDetails(id), EmployeeDetailDto::class.java) {
-            employeeMapper.findDetail(id)?.toDetail()
-                ?: throw ApiException.notFound("employee not found")
-        }
+    @Cacheable(cacheNames = [CacheNames.EMPLOYEE_DETAILS], key = "#id")
+    fun getDetail(id: Int): EmployeeDetailDto =
+        employeeMapper.findDetail(id)?.toDetail()
+            ?: throw ApiException.notFound("employee not found")
 
-    fun listDetails(page: PageParams): Pair<ApiList<EmployeeDetailDto>, Boolean> =
-        cache.withPage(CacheNames.EMP_DETAILS_PREFIX + "${page.limit}:${page.offset}", EmployeeDetailDto::class.java) {
-            val rows = empDetailsViewMapper.selectPage(page) {
-                orderByAsc("employee_id")
-            }
-            ApiList(rows.total, rows.items.map { it.toDto() })
+    @Cacheable(cacheNames = [CacheNames.EMP_DETAILS], key = "#page.limit + ':' + #page.offset")
+    fun listDetails(page: PageParams): ApiList<EmployeeDetailDto> {
+        val rows = empDetailsViewMapper.selectPage(page) {
+            orderByAsc("employee_id")
         }
+        return ApiList(rows.total, rows.items.map { it.toDto() })
+    }
 
+    @EvictEmployeeGraphs
     @Transactional
-    fun create(request: EmployeeCreateRequest): EmployeeDto {
-        request.contentError()?.let { throw ApiException.badRequest(it) }
+    fun create(@Valid request: EmployeeCreateRequest): EmployeeDto {
         return write("create failed") {
             val entity = EmployeeEntity().apply {
                 employeeId = request.employeeId!!
@@ -135,10 +139,9 @@ class EmployeeService(
         }
     }
 
+    @EvictEmployeeGraphs
     @Transactional
-    fun update(id: Int, request: EmployeeUpdateRequest): EmployeeDto {
-        if (!request.hasUpdates()) throw ApiException.badRequest("no fields to update")
-        request.contentError()?.let { throw ApiException.badRequest(it) }
+    fun update(id: Int, @Valid request: EmployeeUpdateRequest): EmployeeDto {
         return write("update failed") {
             lock(id) ?: throw ApiException.notFound("employee not found")
             val wrapper = UpdateWrapper<EmployeeEntity>().eq("employee_id", id)
@@ -151,9 +154,9 @@ class EmployeeService(
         }
     }
 
+    @EvictEmployeeGraphs
     @Transactional
-    fun patch(id: Int, body: JsonNode): EmployeeDto {
-        val patch = EmployeePatch.parse(body)
+    fun patch(id: Int, @Valid patch: EmployeePatch): EmployeeDto {
         return write("resource conflict") {
             lock(id) ?: throw ApiException.notFound("employee not found")
             val wrapper = UpdateWrapper<EmployeeEntity>().eq("employee_id", id)
@@ -169,6 +172,7 @@ class EmployeeService(
         }
     }
 
+    @EvictEmployeeGraphs
     @Transactional
     fun delete(id: Int) {
         write("delete failed") {
@@ -195,39 +199,24 @@ class EmployeeService(
         } catch (e: DataIntegrityViolationException) {
             log.warn("constraint conflict: {}", e.message)
             throw ApiException.conflict(conflictMessage)
-        } finally {
-            cache.invalidateAfterCommit(
-                listOf(CacheNames.OVERVIEW),
-                listOf(
-                    CacheNames.EMPLOYEE_PREFIX,
-                    CacheNames.EMPLOYEES_PREFIX,
-                    CacheNames.EMP_DETAILS_PREFIX,
-                ),
-            )
         }
     }
 }
 
-/** null 编成 "-"，字符串里的 \ 和 : 转义，避免和分隔符撞车。 */
-private fun listKey(
-    page: PageParams,
-    departmentId: Int?,
-    jobId: String?,
-    q: String?,
-    unassignedOnly: Boolean,
-): String {
-    fun token(value: String?): String =
-        value?.replace("\\", "\\\\")?.replace(":", "\\:") ?: "-"
-    return CacheNames.EMPLOYEES_PREFIX +
-        listOf(
-            page.limit.toString(),
-            page.offset.toString(),
-            departmentId?.toString() ?: "-",
-            token(jobId),
-            token(q),
-            unassignedOnly.toString(),
-        ).joinToString(":")
-}
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+@CacheEvict(
+    cacheNames = [
+        CacheNames.EMPLOYEES,
+        CacheNames.EMPLOYEES_BY_DEPT,
+        CacheNames.EMPLOYEE,
+        CacheNames.EMPLOYEE_DETAILS,
+        CacheNames.EMP_DETAILS,
+        CacheNames.OVERVIEW,
+    ],
+    allEntries = true,
+)
+internal annotation class EvictEmployeeGraphs
 
 private fun QueryWrapper<EmployeeEntity>.applyEmployeeFilters(
     departmentId: Int?,

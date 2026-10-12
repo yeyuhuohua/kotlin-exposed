@@ -12,7 +12,7 @@ class TEmpMcpTools(
     private val tEmpService: TEmpService,
 ) {
     @McpTool(name = "list_t_emp", description = "查询 t_emp 人物示例表，返回全部人物。")
-    fun listTEmp(): List<TEmpDto> = tEmpService.list().first
+    fun listTEmp(): List<TEmpDto> = tEmpService.list()
 
     @McpTool(name = "create_t_emp", description = "新增人物。id 自增，empno 必填；年龄可以省略或为 0，不能为负。")
     fun createTEmp(

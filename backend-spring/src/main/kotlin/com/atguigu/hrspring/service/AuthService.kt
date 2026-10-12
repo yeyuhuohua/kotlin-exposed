@@ -33,15 +33,19 @@ import com.atguigu.hrspring.common.api.ApiList
 import com.atguigu.hrspring.common.api.ClientIp
 import com.atguigu.hrspring.common.api.ErrorCode
 import com.atguigu.hrspring.common.cache.CacheNames
-import com.atguigu.hrspring.common.cache.RedisCache
+import com.atguigu.hrspring.common.validation.RoleCode
 import com.atguigu.hrspring.dto.MenuPermissionDto
 import com.atguigu.hrspring.dto.PageRoute
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper
 import jakarta.servlet.http.HttpServletRequest
+import jakarta.validation.Valid
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpHeaders
 import org.springframework.stereotype.Service
+import org.springframework.validation.annotation.Validated
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 import org.springframework.web.context.request.RequestContextHolder
@@ -51,6 +55,7 @@ import java.util.Locale
 /**
  * 登录、账号与角色管理。权限只来自角色；页面码在返回当前用户时按启用菜单补齐。
  */
+@Validated
 @Service
 class AuthService(
     transactionManager: PlatformTransactionManager,
@@ -62,10 +67,10 @@ class AuthService(
     private val tokenService: TokenService,
     private val userCache: AuthUserCache,
     private val loginThrottle: LoginThrottle,
-    private val redisCache: RedisCache,
     private val menuService: MenuService,
     private val auditService: AuditService,
     private val clientIp: ClientIp,
+    private val properties: com.atguigu.hrspring.config.HrProperties,
 ) : AuthUserLoader {
     private val tx = TransactionTemplate(transactionManager)
     private val readTx = TransactionTemplate(transactionManager).apply { isReadOnly = true }
@@ -113,7 +118,9 @@ class AuthService(
     }
 
     override fun loadActiveAdmin(): AuthUser? = readTx.execute<AuthUser?> {
-        val row = userMapper.selectOne(QueryWrapper<UserEntity>().eq("username", "admin")) ?: return@execute null
+        val username = properties.auth.adminUsername.trim().lowercase(Locale.ROOT)
+        if (username.isEmpty()) return@execute null
+        val row = userMapper.selectOne(QueryWrapper<UserEntity>().eq("username", username)) ?: return@execute null
         val role = roleMapper.selectById(row.roleCode) ?: return@execute null
         toAuthUser(row, role).takeIf { it.active && it.roleCode == Roles.ADMIN }
     }
@@ -159,33 +166,33 @@ class AuthService(
         }
     }
 
-    fun listUsers(limit: Int?, offset: Long?): Pair<ApiList<UserDto>, Boolean> {
+    @Cacheable(
+        cacheNames = [CacheNames.USERS],
+        key = "T(com.atguigu.hrspring.common.cache.CacheKeys).users(#limit, #offset)",
+    )
+    fun listUsers(limit: Int?, offset: Long?): ApiList<UserDto> {
         val size = (limit ?: 50).coerceIn(1, 200)
         val skip = (offset ?: 0L).coerceAtLeast(0L)
-        val key = CacheNames.USERS_PREFIX + "$size:$skip"
-        return redisCache.withPage(key, UserDto::class.java) {
-            val total = userMapper.selectCount(QueryWrapper<UserEntity>())
-            val items = userMapper.selectList(
-                QueryWrapper<UserEntity>()
-                    .orderByAsc("id")
-                    .last("LIMIT $size OFFSET $skip"),
-            ).map { it.toDto() }
-            ApiList(total, items)
-        }
+        val total = userMapper.selectCount(QueryWrapper<UserEntity>())
+        val items = userMapper.selectList(
+            QueryWrapper<UserEntity>()
+                .orderByAsc("id")
+                .last("LIMIT $size OFFSET $skip"),
+        ).map { it.toDto() }
+        return ApiList(total, items)
     }
 
-    fun listRoles(): Pair<List<RoleDto>, Boolean> =
-        redisCache.withCacheList(CacheNames.ROLES, RoleDto::class.java) {
-            roleMapper.selectList(QueryWrapper<RoleEntity>().orderByAsc("code"))
-                .map { it.toDto() }
-        }
+    @Cacheable(cacheNames = [CacheNames.ROLES], key = "'all'")
+    fun listRoles(): List<RoleDto> =
+        roleMapper.selectList(QueryWrapper<RoleEntity>().orderByAsc("code"))
+            .map { it.toDto() }
 
-    fun createUser(body: UserCreateRequest): UserDto {
+    @CacheEvict(cacheNames = [CacheNames.USERS], allEntries = true)
+    fun createUser(@Valid body: UserCreateRequest): UserDto {
         val username = normalizeUsername(body.username)
-        if (username == PROTECTED_USERNAME) {
+        if (isProtectedUsername(username)) {
             throw ApiException(409, "username is reserved", ErrorCode.USERNAME_TAKEN)
         }
-        validatePassword(body.password)
         val roleCode = body.roleCode ?: Roles.READER
         validateRole(roleCode)
         val hash = passwordHasher.hash(body.password)
@@ -212,15 +219,12 @@ class AuthService(
             }
             throw ex
         } ?: throw ApiException.notFound("user not found")
-        invalidateUsers()
         return created
     }
 
-    fun updateUser(actorId: Int, id: Int, body: UserUpdateRequest): UserDto {
+    @CacheEvict(cacheNames = [CacheNames.USERS], allEntries = true)
+    fun updateUser(actorId: Int, id: Int, @Valid body: UserUpdateRequest): UserDto {
         if (id <= 0) badRequest("invalid user id")
-        if (body.roleCode == null && body.enabled == null && body.password == null) {
-            badRequest("no fields to update")
-        }
         if (actorId == id && (body.enabled == false || (body.roleCode != null && body.roleCode != Roles.ADMIN))) {
             throw ApiException(
                 400,
@@ -236,7 +240,6 @@ class AuthService(
             throw ApiException(403, "admin account is protected", ErrorCode.ADMIN_ACCOUNT_PROTECTED)
         }
         body.roleCode?.let { validateRole(it) }
-        body.password?.let { validatePassword(it) }
         val hash = body.password?.let { passwordHasher.hash(it) }
         try {
             return tx.execute<UserDto?> {
@@ -254,10 +257,10 @@ class AuthService(
             } ?: throw ApiException.notFound("user not found")
         } finally {
             userCache.invalidateUser(id)
-            invalidateUsers()
         }
     }
 
+    @CacheEvict(cacheNames = [CacheNames.USERS], allEntries = true)
     fun deleteUser(actorId: Int, id: Int): Boolean {
         if (id <= 0) badRequest("invalid user id")
         val target = readTx.execute<AuthUser?> { loadUser(id) } ?: throw ApiException.notFound("user not found")
@@ -273,16 +276,13 @@ class AuthService(
             } ?: false
         } finally {
             userCache.invalidateUser(id)
-            invalidateUsers()
         }
     }
 
-    fun createRole(body: RoleCreateRequest): RoleDto {
+    @CacheEvict(cacheNames = [CacheNames.ROLES], allEntries = true)
+    fun createRole(@Valid body: RoleCreateRequest): RoleDto {
         val code = body.code.trim().uppercase(Locale.ROOT)
-        if (!ROLE_CODE_PATTERN.matches(code)) {
-            badRequest("role code must contain 2-20 uppercase letters, digits or underscores and start with a letter")
-        }
-        val name = validRoleName(body.name)
+        val name = body.name.trim()
         val created = try {
             tx.execute<RoleDto> {
                 roleMapper.insert(
@@ -304,14 +304,13 @@ class AuthService(
             if (ex.isConstraintConflict()) throw ApiException(409, "role already exists")
             throw ex
         } ?: throw ApiException(409, "role already exists")
-        invalidateRoles()
         return created
     }
 
-    fun updateRole(rawCode: String, body: RoleUpdateRequest): RoleDto {
-        val code = requireRoleCode(rawCode)
-        if (body.name == null && body.enabled == null) badRequest("no fields to update")
-        val name = body.name?.let { validRoleName(it) }
+    @CacheEvict(cacheNames = [CacheNames.ROLES], allEntries = true)
+    fun updateRole(@RoleCode rawCode: String, @Valid body: RoleUpdateRequest): RoleDto {
+        val code = rawCode.trim().uppercase(Locale.ROOT)
+        val name = body.name?.trim()
         try {
             return tx.execute<RoleDto?> {
                 if (code == Roles.ADMIN) {
@@ -335,12 +334,12 @@ class AuthService(
             } ?: throw ApiException.notFound("role not found")
         } finally {
             userCache.invalidateAll()
-            invalidateRoles()
         }
     }
 
-    fun deleteRole(rawCode: String): Boolean {
-        val code = requireRoleCode(rawCode)
+    @CacheEvict(cacheNames = [CacheNames.ROLES], allEntries = true, condition = "#result == true")
+    fun deleteRole(@RoleCode rawCode: String): Boolean {
+        val code = rawCode.trim().uppercase(Locale.ROOT)
         if (code == Roles.ADMIN) {
             throw ApiException(403, "ADMIN role is protected", ErrorCode.ROLE_PROTECTED)
         }
@@ -359,23 +358,25 @@ class AuthService(
             }
         } ?: false
         if (removed) {
-            invalidateRoles()
             userCache.invalidateAll()
         }
         return removed
     }
 
-    fun getRolePermissions(actor: AuthUser, rawCode: String): RolePermissionsDto {
-        val code = requireRoleCode(rawCode)
+    fun getRolePermissions(actor: AuthUser, @RoleCode rawCode: String): RolePermissionsDto {
+        val code = rawCode.trim().uppercase(Locale.ROOT)
         requirePermissionAdmin(actor, "GET")
         return readTx.execute<RolePermissionsDto?> { loadRolePermissions(code) }
             ?: throw ApiException.notFound("role not found")
     }
 
-    fun updateRolePermissions(actor: AuthUser, rawCode: String, body: RolePermissionsRequest): RolePermissionsDto {
-        val code = requireRoleCode(rawCode)
+    fun updateRolePermissions(
+        actor: AuthUser,
+        @RoleCode rawCode: String,
+        @Valid body: RolePermissionsRequest,
+    ): RolePermissionsDto {
+        val code = rawCode.trim().uppercase(Locale.ROOT)
         requirePermissionAdmin(actor, "PUT")
-        if (body.revision < 0) badRequest("invalid permissions revision")
         try {
             return tx.execute<RolePermissionsDto> { replaceRolePermissions(code, body) }
                 ?: throw ApiException.notFound("role not found")
@@ -523,39 +524,12 @@ class AuthService(
         }
     }
 
-    private fun requireRoleCode(code: String): String {
-        if (!ROLE_CODE_PATTERN.matches(code)) badRequest("invalid role code")
-        return code
-    }
-
-    private fun validRoleName(name: String): String {
-        val trimmed = name.trim()
-        if (trimmed.isBlank() || trimmed.codePointCount(0, trimmed.length) > 50) {
-            badRequest("role name must contain 1-50 characters")
-        }
-        return trimmed
-    }
-
     private fun normalizeUsername(value: String): String {
         val username = value.trim().lowercase(Locale.ROOT)
         if (!USERNAME_PATTERN.matches(username)) {
             badRequest("username must contain 3-64 ASCII letters, digits, dots, underscores or hyphens")
         }
         return username
-    }
-
-    private fun validatePassword(password: String) {
-        if (password.length !in 8..128 || password.isBlank()) {
-            badRequest("password must contain 8-128 characters and must not be blank")
-        }
-    }
-
-    private fun invalidateUsers() {
-        redisCache.invalidateAfterCommit(emptyList(), listOf(CacheNames.USERS_PREFIX))
-    }
-
-    private fun invalidateRoles() {
-        redisCache.invalidateAfterCommit(listOf(CacheNames.ROLES))
     }
 
     private fun currentRequest(): HttpServletRequest? =
@@ -567,8 +541,11 @@ class AuthService(
         attributes.response?.setHeader(HttpHeaders.RETRY_AFTER, seconds.toString())
     }
 
-    private fun AuthUser.isProtectedAccount(): Boolean =
-        username.equals(PROTECTED_USERNAME, ignoreCase = true)
+    private fun isProtectedUsername(value: String): Boolean =
+        value.equals(PROTECTED_USERNAME, ignoreCase = true) ||
+            value.equals(properties.auth.adminUsername.trim(), ignoreCase = true)
+
+    private fun AuthUser.isProtectedAccount(): Boolean = isProtectedUsername(username)
 
     private fun AuthUser.toUserDto(): UserDto = UserDto(id, username, roleCode, enabled)
 
@@ -576,7 +553,6 @@ class AuthService(
         const val PROTECTED_USERNAME = "admin"
         const val LOGIN_RETRY_AFTER = "hrs.login.retryAfter"
         private val USERNAME_PATTERN = Regex("[a-z0-9._-]{3,64}")
-        private val ROLE_CODE_PATTERN = Regex("[A-Z][A-Z0-9_]{1,19}")
 
         private fun badRequest(message: String): Nothing = throw ApiException.badRequest(message)
 

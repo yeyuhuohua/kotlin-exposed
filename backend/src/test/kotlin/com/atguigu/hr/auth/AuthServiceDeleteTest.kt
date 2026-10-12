@@ -15,7 +15,9 @@ import kotlin.test.assertFailsWith
  * 仍有账号引用的角色返回 409。这里用内存假仓储验证，不依赖数据库。
  */
 class AuthServiceDeleteTest {
-    private fun service(store: FakeStore) = AuthService(store, tokens = TokenService(testSettings()), dummyHash = "unused")
+    private fun service(store: FakeStore, adminUsername: String = "admin") = AuthService(
+        store, tokens = TokenService(testSettings()), dummyHash = "unused", adminUsername = adminUsername,
+    )
 
     private fun testSettings() = AuthSettings(
         secret = "0123456789012345678901234567890123456789",
@@ -38,6 +40,53 @@ class AuthServiceDeleteTest {
         assertEquals(HttpStatusCode.Forbidden, error.status)
         assertEquals(ErrorCode.ADMIN_ACCOUNT_PROTECTED, error.error)
         assertTrue(1 in store.users, "受保护账号不应被删除")
+    }
+
+    @Test
+    fun `配置的管理员和内置admin都不可删除`() = runBlocking {
+        val store = FakeStore().apply {
+            users[2] = user(2, "hr_owner", "ADMIN")
+            users[3] = user(3, "admin", "ADMIN")
+        }
+        val service = service(store, " HR_OWNER ")
+        for (id in listOf(2, 3)) {
+            val error = assertFailsWith<AuthException> { service.deleteUser(actorId = 1, id = id) }
+            assertEquals(ErrorCode.ADMIN_ACCOUNT_PROTECTED, error.error)
+            assertEquals(HttpStatusCode.Forbidden, error.status)
+            assertTrue(id in store.users)
+        }
+    }
+
+    @Test
+    fun `其他管理员不能停用降权或重置配置管理员密码`() = runBlocking {
+        val store = FakeStore().apply { users[2] = user(2, "hr_owner", "ADMIN") }
+        val original = store.users.getValue(2)
+        val service = service(store, "hr_owner")
+        for (request in listOf(
+            UserUpdateRequest(enabled = false),
+            UserUpdateRequest(roleCode = "READER"),
+            UserUpdateRequest(password = "new-password-1"),
+        )) {
+            val error = assertFailsWith<AuthException> { service.updateUser(actorId = 1, id = 2, request) }
+            assertEquals(ErrorCode.ADMIN_ACCOUNT_PROTECTED, error.error)
+            assertEquals(original, store.users[2])
+        }
+    }
+
+    @Test
+    fun `配置管理员可以修改自己的密码`() = runBlocking {
+        val store = FakeStore().apply { users[2] = user(2, "hr_owner", "ADMIN") }
+        val result = service(store, "hr_owner").updateUser(2, 2, UserUpdateRequest(password = "new-password-1"))
+        assertEquals("hr_owner", result.username)
+        assertTrue(PasswordHasher.verify("new-password-1", store.users.getValue(2).passwordHash))
+    }
+
+    @Test
+    fun `配置管理员的用户名不能由普通创建接口占用`() = runBlocking {
+        val error = assertFailsWith<AuthException> {
+            service(FakeStore(), "hr_owner").createUser(UserCreateRequest("HR_OWNER", "reader-pass-1"))
+        }
+        assertEquals(ErrorCode.USERNAME_TAKEN, error.error)
     }
 
     @Test
@@ -99,7 +148,14 @@ class AuthServiceDeleteTest {
         override suspend fun updateRole(code: String, body: RoleUpdateRequest): RoleDto? = roles[code]
         override suspend fun getRolePermissions(code: String): RolePermissionsDto? = null
         override suspend fun createUser(username: String, passwordHash: String, roleCode: String) = user(99, username, roleCode)
-        override suspend fun updateUser(id: Int, roleCode: String?, enabled: Boolean?, passwordHash: String?) = users[id]
+        override suspend fun updateUser(id: Int, roleCode: String?, enabled: Boolean?, passwordHash: String?) =
+            users[id]?.let { original ->
+                original.copy(
+                    roleCode = roleCode ?: original.roleCode,
+                    enabled = enabled ?: original.enabled,
+                    passwordHash = passwordHash ?: original.passwordHash,
+                ).also { users[id] = it }
+            }
         override suspend fun revokeTokens(id: Int) = Unit
         override suspend fun replaceRolePermissions(code: String, request: RolePermissionsRequest) =
             RolePermissionsDto(roles.getValue(code), 1, request.permissions, false)

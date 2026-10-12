@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 /** 会话恢复与刷新：只有 401 才能销毁会话，网络错误必须保留。 */
 import { ApiError, api } from '../src/lib/api'
 import { readSession, saveSession } from '../src/lib/session'
-import type { User } from '../src/types'
+import type { PageRoute, User } from '../src/types'
 
 vi.mock('../src/lib/api', async (importOriginal) => {
   const module = await importOriginal<typeof import('../src/lib/api')>()
@@ -81,6 +81,59 @@ describe('auth store 会话恢复', () => {
     expect(readSession()).toBeNull()
   })
 
+  it('并发身份刷新时旧响应不能恢复已移除的页面权限', async () => {
+    saveSession('token-refresh', 600)
+    mockedApi.mockResolvedValueOnce(user)
+    const auth = await store()
+    await auth.restore()
+
+    let release!: (value: User) => void
+    mockedApi.mockImplementationOnce(() => new Promise<User>((resolve) => (release = resolve)))
+    const pending = auth.refreshUser({ force: true })
+    const fresh = { ...user, permissions: [] }
+    mockedApi.mockResolvedValueOnce(fresh)
+    await auth.refreshUser({ force: true })
+    release(user)
+    await pending
+
+    expect(auth.user).toEqual(fresh)
+    expect(auth.canPage('overview')).toBe(false)
+  })
+
+  it('恢复会话的迟到响应不能覆盖强制刷新后的身份', async () => {
+    saveSession('token-restore', 600)
+    let release!: (value: User) => void
+    mockedApi.mockImplementationOnce(() => new Promise<User>((resolve) => (release = resolve)))
+    const auth = await store()
+    const pending = auth.restore()
+    const fresh = { ...user, permissions: [] }
+    mockedApi.mockResolvedValueOnce(fresh)
+    await auth.refreshUser({ force: true })
+    release(user)
+    await pending
+
+    expect(auth.user).toEqual(fresh)
+  })
+
+  it('身份刷新失败且恢复响应已过时时仍可重试恢复会话', async () => {
+    saveSession('token-retry', 600)
+    let release!: (value: User) => void
+    mockedApi.mockImplementationOnce(() => new Promise<User>((resolve) => (release = resolve)))
+    const auth = await store()
+    const pending = auth.restore()
+    mockedApi.mockRejectedValueOnce(new ApiError(0, '请求超时'))
+    await auth.refreshUser({ force: true })
+    release(user)
+    await pending
+
+    const fresh = { ...user, permissions: [] }
+    mockedApi.mockResolvedValueOnce(fresh)
+    await auth.restore()
+    expect(auth.user).toEqual(fresh)
+    expect(readSession()?.token).toBe('token-retry')
+    expect(mockedApi).toHaveBeenCalledTimes(3)
+  })
+
   it('请求期间切换到新账号后，旧请求的成功结果不覆盖新身份', async () => {
     saveSession('token-a', 600)
     let release!: (value: User) => void
@@ -144,5 +197,40 @@ describe('auth store 会话恢复', () => {
     await auth.logout()
     expect(readSession()).toBeNull()
     expect(auth.user).toBeNull()
+  })
+
+  it('强制刷新页面清单后旧响应不能覆盖新菜单路径', async () => {
+    saveSession('token-pages', 600)
+    let release!: (value: PageRoute[]) => void
+    mockedApi.mockImplementationOnce(() => new Promise<PageRoute[]>((resolve) => (release = resolve)))
+    const auth = await store()
+    const pending = auth.loadPages()
+    const page: PageRoute = {
+      key: 'employees',
+      title: '员工',
+      path: '/staff',
+      icon: null,
+      group: '工作空间',
+      sort: 1,
+    }
+    mockedApi.mockResolvedValueOnce([page])
+    await auth.loadPages({ force: true })
+    release([{ ...page, path: '/employees' }])
+    await pending
+    expect(auth.pages).toEqual([page])
+  })
+
+  it('过时页面请求失败不能清掉较新请求的加载状态', async () => {
+    saveSession('token-pages', 600)
+    let reject!: (reason: unknown) => void
+    mockedApi.mockImplementationOnce(() => new Promise<PageRoute[]>((_, r) => (reject = r)))
+    const auth = await store()
+    const pending = auth.loadPages().catch(() => undefined)
+    mockedApi.mockResolvedValueOnce([])
+    await auth.loadPages({ force: true })
+    reject(new ApiError(0, '旧请求超时'))
+    await pending
+    await auth.loadPages()
+    expect(mockedApi).toHaveBeenCalledTimes(2)
   })
 })

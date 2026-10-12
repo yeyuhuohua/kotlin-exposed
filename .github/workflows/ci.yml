@@ -45,6 +45,18 @@ jobs:
       - name: Spring backend tests
         run: ./gradlew test
 
+  dsh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: DSH proxy tests
+        run: |
+          node --test dsh/auth-proxy.test.mjs
+          sh -n dsh/docker-entrypoint.sh
+
   frontend:
     runs-on: ubuntu-latest
     defaults:

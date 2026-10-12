@@ -4,21 +4,23 @@ import com.atguigu.hr.auth.AuthUser
 import com.atguigu.hr.auth.PermissionDefinition
 import com.atguigu.hr.auth.RoleCode
 import java.util.concurrent.atomic.AtomicReference
+import com.atguigu.hr.common.cache.RedisCache
 
 /** 菜单读取入口：短 TTL 缓存吸收每次导航的重复查询，写操作后立即失效。 */
 object MenuService {
     private const val CACHE_TTL_MILLIS = 3_000L
 
-    private data class CachedMenus(val expiresAtMillis: Long, val menus: List<MenuDto>)
+    private data class CachedMenus(val expiresAtMillis: Long, val epoch: String?, val menus: List<MenuDto>)
 
     private val cache = AtomicReference<CachedMenus?>()
 
     /** 全量菜单（含停用），按 sort、key 排序；管理界面与授权校验用。 */
     suspend fun catalog(): List<MenuDto> {
         val now = System.currentTimeMillis()
-        cache.get()?.takeIf { it.expiresAtMillis > now }?.let { return it.menus }
+        val epoch = RedisCache.sharedEpoch()
+        cache.get()?.takeIf { epoch != null && it.epoch == epoch && it.expiresAtMillis > now }?.let { return it.menus }
         val fresh = MenuRepository.list()
-        cache.set(CachedMenus(now + CACHE_TTL_MILLIS, fresh))
+        cache.set(CachedMenus(now + CACHE_TTL_MILLIS, epoch, fresh))
         return fresh
     }
 
@@ -40,12 +42,17 @@ object MenuService {
         )
     }
 
-    suspend fun create(request: MenuCreateRequest): MenuDto = MenuRepository.create(request).also { invalidate() }
+    suspend fun create(request: MenuCreateRequest): MenuDto = MenuRepository.create(request).also { changed() }
 
     suspend fun update(key: String, request: MenuUpdateRequest): MenuDto? =
-        MenuRepository.update(key, request)?.also { invalidate() }
+        MenuRepository.update(key, request)?.also { changed() }
 
-    suspend fun delete(key: String): Boolean = MenuRepository.delete(key).also { if (it) invalidate() }
+    suspend fun delete(key: String): Boolean = MenuRepository.delete(key).also { if (it) changed() }
+
+    private suspend fun changed() {
+        invalidate()
+        RedisCache.broadcastInvalidation()
+    }
 
     fun invalidate() {
         cache.set(null)

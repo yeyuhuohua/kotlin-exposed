@@ -1,61 +1,71 @@
 package com.atguigu.hrspring.dto
+
 import com.atguigu.hrspring.common.api.ApiException
+import com.atguigu.hrspring.common.validation.CodePointSize
+import com.atguigu.hrspring.common.validation.FiniteMin
+import com.atguigu.hrspring.common.validation.FiniteRange
+import com.atguigu.hrspring.common.validation.HireDate
+import com.atguigu.hrspring.common.validation.NotBlankIfPresent
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
-import java.time.LocalDate
+import jakarta.validation.constraints.AssertTrue
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotNull
 
 /** PUT /api/employees/{id}。未传或显式 null 的列保持原值，不能清空。 */
 class EmployeeUpdateRequest {
+    @field:FiniteMin(message = "salary must be a non-negative number")
     var salary: Double? = null
     var departmentId: Int? = null
+
+    @field:NotBlankIfPresent(message = "jobId must not be blank")
+    @field:CodePointSize(max = 10, message = "jobId must be at most 10 characters")
     var jobId: String? = null
+
+    @field:CodePointSize(max = 20, message = "phoneNumber must be at most 20 characters")
     var phoneNumber: String? = null
 
+    @JsonIgnore
+    @AssertTrue(message = "no fields to update")
     fun hasUpdates(): Boolean =
         salary != null || departmentId != null || jobId != null || phoneNumber != null
-
-    fun contentError(): String? {
-        if (jobId != null && jobId!!.isBlank()) return "jobId must not be blank"
-        if (jobId != null && jobId!!.exceedsCodePoints(10)) return "jobId must be at most 10 characters"
-        if (phoneNumber != null && phoneNumber!!.exceedsCodePoints(20)) {
-            return "phoneNumber must be at most 20 characters"
-        }
-        salary?.let { value -> salaryError(value)?.let { return it } }
-        return null
-    }
 }
 
 /** POST /api/employees。employeeId 由调用方提供。 */
 class EmployeeCreateRequest {
+    @field:NotNull(message = "employeeId is required")
     var employeeId: Int? = null
+
+    @field:CodePointSize(max = 20, message = "firstName must be at most 20 characters")
     var firstName: String? = null
+
+    @field:NotBlank(message = "lastName, email, hireDate, jobId are required")
+    @field:CodePointSize(max = 25, message = "lastName must be at most 25 characters")
     var lastName: String? = null
+
+    @field:NotBlank(message = "lastName, email, hireDate, jobId are required")
+    @field:CodePointSize(max = 25, message = "email must be at most 25 characters")
     var email: String? = null
+
+    @field:CodePointSize(max = 20, message = "phoneNumber must be at most 20 characters")
     var phoneNumber: String? = null
+
+    @field:NotBlank(message = "lastName, email, hireDate, jobId are required")
+    @field:HireDate
     var hireDate: String? = null
+
+    @field:NotBlank(message = "lastName, email, hireDate, jobId are required")
+    @field:CodePointSize(max = 10, message = "jobId must be at most 10 characters")
     var jobId: String? = null
+
+    @field:FiniteMin(message = "salary must be a non-negative number")
     var salary: Double? = null
+
+    @field:FiniteRange(message = "commissionPct must be between 0 and 1")
     var commissionPct: Double? = null
     var managerId: Int? = null
     var departmentId: Int? = null
-
-    fun contentError(): String? {
-        if (lastName.isNullOrBlank() || email.isNullOrBlank() || hireDate.isNullOrBlank() || jobId.isNullOrBlank()) {
-            return "lastName, email, hireDate, jobId are required"
-        }
-        if (employeeId == null) return "employeeId is required"
-        hireDateError(hireDate!!)?.let { return it }
-        if (firstName != null && firstName!!.exceedsCodePoints(20)) return "firstName must be at most 20 characters"
-        if (lastName!!.exceedsCodePoints(25)) return "lastName must be at most 25 characters"
-        if (email!!.exceedsCodePoints(25)) return "email must be at most 25 characters"
-        if (phoneNumber != null && phoneNumber!!.exceedsCodePoints(20)) {
-            return "phoneNumber must be at most 20 characters"
-        }
-        if (jobId!!.exceedsCodePoints(10)) return "jobId must be at most 10 characters"
-        salary?.let { value -> salaryError(value)?.let { return it } }
-        commissionPct?.let { value -> commissionPctError(value)?.let { return it } }
-        return null
-    }
 }
 
 /**
@@ -63,12 +73,18 @@ class EmployeeCreateRequest {
  */
 class EmployeePatch(
     val present: Set<String>,
+    @field:CodePointSize(max = 20, message = "firstName must be at most 20 characters")
     val firstName: String? = null,
+    @field:FiniteMin(message = "salary must be a non-negative number")
     val salary: Double? = null,
+    @field:FiniteRange(message = "commissionPct must be between 0 and 1")
     val commissionPct: Double? = null,
     val departmentId: Int? = null,
     val managerId: Int? = null,
+    @field:CodePointSize(max = 20, message = "phoneNumber must be at most 20 characters")
     val phoneNumber: String? = null,
+    @field:NotBlankIfPresent(message = "jobId must not be blank")
+    @field:CodePointSize(max = 10, message = "jobId must be at most 10 characters")
     val jobId: String? = null,
 ) {
     companion object {
@@ -90,30 +106,13 @@ class EmployeePatch(
             }
             return EmployeePatch(
                 present = body.fieldNames().asSequence().toSet(),
-                firstName = body.text("firstName")?.also { value ->
-                    if (value.exceedsCodePoints(20)) {
-                        throw ApiException.badRequest("firstName must be at most 20 characters")
-                    }
-                },
-                salary = body.number("salary")?.also { value ->
-                    salaryError(value)?.let { throw ApiException.badRequest(it) }
-                },
-                commissionPct = body.number("commissionPct")?.also { value ->
-                    commissionPctError(value)?.let { throw ApiException.badRequest(it) }
-                },
+                firstName = body.text("firstName"),
+                salary = body.number("salary"),
+                commissionPct = body.number("commissionPct"),
                 departmentId = body.integer("departmentId"),
                 managerId = body.integer("managerId"),
-                phoneNumber = body.text("phoneNumber")?.also { value ->
-                    if (value.exceedsCodePoints(20)) {
-                        throw ApiException.badRequest("phoneNumber must be at most 20 characters")
-                    }
-                },
-                jobId = body.text("jobId")?.also { value ->
-                    if (value.isBlank()) throw ApiException.badRequest("jobId must not be blank")
-                    if (value.exceedsCodePoints(10)) {
-                        throw ApiException.badRequest("jobId must be at most 10 characters")
-                    }
-                },
+                phoneNumber = body.text("phoneNumber"),
+                jobId = body.text("jobId"),
             )
         }
 
@@ -147,18 +146,3 @@ class EmployeePatch(
         }
     }
 }
-
-private fun salaryError(value: Double): String? =
-    if (value.isFinite() && value >= 0) null else "salary must be a non-negative number"
-
-private fun commissionPctError(value: Double): String? =
-    if (value.isFinite() && value in 0.0..1.0) null else "commissionPct must be between 0 and 1"
-
-/** MySQL DATE 只接受 1000-01-01 至 9999-12-31。 */
-private fun hireDateError(value: String): String? {
-    val date = runCatching { LocalDate.parse(value) }.getOrNull()
-        ?: return "invalid hireDate, expected yyyy-MM-dd"
-    return if (date.year !in 1000..9999) "hireDate must be between 1000-01-01 and 9999-12-31" else null
-}
-
-private fun String.exceedsCodePoints(max: Int): Boolean = codePointCount(0, length) > max

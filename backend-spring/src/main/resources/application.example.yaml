@@ -29,6 +29,7 @@ spring:
 # 与 Ktor 后端一致的配置段；另建库表由 initialize-schema 控制
 hr:
   cache:
+    # Spring Cache + Redis 的 TTL。键前缀是 hrs:，和 Ktor 的 hr: 分开。
     ttl-seconds: 600
   auth:
     # 至少 32 字节的随机串；可用 openssl rand -base64 48 生成

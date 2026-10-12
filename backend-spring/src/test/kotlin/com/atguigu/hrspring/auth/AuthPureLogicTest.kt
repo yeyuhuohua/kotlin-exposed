@@ -31,6 +31,18 @@ class PasswordHasherTest {
 
 class LoginThrottleTest {
 
+    @Test
+    fun `活跃键洪泛不突破容量且新键不能绕过溢出限流`() {
+        val t = throttle(maxAccount = 2, maxAddress = 2)
+        repeat(LoginThrottle.MAX_TRACKED_KEYS + 100) { i ->
+            t.recordFailure(t.accountKey("user$i"), t.addressKey("ip$i"))
+        }
+        assertEquals(LoginThrottle.MAX_TRACKED_KEYS, t.trackedKeyCount)
+        assertTrue(t.blockedSeconds(t.accountKey("new-user"), t.addressKey("new-ip")) != null)
+        t.recordSuccess(t.accountKey("user0"))
+        assertEquals(LoginThrottle.MAX_TRACKED_KEYS - 1, t.trackedKeyCount)
+    }
+
     private fun throttle(
         windowSeconds: Long = 300,
         maxAccount: Int = 8,

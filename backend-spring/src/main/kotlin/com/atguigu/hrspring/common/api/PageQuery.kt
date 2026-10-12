@@ -1,5 +1,6 @@
 package com.atguigu.hrspring.common.api
 
+import com.atguigu.hrspring.common.cache.CacheHitMarker
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
 import com.baomidou.mybatisplus.core.mapper.BaseMapper
 import org.springframework.http.ResponseEntity
@@ -17,9 +18,10 @@ fun <E> BaseMapper<E>.selectPage(page: PageParams, build: QueryWrapper<E>.() -> 
     return ApiList(total, items)
 }
 
-fun <T> cachedOk(data: T, hit: Boolean, message: String = "ok"): ResponseEntity<ApiResult<T>> =
+/** hit 省略时读取本请求第一次 Spring Cache 查询的结果。显式传入则不再看标记。 */
+fun <T> cachedOk(data: T, hit: Boolean? = null, message: String = "ok"): ResponseEntity<ApiResult<T>> =
     ResponseEntity.ok()
-        .header("X-Cache", if (hit) "HIT" else "MISS")
+        .header("X-Cache", if (hit ?: CacheHitMarker.current()) "HIT" else "MISS")
         .body(ApiResult(200, message, data))
 
 fun <T> body(data: T, message: String): ResponseEntity<ApiResult<T>> =

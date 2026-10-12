@@ -8,6 +8,7 @@ import com.atguigu.hrspring.common.api.pageParams
 import com.atguigu.hrspring.dto.EmployeeCreateRequest
 import com.atguigu.hrspring.dto.EmployeeDetailDto
 import com.atguigu.hrspring.dto.EmployeeDto
+import com.atguigu.hrspring.dto.EmployeePatch
 import com.atguigu.hrspring.dto.EmployeeUpdateRequest
 import com.atguigu.hrspring.service.EmployeeService
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -42,14 +43,15 @@ class EmployeeController(
     ): ResponseEntity<ApiResult<ApiList<EmployeeDto>>> {
         val unassignedOnly = departmentId == "none"
         val department = if (unassignedOnly) null else departmentId?.toIntOrNull()
-        val (data, hit) = employeeService.list(
-            pageParams(limit, offset),
-            department,
-            jobId,
-            q,
-            unassignedOnly,
+        return cachedOk(
+            employeeService.list(
+                pageParams(limit, offset),
+                department,
+                jobId,
+                q,
+                unassignedOnly,
+            ),
         )
-        return cachedOk(data, hit)
     }
 
     @Operation(summary = "新增员工并刷新缓存")
@@ -63,8 +65,7 @@ class EmployeeController(
     fun get(
         @PathVariable("id") id: String,
     ): ResponseEntity<ApiResult<EmployeeDto>> {
-        val (data, hit) = employeeService.get(employeeId(id))
-        return cachedOk(data, hit)
+        return cachedOk(employeeService.get(employeeId(id)))
     }
 
     @Operation(summary = "部分更新员工并刷新缓存")
@@ -81,7 +82,10 @@ class EmployeeController(
         @PathVariable("id") id: String,
         @RequestBody patch: JsonNode,
     ): ResponseEntity<ApiResult<EmployeeDto>> =
-        body(employeeService.patch(employeeId(id), objectMapper.readTree(patch.toString())), "updated")
+        body(
+            employeeService.patch(employeeId(id), EmployeePatch.parse(objectMapper.readTree(patch.toString()))),
+            "updated",
+        )
 
     @Operation(summary = "删除员工并清除相关缓存")
     @DeleteMapping("/api/employees/{id}")
@@ -97,8 +101,7 @@ class EmployeeController(
     fun details(
         @PathVariable("id") id: String,
     ): ResponseEntity<ApiResult<EmployeeDetailDto>> {
-        val (data, hit) = employeeService.getDetail(employeeId(id))
-        return cachedOk(data, hit)
+        return cachedOk(employeeService.getDetail(employeeId(id)))
     }
 
     @Operation(summary = "员工详情视图分页")
@@ -107,8 +110,7 @@ class EmployeeController(
         @RequestParam(name = "limit", required = false) limit: Int?,
         @RequestParam(name = "offset", required = false) offset: Long?,
     ): ResponseEntity<ApiResult<ApiList<EmployeeDetailDto>>> {
-        val (data, hit) = employeeService.listDetails(pageParams(limit, offset))
-        return cachedOk(data, hit)
+        return cachedOk(employeeService.listDetails(pageParams(limit, offset)))
     }
 }
 

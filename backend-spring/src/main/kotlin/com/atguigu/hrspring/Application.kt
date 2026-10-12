@@ -10,5 +10,12 @@ import org.springframework.boot.runApplication
 class Application
 
 fun main(args: Array<String>) {
-    runApplication<Application>(*args)
+    runApplication<Application>(*args) {
+        setDefaultProperties(
+            mapOf(
+                "spring.config.additional-location" to
+                    "optional:file:backend-spring/src/main/resources/application.yaml,optional:file:src/main/resources/application.yaml",
+            ),
+        )
+    }
 }

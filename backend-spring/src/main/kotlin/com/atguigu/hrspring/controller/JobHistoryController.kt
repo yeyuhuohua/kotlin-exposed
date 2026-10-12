@@ -19,7 +19,6 @@ class JobHistoryController(
     @Operation(summary = "任职历史")
     @GetMapping
     fun list(): ResponseEntity<ApiResult<List<JobHistoryDto>>> {
-        val (rows, hit) = jobHistoryService.list()
-        return cachedOk(rows, hit)
+        return cachedOk(jobHistoryService.list())
     }
 }

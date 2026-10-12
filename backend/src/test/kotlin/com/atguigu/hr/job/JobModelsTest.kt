@@ -3,9 +3,20 @@ package com.atguigu.hr.job
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertNotNull
 
 /** 岗位薪资区间校验：只改一端时必须与库里的另一端现值合并比对。 */
 class JobModelsTest {
+    @Test
+    fun `创建岗位拒绝无法作为URL路径段的分隔符和控制字符`() {
+        for (id in listOf("DEV/OPS", "DEV\\OPS", "DEV\u0000", "DEV\nOPS", "DEV\u007f")) {
+            assertNotNull(JobCreateRequest(id, "Developer").contentError(), id)
+        }
+        for (id in listOf("KT_DEV", "DEV-OPS", "DEV.OPS")) {
+            assertNull(JobCreateRequest(id, "Developer").contentError(), id)
+        }
+    }
+
     private val current = JobDto(jobId = "KT_DEV", jobTitle = "Kotlin Developer", minSalary = 4000, maxSalary = 9000)
 
     @Test

@@ -3,52 +3,57 @@ import com.atguigu.hrspring.auth.AuthUser
 import com.atguigu.hrspring.auth.Roles
 import com.atguigu.hrspring.common.api.ApiException
 import com.atguigu.hrspring.common.cache.CacheNames
-import com.atguigu.hrspring.common.cache.RedisCache
 import com.atguigu.hrspring.dto.MenuCreateRequest
 import com.atguigu.hrspring.dto.MenuDto
+import com.atguigu.hrspring.dto.MenuKey
 import com.atguigu.hrspring.dto.MenuPermissionDto
 import com.atguigu.hrspring.dto.MenuUpdateRequest
 import com.atguigu.hrspring.dto.PageRoute
-import com.atguigu.hrspring.dto.menuKeyError
 import com.atguigu.hrspring.entity.MenuEntity
 import com.atguigu.hrspring.mapper.MenuMapper
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper
+import jakarta.validation.Valid
 import org.slf4j.LoggerFactory
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.Cacheable
+import org.springframework.context.annotation.Lazy
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.validation.annotation.Validated
 
 /**
  * 菜单读取走 Redis（[CacheNames.MENUS]）。
  * 删除时用 JDBC 清掉 page:key 授权，不注入 auth 模块的 Mapper。
+ * 本类内部读列表必须走 [self]，否则 @Cacheable 不会生效。
  */
+@Validated
 @Service
 class MenuService(
     private val menuMapper: MenuMapper,
-    private val redisCache: RedisCache,
     private val jdbcTemplate: JdbcTemplate,
+    @Lazy private val self: MenuService,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    @Cacheable(cacheNames = [CacheNames.MENUS], key = "'all'")
     @Transactional(readOnly = true)
-    fun list(): Pair<List<MenuDto>, Boolean> =
-        redisCache.withCacheList(CacheNames.MENUS, MenuDto::class.java) {
-            menuMapper.selectList(
-                QueryWrapper<MenuEntity>().orderByAsc("sort", "`key`"),
-            ).map { it.toDto() }
-        }
+    fun list(): List<MenuDto> =
+        menuMapper.selectList(
+            QueryWrapper<MenuEntity>().orderByAsc("sort", "`key`"),
+        ).map { it.toDto() }
 
     /** 启用菜单的 key，给当前用户装饰页面权限码。 */
     @Transactional(readOnly = true)
     fun enabledKeys(): Set<String> =
-        list().first.filter { it.enabled }.mapTo(linkedSetOf()) { it.key }
+        self.list().filter { it.enabled }.mapTo(linkedSetOf()) { it.key }
 
     /** ADMIN 看全部启用菜单；其他角色按授权交集，并排除仅 ADMIN 菜单。 */
     @Transactional(readOnly = true)
     fun pagesFor(user: AuthUser): List<PageRoute> {
-        val enabled = list().first.filter { it.enabled }
+        val enabled = self.list().filter { it.enabled }
         val visible = if (user.roleCode == Roles.ADMIN) {
             enabled
         } else {
@@ -69,7 +74,7 @@ class MenuService(
 
     /** 角色权限目录的页面部分。code 形如 page:{key}；空分组显示为「侧栏固定」。 */
     @Transactional(readOnly = true)
-    fun pageDefinitions(): List<MenuPermissionDto> = list().first.map { menu ->
+    fun pageDefinitions(): List<MenuPermissionDto> = self.list().map { menu ->
         MenuPermissionDto(
             code = "page:${menu.key}",
             kind = "PAGE",
@@ -81,9 +86,9 @@ class MenuService(
         )
     }
 
+    @CacheEvict(cacheNames = [CacheNames.MENUS], allEntries = true)
     @Transactional
-    fun create(request: MenuCreateRequest): MenuDto {
-        request.contentError()?.let { throw ApiException.badRequest(it) }
+    fun create(@Valid request: MenuCreateRequest): MenuDto {
         val entity = MenuEntity().apply {
             key = request.key
             title = request.title.trim()
@@ -101,14 +106,12 @@ class MenuService(
             log.warn("menu create conflict: {}", e.message)
             throw ApiException.conflict("resource conflict")
         }
-        evict()
         return entity.toDto()
     }
 
+    @CacheEvict(cacheNames = [CacheNames.MENUS], allEntries = true)
     @Transactional
-    fun update(key: String, request: MenuUpdateRequest): MenuDto {
-        if (menuKeyError(key) != null) throw ApiException.badRequest("invalid menu key")
-        request.contentError()?.let { throw ApiException.badRequest(it) }
+    fun update(@MenuKey key: String, @Valid request: MenuUpdateRequest): MenuDto {
         if (key in PROTECTED_MENU_KEYS && !request.enabled) {
             throw ApiException.badRequest("management entry cannot be disabled")
         }
@@ -132,14 +135,12 @@ class MenuService(
             log.warn("menu update conflict: {}", e.message)
             throw ApiException.conflict("resource conflict")
         }
-        val saved = menuMapper.selectById(key)?.toDto() ?: error("menu update missing row")
-        evict()
-        return saved
+        return menuMapper.selectById(key)?.toDto() ?: error("menu update missing row")
     }
 
+    @CacheEvict(cacheNames = [CacheNames.MENUS], allEntries = true)
     @Transactional
-    fun delete(key: String) {
-        if (menuKeyError(key) != null) throw ApiException.badRequest("invalid menu key")
+    fun delete(@MenuKey key: String) {
         val existing = lock(key) ?: throw ApiException.notFound("menu not found")
         if (existing.builtin) throw ApiException.forbidden("builtin menu is protected")
         jdbcTemplate.update(
@@ -147,7 +148,6 @@ class MenuService(
             "page:$key",
         )
         menuMapper.delete(QueryWrapper<MenuEntity>().eq("`key`", key))
-        evict()
     }
 
     /** selectList 走当前事务。selectOne 会另开 SqlSession，FOR UPDATE 锁不住后面的更新。 */
@@ -155,10 +155,6 @@ class MenuService(
         menuMapper.selectList(
             QueryWrapper<MenuEntity>().eq("`key`", key).last("FOR UPDATE"),
         ).firstOrNull()
-
-    private fun evict() {
-        redisCache.invalidateAfterCommit(listOf(CacheNames.MENUS))
-    }
 
     private fun MenuEntity.toDto() = MenuDto(
         key = key,

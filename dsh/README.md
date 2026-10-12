@@ -5,6 +5,10 @@
 换会话 Cookie（仅 ADMIN 放行），再内嵌打开对话。DSH 通过 MCP 连接 Spring 后端
 （`HR_API_BASE` 默认 `http://host.docker.internal:8081`），模型侧默认走本机 LM Studio。
 
+代理为每个 HR 会话生成独立的 HttpOnly Cookie，每次 HTTP 请求重新检查管理员身份。
+WebSocket 每 3 秒检查一次并按 JWT 到期时间关闭；退出登录、停用或降权后会撤销访问。
+HR 请求有 5 秒超时，故障时拒绝访问；代理或 DSH 退出都会结束容器，交给重启策略恢复。
+
 ## 本地启动
 
 需要 Docker，以及已启动的 Spring 后端（8081）。
@@ -37,3 +41,4 @@ docker compose up --build -d
 2. `auth-proxy.mjs` 的 `allowOrigin` 目前只放行本机回环 Origin，对外暴露时需要把部署域名加进白名单。
 3. `HR_API_BASE` 指向部署后的 Spring 后端地址，`HR_MCP_TOKEN` 用强随机值。
 4. `home/` 挂载卷保存会话与启动令牌，按敏感数据对待，不要公开共享。
+5. HTTPS 部署设置 `DSH_SECURE_COOKIE=true`，使代理 Cookie 只经 HTTPS 发送。

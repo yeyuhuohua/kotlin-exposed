@@ -1,8 +1,6 @@
 package com.atguigu.hrspring.service
 import com.atguigu.hrspring.common.api.ApiException
-import com.atguigu.hrspring.common.api.Validation
 import com.atguigu.hrspring.common.cache.CacheNames
-import com.atguigu.hrspring.common.cache.RedisCache
 import com.atguigu.hrspring.dto.DepartmentCreateRequest
 import com.atguigu.hrspring.dto.DepartmentDto
 import com.atguigu.hrspring.dto.DepartmentUpdateRequest
@@ -10,35 +8,40 @@ import com.atguigu.hrspring.entity.DepartmentEntity
 import com.atguigu.hrspring.mapper.DepartmentMapper
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper
+import jakarta.validation.Valid
 import org.slf4j.LoggerFactory
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.validation.annotation.Validated
 
+@Validated
 @Service
 class DepartmentService(
     private val departmentMapper: DepartmentMapper,
-    private val cache: RedisCache,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    @Cacheable(cacheNames = [CacheNames.DEPARTMENTS], key = "'all'")
     @Transactional(readOnly = true)
-    fun list(): Pair<List<DepartmentDto>, Boolean> =
-        cache.withCacheList(CacheNames.DEPARTMENTS, DepartmentDto::class.java) {
-            departmentMapper.selectList(QueryWrapper<DepartmentEntity>().orderByAsc("department_id"))
-                .map { it.toDto() }
-        }
+    fun list(): List<DepartmentDto> =
+        departmentMapper.selectList(QueryWrapper<DepartmentEntity>().orderByAsc("department_id"))
+            .map { it.toDto() }
 
+    @Cacheable(cacheNames = [CacheNames.DEPARTMENT], key = "#id")
     @Transactional(readOnly = true)
-    fun find(id: Int): Pair<DepartmentDto, Boolean> =
-        cache.withCache(CacheNames.department(id), DepartmentDto::class.java) {
-            departmentMapper.selectById(id)?.toDto()
-                ?: throw ApiException.notFound("department not found")
-        }
+    fun find(id: Int): DepartmentDto =
+        departmentMapper.selectById(id)?.toDto()
+            ?: throw ApiException.notFound("department not found")
 
+    @CacheEvict(
+        cacheNames = [CacheNames.DEPARTMENTS, CacheNames.OVERVIEW],
+        allEntries = true,
+    )
     @Transactional
-    fun create(body: DepartmentCreateRequest): DepartmentDto {
-        validateCreate(body)
+    fun create(@Valid body: DepartmentCreateRequest): DepartmentDto {
         val entity = DepartmentEntity().apply {
             departmentId = body.departmentId
             departmentName = body.departmentName
@@ -51,16 +54,23 @@ class DepartmentService(
             log.warn("department create conflict: {}", e.message)
             throw ApiException.conflict("create failed")
         }
-        val created = departmentMapper.selectById(body.departmentId)?.toDto()
+        return departmentMapper.selectById(body.departmentId)?.toDto()
             ?: error("department insert missing row")
-        cache.invalidateAfterCommit(listOf(CacheNames.DEPARTMENTS, CacheNames.OVERVIEW))
-        return created
     }
 
+    @CacheEvict(
+        cacheNames = [
+            CacheNames.DEPARTMENTS,
+            CacheNames.DEPARTMENT,
+            CacheNames.EMPLOYEE,
+            CacheNames.EMPLOYEE_DETAILS,
+            CacheNames.EMP_DETAILS,
+            CacheNames.OVERVIEW,
+        ],
+        allEntries = true,
+    )
     @Transactional
-    fun update(id: Int, patch: DepartmentUpdateRequest): DepartmentDto {
-        if (!patch.hasUpdates()) throw ApiException.badRequest("no fields to update")
-        validateUpdate(patch)
+    fun update(id: Int, @Valid patch: DepartmentUpdateRequest): DepartmentDto {
         if (departmentMapper.selectById(id) == null) {
             throw ApiException.notFound("department not found")
         }
@@ -74,25 +84,8 @@ class DepartmentService(
             log.warn("department update conflict: {}", e.message)
             throw ApiException.conflict("update failed")
         }
-        val updated = departmentMapper.selectById(id)?.toDto()
+        return departmentMapper.selectById(id)?.toDto()
             ?: throw ApiException.notFound("department not found")
-        cache.invalidateAfterCommit(
-            listOf(CacheNames.DEPARTMENTS, CacheNames.department(id), CacheNames.OVERVIEW),
-            listOf(CacheNames.EMPLOYEE_PREFIX, CacheNames.EMP_DETAILS_PREFIX),
-        )
-        return updated
-    }
-
-    private fun validateCreate(body: DepartmentCreateRequest) {
-        if (body.departmentName.isBlank()) throw ApiException.badRequest("departmentName is required")
-        Validation.requireMaxLength(body.departmentName, "departmentName", 30)
-    }
-
-    private fun validateUpdate(patch: DepartmentUpdateRequest) {
-        if (patch.departmentName != null && patch.departmentName.isBlank()) {
-            throw ApiException.badRequest("departmentName must not be blank")
-        }
-        Validation.requireMaxLength(patch.departmentName, "departmentName", 30)
     }
 }
 

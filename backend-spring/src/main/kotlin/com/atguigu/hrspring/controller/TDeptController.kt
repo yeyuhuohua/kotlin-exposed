@@ -26,8 +26,7 @@ class TDeptController(
     @Operation(summary = "t_dept 门派示例表")
     @GetMapping("/api/t-dept")
     fun list(): ResponseEntity<ApiResult<List<TDeptDto>>> {
-        val (data, hit) = tDeptService.list()
-        return cachedOk(data, hit)
+        return cachedOk(tDeptService.list())
     }
 
     @Operation(summary = "新增门派并刷新缓存")

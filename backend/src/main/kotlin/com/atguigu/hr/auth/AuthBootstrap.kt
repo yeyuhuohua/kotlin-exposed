@@ -32,5 +32,6 @@ suspend fun createAuthService(config: ApplicationConfig, database: R2dbcDatabase
         SharedInvalidation(),
         // 当前用户的页面权限码与启用菜单保持同步（菜单模块的运行时数据）
         menuKeys = { MenuService.enabledKeys() },
+        adminUsername = normalizedUsername ?: AuthService.PROTECTED_USERNAME,
     )
 }

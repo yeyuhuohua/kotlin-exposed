@@ -18,6 +18,7 @@ class AuthService(
     private val sharedInvalidation: SharedInvalidation? = null,
     /** 启用菜单的 key 集合（来自菜单模块）；为 null 时当前用户权限不补充页面码。 */
     private val menuKeys: (suspend () -> Set<String>)? = null,
+    private val adminUsername: String = PROTECTED_USERNAME,
 ) {
     suspend fun login(body: LoginRequest): TokenDto {
         val username = body.username.trim().lowercase(Locale.ROOT)
@@ -93,6 +94,8 @@ class AuthService(
         } catch (cause: Exception) {
             if (cause.isConstraintConflict()) throw AuthException(HttpStatusCode.Conflict, "role already exists")
             throw cause
+        } finally {
+            sharedInvalidation?.broadcast()
         }
     }
 
@@ -114,8 +117,8 @@ class AuthService(
 
     suspend fun createUser(body: UserCreateRequest): UserDto {
         val username = normalizeUsername(body.username)
-        // admin 是保留用户名：保护规则按它识别内置管理员，重名账号会无法停用、删除或重置密码
-        if (username == PROTECTED_USERNAME) {
+        // 受保护管理员只能由初始化流程创建，避免普通账号占用保留用户名。
+        if (username == PROTECTED_USERNAME || username.equals(adminUsername.trim(), ignoreCase = true)) {
             throw AuthException(HttpStatusCode.Conflict, "username is reserved", ErrorCode.USERNAME_TAKEN)
         }
         validatePassword(body.password)
@@ -132,6 +135,8 @@ class AuthService(
                 )
             }
             throw cause
+        } finally {
+            sharedInvalidation?.broadcast()
         }
     }
 
@@ -145,7 +150,7 @@ class AuthService(
             )
         }
         val target = store.findById(id) ?: throw AuthException(HttpStatusCode.NotFound, "user not found")
-        if (target.protectedAccount && (body.enabled == false ||
+        if (target.isProtectedAccount() && (body.enabled == false ||
                 (body.roleCode != null && body.roleCode != RoleCode.ADMIN.name) ||
                 (body.password != null && actorId != id))) {
             throw AuthException(
@@ -167,12 +172,12 @@ class AuthService(
     }
 
     /**
-     * 删除账号。内置 admin 账号与当前登录账号都不能删除：
+     * 删除账号。内置及配置的管理员与当前登录账号都不能删除：
      * 前者是管理入口，后者会把自己锁在门外。
      */
     suspend fun deleteUser(actorId: Int, id: Int): Boolean {
         val target = store.findById(id) ?: throw AuthException(HttpStatusCode.NotFound, "user not found")
-        if (target.protectedAccount) {
+        if (target.isProtectedAccount()) {
             throw AuthException(
                 HttpStatusCode.Forbidden,
                 "admin account is protected",
@@ -199,7 +204,12 @@ class AuthService(
         if (code == RoleCode.ADMIN.name) {
             throw AuthException(HttpStatusCode.Forbidden, "ADMIN role is protected", ErrorCode.ROLE_PROTECTED)
         }
-        return store.deleteRole(code)
+        return try {
+            store.deleteRole(code)
+        } finally {
+            userCache.invalidateRole(code)
+            sharedInvalidation?.broadcast()
+        }
     }
 
     /** 退出登录：先吊销令牌（版本 +1），再清掉鉴权缓存里该用户的所有条目。 */
@@ -211,6 +221,9 @@ class AuthService(
             sharedInvalidation?.broadcast()
         }
     }
+
+    private fun AuthUser.isProtectedAccount(): Boolean =
+        protectedAccount || username.equals(adminUsername.trim(), ignoreCase = true)
 
     private suspend fun validateRole(code: String) {
         if (store.listRoles().none { it.code == code && it.enabled }) {

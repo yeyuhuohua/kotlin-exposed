@@ -15,7 +15,9 @@ cp src/main/resources/application.example.yaml src/main/resources/application.ya
 ```
 
 填写 `application.yaml`：数据库密码、至少 32 字节的随机 `hr.auth.jwt-secret`、初始管理员密码。
-该文件已加入忽略规则，不会提交。DSH 调用 MCP 时设置 `hr.mcp.service-token`，并与 `dsh/docker-compose.yml` 的 `HR_MCP_TOKEN` 保持一致。
+该文件已加入忽略规则，构建产物也会排除它。本地入口从源码目录读取配置，工作目录支持仓库根目录或 `backend-spring/`。
+DSH 调用 MCP 时设置 `hr.mcp.service-token`，并与 `dsh/docker-compose.yml` 的 `HR_MCP_TOKEN` 保持一致。
+MCP 固定口令使用 `hr.auth.admin-username` 指定的启用 ADMIN 账号执行工具。
 
 ```sh
 ./gradlew bootRun
@@ -25,8 +27,14 @@ cp src/main/resources/application.example.yaml src/main/resources/application.ya
 - 健康检查：<http://127.0.0.1:8081/api/health>
 - MCP 端点：<http://127.0.0.1:8081/mcp>（管理员 Bearer JWT 或 `hr.mcp.service-token`）
 
+启动成功后，控制台会自动打印 Swagger UI 和 OpenAPI JSON 地址，跟随实际端口与路径配置。
+
 首次启动且 `hr.auth.initialize-schema: true` 时，会自动创建自建表（用户、角色、权限、菜单、审计）
 并播种角色、菜单与初始管理员；HR 业务表沿用 Ktor 版已存在的结构。
+READER 默认权限只在首次创建权限档案时播种，重启不会恢复管理员已移除的授权。
+
+两个后端使用独立缓存值和共享失效版本（`hr:cache:epoch`、`hr:auth:invalidate:epoch`）。
+写入后双方的旧版本缓存均不可再命中；Spring 的旧版本键按 TTL 自然过期。
 
 ## 测试与构建
 
@@ -39,7 +47,7 @@ cp src/main/resources/application.example.yaml src/main/resources/application.ya
 
 ```sh
 ./gradlew bootJar
-java -jar build/libs/backend-spring-0.0.1.jar
+java -jar build/libs/kotlin-spring-0.0.1.jar
 ```
 
 生产环境通过环境变量或外部 `application.yaml`（`--spring.config.additional-location`）注入数据库、

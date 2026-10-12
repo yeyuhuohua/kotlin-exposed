@@ -26,8 +26,7 @@ class TEmpController(
     @Operation(summary = "t_emp 人物示例表")
     @GetMapping("/api/t-emp")
     fun list(): ResponseEntity<ApiResult<List<TEmpDto>>> {
-        val (data, hit) = tEmpService.list()
-        return cachedOk(data, hit)
+        return cachedOk(tEmpService.list())
     }
 
     @Operation(summary = "新增人物并刷新缓存")

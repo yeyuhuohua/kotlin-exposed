@@ -2,7 +2,7 @@ FROM node:22-bookworm-slim
 
 # dsh 版本固定：brand-patch.mjs 精确匹配该版本的第三方源码，升级前必须同步核对补丁。
 RUN apt-get update \
-    && apt-get install --no-install-recommends --yes ca-certificates git socat \
+    && apt-get install --no-install-recommends --yes ca-certificates git \
     && npm install --global @deepseek-ai/dsh@0.2.0-rc.2 pnpm \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir --parents /dsh-home \

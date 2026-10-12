@@ -8,7 +8,7 @@ group = "com.atguigu"
 version = "0.0.1"
 
 application {
-    mainClass.set("io.ktor.server.netty.EngineMain")
+    mainClass.set("com.atguigu.hr.ApplicationKt")
 }
 
 kotlin {
@@ -54,6 +54,7 @@ dependencies {
 }
 
 tasks.processResources {
+    exclude("application.yaml")
     val swaggerUiVersion = libs.swagger.ui.get().version
         ?: error("swagger-ui version is missing from the version catalog")
     filesMatching("static/swagger.html") {

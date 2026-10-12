@@ -19,7 +19,6 @@ class JobGradeController(
     @Operation(summary = "薪资等级")
     @GetMapping
     fun list(): ResponseEntity<ApiResult<List<JobGradeDto>>> {
-        val (items, hit) = jobGradeService.list()
-        return cachedOk(items, hit)
+        return cachedOk(jobGradeService.list())
     }
 }

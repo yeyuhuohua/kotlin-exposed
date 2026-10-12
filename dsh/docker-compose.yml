@@ -9,6 +9,7 @@ services:
       LM_STUDIO_API_KEY: ${LM_STUDIO_API_KEY:-lm-studio}
       HR_MCP_TOKEN: ${HR_MCP_TOKEN:-local-dsh-mcp-token}
       HR_API_BASE: ${HR_API_BASE:-http://host.docker.internal:8081}
+      DSH_SECURE_COOKIE: ${DSH_SECURE_COOKIE:-false}
     volumes:
       - ./home:/dsh-home
     extra_hosts:

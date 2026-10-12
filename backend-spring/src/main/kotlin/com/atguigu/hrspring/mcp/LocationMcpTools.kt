@@ -12,7 +12,7 @@ class LocationMcpTools(
     private val locationService: LocationService,
 ) {
     @McpTool(name = "list_locations", description = "查询全部办公地点，按 locationId 升序返回。无参数。")
-    fun listLocations(): List<LocationDto> = locationService.list().first
+    fun listLocations(): List<LocationDto> = locationService.list()
 
     @McpTool(
         name = "create_location",

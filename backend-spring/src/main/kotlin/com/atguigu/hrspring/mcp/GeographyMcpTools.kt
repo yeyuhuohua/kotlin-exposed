@@ -10,8 +10,8 @@ class GeographyMcpTools(
     private val geographyService: GeographyService,
 ) {
     @McpTool(name = "list_countries", description = "查询全部国家，按 countryId 升序返回。无参数。")
-    fun listCountries(): List<CountryDto> = geographyService.listCountries().first
+    fun listCountries(): List<CountryDto> = geographyService.listCountries()
 
     @McpTool(name = "list_regions", description = "查询全部地区，按 regionId 升序返回。无参数。")
-    fun listRegions(): List<RegionDto> = geographyService.listRegions().first
+    fun listRegions(): List<RegionDto> = geographyService.listRegions()
 }

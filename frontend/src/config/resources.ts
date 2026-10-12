@@ -97,9 +97,9 @@ export const resources: Resource[] = [
       {
         ...text('jobId', '岗位编码', true, 10),
         createOnly: true,
-        // "." 与 ".." 会被浏览器按路径段规范化（/api/jobs/.. → /api/），创建后将无法编辑。
-        pattern: /^(?!\.{1,2}$).+$/,
-        patternMessage: '岗位编码不能是 . 或 ..',
+        // 编码必须能作为单个 URL 路径段，避免创建后被浏览器或服务器拒绝编辑。
+        pattern: /^(?!\.{1,2}$)[^/\\\x00-\x1f\x7f]+$/,
+        patternMessage: '岗位编码不能是 . 或 ..，也不能包含路径分隔符或控制字符',
       },
       text('jobTitle', '岗位名称', true, 35),
       { ...number('minSalary', '最低月薪'), min: 0 },

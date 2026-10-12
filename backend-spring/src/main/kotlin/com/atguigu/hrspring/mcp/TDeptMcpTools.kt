@@ -12,7 +12,7 @@ class TDeptMcpTools(
     private val tDeptService: TDeptService,
 ) {
     @McpTool(name = "list_t_dept", description = "查询 t_dept 门派示例表，返回全部门派。")
-    fun listTDept(): List<TDeptDto> = tDeptService.list().first
+    fun listTDept(): List<TDeptDto> = tDeptService.list()
 
     @McpTool(name = "create_t_dept", description = "新增门派。id 自增，至少填写 deptName 或 address。")
     fun createTDept(

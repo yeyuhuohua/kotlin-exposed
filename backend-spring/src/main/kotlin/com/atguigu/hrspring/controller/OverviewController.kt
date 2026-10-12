@@ -17,7 +17,6 @@ class OverviewController(
     @Operation(summary = "协程并行汇总")
     @GetMapping("/api/overview")
     fun overview(): ResponseEntity<ApiResult<OverviewDto>> {
-        val (data, hit) = overviewService.load()
-        return cachedOk(data, hit)
+        return cachedOk(overviewService.load())
     }
 }

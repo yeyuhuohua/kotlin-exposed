@@ -28,6 +28,7 @@ const departmentId = ref(String(route.query.departmentId || ''))
 const jobId = ref('')
 const page = ref(1)
 const pageSize = ref(10)
+const knownTotal = ref(0)
 const departments = ref<Department[]>([])
 const jobs = ref<Job[]>([])
 const lookupError = ref('')
@@ -61,7 +62,9 @@ watch([page, pageSize, keyword, departmentId, jobId], refresh, { immediate: true
 watch(
   () => data.value?.total,
   (total) => {
-    if (total !== undefined) page.value = Math.min(page.value, Math.max(1, Math.ceil(total / pageSize.value)))
+    if (total === undefined) return
+    knownTotal.value = total
+    page.value = Math.min(page.value, Math.max(1, Math.ceil(total / pageSize.value)))
   },
 )
 watch(
@@ -327,7 +330,7 @@ async function remove() {
       <Pagination
         :page="page"
         :page-size="pageSize"
-        :total="data?.total || 0"
+        :total="data?.total ?? knownTotal"
         :disabled="loading"
         @update:page="page = $event"
         @update:page-size="setPageSize"

@@ -44,12 +44,15 @@ object RedisCache {
 
     /** 原子回填：共享版本令牌未变才写入；返回 1 写入、0 丢弃（其它实例已失效该分组）。 */
     private const val CHECK_AND_SET = """
-local current = redis.call('GET', KEYS[2]) or ''
+local current = (redis.call('GET', KEYS[2]) or '') .. ':' .. (redis.call('GET', KEYS[3]) or '') .. ':' .. (redis.call('GET', KEYS[4]) or '')
 if current ~= ARGV[1] then return 0 end
 redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3])
 return 1
 """
     private val log = LoggerFactory.getLogger(RedisCache::class.java)
+    internal const val SHARED_EPOCH_KEY = "hr:cache:epoch"
+    private const val AUTH_EPOCH_KEY = "hr:auth:invalidate:epoch"
+    private val sharedEpochRetryAt = AtomicLong(0)
     private val json = Json {
         encodeDefaults = true
         ignoreUnknownKeys = true
@@ -214,12 +217,17 @@ return 1
     private suspend fun sharedVersion(group: Group): String? {
         if (System.nanoTime() < group.failNotBefore.get()) return null
         if (group.version.get().dirty && System.nanoTime() < group.recoverNotBefore.get()) return null
-        val outcome = cacheOutcome("version ${group.name}") { RedisFactory.async.get(versionKey(group)).await() }
+        val outcome = cacheOutcome("version ${group.name}") {
+            val own = RedisFactory.async.get(versionKey(group)).await().orEmpty()
+            val shared = RedisFactory.async.get(SHARED_EPOCH_KEY).await().orEmpty()
+            val auth = RedisFactory.async.get(AUTH_EPOCH_KEY).await().orEmpty()
+            "$own:$shared:$auth"
+        }
         if (outcome == null) {
             group.backoffOnFailure()
             return null
         }
-        return outcome.value ?: ""
+        return outcome.value
     }
 
     suspend fun readRaw(key: String): String? {
@@ -255,7 +263,7 @@ return 1
                     RedisFactory.async.eval<Long>(
                         CHECK_AND_SET,
                         ScriptOutputType.INTEGER,
-                        arrayOf(key, versionKey(group)),
+                        arrayOf(key, versionKey(group), SHARED_EPOCH_KEY, AUTH_EPOCH_KEY),
                         sharedSnap,
                         """{"v":"$sharedSnap","d":${encode()}}""",
                         RedisFactory.ttlSeconds.toString(),
@@ -308,6 +316,7 @@ return 1
             if (!before.dirty) return true
             val bumped = cacheOutcome("bump ${group.name}") {
                 RedisFactory.async.set(versionKey(group), newVersionToken()).await()
+                RedisFactory.async.set(SHARED_EPOCH_KEY, newVersionToken()).await()
             } ?: return false
             val keys = group.patterns.flatMap { pattern -> scanKeys(pattern) }
             keys.chunked(DELETE_BATCH).forEach { batch -> RedisFactory.async.del(*batch.toTypedArray()).await() }
@@ -334,6 +343,19 @@ return 1
             cursor = result
         } while (!result.isFinished)
         return keys
+    }
+
+    suspend fun sharedEpoch(): String? {
+        if (System.nanoTime() < sharedEpochRetryAt.get()) return null
+        val result = cacheOutcome("shared epoch") {
+            RedisFactory.async.get(SHARED_EPOCH_KEY).await().orEmpty()
+        }
+        if (result == null) sharedEpochRetryAt.set(System.nanoTime() + RECOVER_BACKOFF_MS * 1_000_000)
+        return result?.value
+    }
+
+    suspend fun broadcastInvalidation() {
+        cacheAttempt("broadcast") { RedisFactory.async.set(SHARED_EPOCH_KEY, newVersionToken()).await() }
     }
 
     private fun ttl(): SetArgs = SetArgs.Builder.ex(RedisFactory.ttlSeconds)

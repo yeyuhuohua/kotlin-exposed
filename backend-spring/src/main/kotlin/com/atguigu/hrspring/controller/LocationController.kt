@@ -27,8 +27,7 @@ class LocationController(
     @Operation(summary = "全部地点")
     @GetMapping
     fun list(): ResponseEntity<ApiResult<List<LocationDto>>> {
-        val (items, hit) = locationService.list()
-        return cachedOk(items, hit)
+        return cachedOk(locationService.list())
     }
 
     @Operation(summary = "新增地点并刷新缓存")

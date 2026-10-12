@@ -1,8 +1,8 @@
 package com.atguigu.hrspring.service
 import com.atguigu.hrspring.common.api.PageParams
 import com.atguigu.hrspring.common.cache.CacheNames
-import com.atguigu.hrspring.common.cache.RedisCache
 import com.atguigu.hrspring.dto.OverviewDto
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 /**
@@ -17,33 +17,32 @@ class OverviewService(
     private val locationService: LocationService,
     private val geographyService: GeographyService,
     private val tEmpService: TEmpService,
-    private val cache: RedisCache,
 ) {
-    fun load(): Pair<OverviewDto, Boolean> =
-        cache.withCache(CacheNames.OVERVIEW, OverviewDto::class.java) {
-            val started = System.nanoTime()
-            val employees = employeeService.list(PageParams(5, 0), null, null, null, false).first
-            val headcount = employeeService.countByDepartment()
-            val salary = employeeService.salarySummary()
-            val departments = departmentService.list().first
-            val jobs = jobService.list().first
-            val locations = locationService.list().first
-            val regions = geographyService.listRegions().first
-            val tEmp = tEmpService.list().first
-            OverviewDto(
-                fetchedWith = "mybatis-plus",
-                elapsedMs = (System.nanoTime() - started) / 1_000_000,
-                employeeTotal = employees.total,
-                departmentCount = departments.size,
-                jobCount = jobs.size,
-                locationCount = locations.size,
-                regionCount = regions.size,
-                tEmpCount = tEmp.size,
-                sampleEmployees = employees.items,
-                departments = departments,
-                regions = regions,
-                departmentHeadcount = headcount,
-                salarySummary = salary,
-            )
-        }
+    @Cacheable(cacheNames = [CacheNames.OVERVIEW], key = "'all'")
+    fun load(): OverviewDto {
+        val started = System.nanoTime()
+        val employees = employeeService.list(PageParams(5, 0), null, null, null, false)
+        val headcount = employeeService.countByDepartment()
+        val salary = employeeService.salarySummary()
+        val departments = departmentService.list()
+        val jobs = jobService.list()
+        val locations = locationService.list()
+        val regions = geographyService.listRegions()
+        val tEmp = tEmpService.list()
+        return OverviewDto(
+            fetchedWith = "mybatis-plus",
+            elapsedMs = (System.nanoTime() - started) / 1_000_000,
+            employeeTotal = employees.total,
+            departmentCount = departments.size,
+            jobCount = jobs.size,
+            locationCount = locations.size,
+            regionCount = regions.size,
+            tEmpCount = tEmp.size,
+            sampleEmployees = employees.items,
+            departments = departments,
+            regions = regions,
+            departmentHeadcount = headcount,
+            salarySummary = salary,
+        )
+    }
 }

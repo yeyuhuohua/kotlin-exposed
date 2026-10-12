@@ -27,6 +27,10 @@ class TokenService(
         verifier = JWT.require(algorithm)
             .withIssuer(auth.issuer)
             .withAudience(auth.audience)
+            .withClaimPresence("exp")
+            .withClaimPresence("iat")
+            .withClaimPresence("sub")
+            .withClaimPresence("ver")
             .build()
     }
 
@@ -49,15 +53,12 @@ class TokenService(
      * 校验通过返回 (userId, tokenVersion);token 无效或缺少必要 claim 返回 null。
      */
     fun verify(token: String): Pair<Int, Int>? {
-        val jwt: DecodedJWT = try {
-            verifier.verify(token)
-        } catch (e: Exception) {
-            return null
-        }
-        val sub = jwt.subject ?: return null
-        val userId = sub.toIntOrNull() ?: return null
-        val ver = jwt.getClaim("ver").takeIf { !it.isNull }?.asInt() ?: return null
-        if (jwt.issuedAt == null) return null
-        return userId to ver
+        return runCatching {
+            val jwt: DecodedJWT = verifier.verify(token)
+            val userId = jwt.subject?.toIntOrNull() ?: return null
+            val ver = jwt.getClaim("ver").asInt() ?: return null
+            if (userId <= 0 || ver < 0 || jwt.issuedAt == null || jwt.expiresAt == null) return null
+            userId to ver
+        }.getOrNull()
     }
 }

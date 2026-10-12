@@ -20,15 +20,13 @@ class GeographyController(
     @Operation(summary = "全部国家")
     @GetMapping("/countries")
     fun countries(): ResponseEntity<ApiResult<List<CountryDto>>> {
-        val (items, hit) = geographyService.listCountries()
-        return cachedOk(items, hit)
+        return cachedOk(geographyService.listCountries())
     }
 
     @Tag(name = "regions")
     @Operation(summary = "全部地区")
     @GetMapping("/regions")
     fun regions(): ResponseEntity<ApiResult<List<RegionDto>>> {
-        val (items, hit) = geographyService.listRegions()
-        return cachedOk(items, hit)
+        return cachedOk(geographyService.listRegions())
     }
 }

@@ -1,7 +1,9 @@
 package com.atguigu.hrspring.audit
 
-import com.atguigu.hrspring.auth.CurrentUserHolder
+import com.atguigu.hrspring.auth.AuthUser
+import com.atguigu.hrspring.auth.JwtAuthFilter
 import com.atguigu.hrspring.common.api.ClientIp
+import com.atguigu.hrspring.common.api.applicationPath
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -23,24 +25,34 @@ class AuditFilterConfig(
     @Bean
     fun auditFilter(): FilterRegistrationBean<OncePerRequestFilter> {
         val filter = object : OncePerRequestFilter() {
+            override fun shouldNotFilter(request: HttpServletRequest): Boolean {
+                val path = request.applicationPath()
+                return !path.startsWith("/api/") || path == "/api/health"
+            }
+
             override fun doFilterInternal(
                 request: HttpServletRequest,
                 response: HttpServletResponse,
                 chain: FilterChain,
             ) {
                 val started = System.nanoTime()
+                var failed = false
                 try {
                     chain.doFilter(request, response)
+                } catch (e: Exception) {
+                    failed = true
+                    throw e
                 } finally {
                     runCatching {
-                        val user = CurrentUserHolder.get()
+                        val user = request.getAttribute(JwtAuthFilter.AUTHENTICATED_USER) as? AuthUser
                         auditService.recordApiCall(
                             userId = user?.id,
                             username = user?.username,
                             method = request.method,
                             path = request.requestURI,
                             queryString = request.queryString?.takeIf { it.isNotBlank() },
-                            statusCode = response.status,
+                            // 未处理异常的 500 由容器在过滤链退出后设置，此处响应可能仍是 200。
+                            statusCode = if (failed && !response.isCommitted) 500 else response.status,
                             durationMs = (System.nanoTime() - started) / 1_000_000,
                             ip = clientIp.resolve(request),
                             userAgent = request.getHeader("User-Agent"),
@@ -51,8 +63,8 @@ class AuditFilterConfig(
             }
         }
         return FilterRegistrationBean<OncePerRequestFilter>(filter).apply {
-            addUrlPatterns("/api/*")
-            order = Int.MAX_VALUE
+            addUrlPatterns("/*")
+            order = -10
         }
     }
 }

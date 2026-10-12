@@ -12,7 +12,7 @@ class MenuMcpTools(
     private val menuService: MenuService,
 ) {
     @McpTool(name = "list_menus", description = "查询全部菜单，包含已停用的菜单。")
-    fun listMenus(): List<MenuDto> = menuService.list().first
+    fun listMenus(): List<MenuDto> = menuService.list()
 
     @McpTool(name = "create_menu", description = "新增菜单。key 与路径全局唯一，adminOnly 创建后不可再改。")
     fun createMenu(

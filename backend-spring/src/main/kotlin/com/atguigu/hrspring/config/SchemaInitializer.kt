@@ -8,6 +8,9 @@ import org.springframework.boot.ApplicationRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
+import java.util.Locale
 
 @Configuration
 class SchemaInitializer {
@@ -16,6 +19,7 @@ class SchemaInitializer {
     fun schemaInitializerRunner(
         jdbcTemplate: JdbcTemplate,
         passwordHasher: PasswordHasher,
+        transactionManager: PlatformTransactionManager,
         @Value("\${hr.auth.initialize-schema:false}") initializeSchema: Boolean,
         @Value("\${hr.auth.admin-username:}") adminUsername: String,
         @Value("\${hr.auth.admin-password:}") adminPassword: String,
@@ -25,10 +29,15 @@ class SchemaInitializer {
             error("hr.auth.admin-username and hr.auth.admin-password must be set when schema initialization is enabled")
         }
         CREATE_TABLES.forEach(jdbcTemplate::execute)
-        seedRoles(jdbcTemplate)
-        seedMenus(jdbcTemplate)
-        seedReaderGrants(jdbcTemplate)
-        seedAdmin(jdbcTemplate, passwordHasher, adminUsername, adminPassword)
+        TransactionTemplate(transactionManager).executeWithoutResult {
+            seedRoles(jdbcTemplate)
+            seedMenus(jdbcTemplate)
+            val created = jdbcTemplate.update(
+                "INSERT IGNORE INTO auth_role_permission_profiles (role_code, revision) VALUES ('READER', 0)",
+            )
+            if (created > 0) seedReaderGrants(jdbcTemplate)
+            seedAdmin(jdbcTemplate, passwordHasher, adminUsername.trim().lowercase(Locale.ROOT), adminPassword)
+        }
     }
 
     private fun seedRoles(jdbcTemplate: JdbcTemplate) {
@@ -36,7 +45,7 @@ class SchemaInitializer {
             "INSERT IGNORE INTO auth_roles (code, name, enabled) VALUES ('ADMIN', 'Administrator', 1), ('READER', 'Read only', 1)",
         )
         jdbcTemplate.update(
-            "INSERT IGNORE INTO auth_role_permission_profiles (role_code, revision) VALUES ('ADMIN', 0), ('READER', 0)",
+            "INSERT IGNORE INTO auth_role_permission_profiles (role_code, revision) VALUES ('ADMIN', 0)",
         )
     }
 

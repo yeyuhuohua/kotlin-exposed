@@ -1,5 +1,10 @@
 package com.atguigu.hrspring.dto
-import com.atguigu.hrspring.common.api.Validation.codePointLength
+
+import jakarta.validation.Constraint
+import jakarta.validation.ConstraintValidator
+import jakarta.validation.ConstraintValidatorContext
+import jakarta.validation.Payload
+import kotlin.reflect.KClass
 
 /** 菜单管理接口的完整记录，对应前端 MenuItem。 */
 data class MenuDto(
@@ -37,6 +42,7 @@ data class MenuPermissionDto(
 )
 
 /** 新增菜单。adminOnly 创建后不可再改。 */
+@ValidMenuCreate
 data class MenuCreateRequest(
     val key: String,
     val title: String,
@@ -51,6 +57,7 @@ data class MenuCreateRequest(
 }
 
 /** 整体替换可编辑字段。adminOnly 与 builtin 不在请求里。 */
+@ValidMenuUpdate
 data class MenuUpdateRequest(
     val title: String,
     val path: String,
@@ -62,6 +69,8 @@ data class MenuUpdateRequest(
     fun contentError(): String? = menuPayloadError(title, path, icon, group, sort)
 }
 
+private fun String.codePointLength(): Int = codePointCount(0, length)
+
 private val menuKeyPattern = Regex("[a-z][a-z0-9-]{1,39}")
 private val menuPathPattern = Regex("/([a-z0-9_-]+(/[a-z0-9_-]+)*)?")
 private val menuIconPattern = Regex("[A-Za-z][A-Za-z0-9]{0,39}")
@@ -69,6 +78,56 @@ private val menuIconPattern = Regex("[A-Za-z][A-Za-z0-9]{0,39}")
 /** 前端静态路由占用的名字与路径，菜单不能抢占。 */
 private val reservedMenuKeys = setOf("login", "app", "account", "forbidden")
 private val reservedMenuPaths = setOf("/login", "/account", "/forbidden")
+
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.RUNTIME)
+@Constraint(validatedBy = [MenuCreateValidator::class])
+annotation class ValidMenuCreate(
+    val message: String = "invalid menu",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = [],
+)
+
+class MenuCreateValidator : ConstraintValidator<ValidMenuCreate, MenuCreateRequest> {
+    override fun isValid(value: MenuCreateRequest?, context: ConstraintValidatorContext): Boolean {
+        val message = value?.contentError() ?: return true
+        context.disableDefaultConstraintViolation()
+        context.buildConstraintViolationWithTemplate(message).addConstraintViolation()
+        return false
+    }
+}
+
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.RUNTIME)
+@Constraint(validatedBy = [MenuUpdateValidator::class])
+annotation class ValidMenuUpdate(
+    val message: String = "invalid menu",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = [],
+)
+
+class MenuUpdateValidator : ConstraintValidator<ValidMenuUpdate, MenuUpdateRequest> {
+    override fun isValid(value: MenuUpdateRequest?, context: ConstraintValidatorContext): Boolean {
+        val message = value?.contentError() ?: return true
+        context.disableDefaultConstraintViolation()
+        context.buildConstraintViolationWithTemplate(message).addConstraintViolation()
+        return false
+    }
+}
+
+@Target(AnnotationTarget.VALUE_PARAMETER)
+@Retention(AnnotationRetention.RUNTIME)
+@Constraint(validatedBy = [MenuKeyValidator::class])
+annotation class MenuKey(
+    val message: String = "invalid menu key",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = [],
+)
+
+class MenuKeyValidator : ConstraintValidator<MenuKey, String> {
+    override fun isValid(value: String?, context: ConstraintValidatorContext): Boolean =
+        value != null && menuKeyError(value) == null
+}
 
 internal fun menuKeyError(key: String): String? {
     if (!menuKeyPattern.matches(key)) {

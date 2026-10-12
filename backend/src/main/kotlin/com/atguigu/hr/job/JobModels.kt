@@ -47,7 +47,7 @@ data class JobUpdateRequest(
 @Serializable
 @JsonSchema.Description("新增岗位，jobId 必填")
 data class JobCreateRequest(
-    @JsonSchema.Description("岗位编码，主键，例如 KT_DEV")
+    @JsonSchema.Description("岗位编码，主键，例如 KT_DEV；不能是 . 或 ..，不能包含路径分隔符或控制字符")
     val jobId: String,
     @JsonSchema.Description("岗位名称，必填")
     val jobTitle: String,
@@ -60,6 +60,8 @@ data class JobCreateRequest(
         jobId.isBlank() || jobTitle.isBlank() -> "jobId and jobTitle are required"
         // "." 与 ".." 会被客户端按路径段规范化，创建后 /jobs/{id} 将永远到不了更新接口
         jobId == "." || jobId == ".." -> "jobId must not be '.' or '..'"
+        jobId.any { it == '/' || it == '\\' || it.code < 32 || it.code == 127 } ->
+            "jobId must not contain path separators or control characters"
         jobId.exceedsMaxLength(10) -> "jobId must be at most 10 characters"
         jobTitle.exceedsMaxLength(35) -> "jobTitle must be at most 35 characters"
         minSalary != null && minSalary < 0 -> "minSalary must be non-negative"

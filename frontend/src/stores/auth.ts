@@ -19,6 +19,8 @@ export const useAuth = defineStore('auth', () => {
   const canApi = (method: string, path: string) => allowsApi(user.value, method, path)
   let initialized: Promise<void> | undefined
   let pagesLoaded: Promise<void> | undefined
+  let pagesGeneration = 0
+  let userGeneration = 0
   let expiryTimer: ReturnType<typeof setTimeout> | undefined
   /** 上一次拉取 /auth/me 的时间，用于避免每次路由跳转都请求一次。 */
   let refreshedAt = 0
@@ -27,6 +29,8 @@ export const useAuth = defineStore('auth', () => {
     user.value = null
     pages.value = []
     pagesLoaded = undefined
+    pagesGeneration++
+    userGeneration++
     refreshedAt = 0
     clearTimeout(expiryTimer)
   }
@@ -44,10 +48,11 @@ export const useAuth = defineStore('auth', () => {
       initialized = (async () => {
         const token = readSession()?.token
         if (!token) return
+        const generation = ++userGeneration
         try {
           const fresh = await api<User>(authPaths.me)
-          // 请求期间已切换账号：旧会话的结果不能覆盖新身份。
-          if (readSession()?.token !== token) return
+          // 换账号或发起了更新的身份请求后，旧响应不能覆盖新身份。
+          if (readSession()?.token !== token || generation !== userGeneration) return
           user.value = fresh
           refreshedAt = Date.now()
           scheduleExpiry()
@@ -55,7 +60,9 @@ export const useAuth = defineStore('auth', () => {
           if (readSession()?.token !== token) return
           // 只有 401 说明会话真的失效；网络抖动或后端重启时保留会话，允许下次导航重试。
           if (error instanceof ApiError && error.status === 401) return clear()
-          initialized = undefined
+        } finally {
+          // 恢复响应过时且更新的刷新也失败时，下一次导航仍需重试恢复。
+          if (readSession()?.token === token && !user.value) initialized = undefined
         }
       })()
     await initialized
@@ -63,22 +70,24 @@ export const useAuth = defineStore('auth', () => {
   /** 拉取后端下发的页面清单；失败时重置加载状态，下次导航自动重试。 */
   async function loadPages(options: { force?: boolean } = {}) {
     if (options.force) pagesLoaded = undefined
-    if (!pagesLoaded)
+    if (!pagesLoaded) {
+      const generation = ++pagesGeneration
       pagesLoaded = (async () => {
         const token = readSession()?.token
         if (!token) return
         try {
           const result = await api<PageRoute[]>(authPaths.routes)
           // 请求期间已切换账号：旧会话的页面清单不能覆盖新会话。
-          if (readSession()?.token !== token) return
+          if (readSession()?.token !== token || generation !== pagesGeneration) return
           pages.value = result
         } catch (error) {
-          if (readSession()?.token !== token) return
+          if (readSession()?.token !== token || generation !== pagesGeneration) return
           pagesLoaded = undefined
           if (error instanceof ApiError && error.status === 401) return
           throw error
         }
       })()
+    }
     await pagesLoaded
   }
   async function login(username: string, password: string) {
@@ -91,6 +100,8 @@ export const useAuth = defineStore('auth', () => {
     user.value = result.user
     pages.value = []
     pagesLoaded = undefined
+    pagesGeneration++
+    userGeneration++
     refreshedAt = Date.now()
     initialized = Promise.resolve()
     scheduleExpiry()
@@ -106,12 +117,14 @@ export const useAuth = defineStore('auth', () => {
     const token = readSession()?.token
     if (!token) return
     if (!options.force && Date.now() - refreshedAt < REFRESH_INTERVAL_MS) return
+    const generation = ++userGeneration
     try {
       const fresh = await api<User>(authPaths.me)
-      // 请求期间已切换账号：旧会话的结果不能覆盖新身份，401 也不能清掉新会话。
-      if (readSession()?.token !== token) return
+      // 同一会话也可能并发刷新：只接受最后发起的身份请求。
+      if (readSession()?.token !== token || generation !== userGeneration) return
       user.value = fresh
       refreshedAt = Date.now()
+      scheduleExpiry()
     } catch (error) {
       // 401 由 hr:unauthorized 事件统一登出；网络错误保留现有用户，下个周期再试。
       if (error instanceof ApiError && error.status === 401 && readSession()?.token === token) clear()

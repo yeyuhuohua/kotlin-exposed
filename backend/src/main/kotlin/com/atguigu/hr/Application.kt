@@ -65,8 +65,14 @@ import kotlinx.serialization.json.Json
 import org.slf4j.event.Level
 import java.util.UUID
 
-/** 由 application.yaml 启动 Netty，入口类为 io.ktor.server.netty.EngineMain。 */
-fun main(args: Array<String>) = EngineMain.main(args)
+/** 本机配置从源码目录读取；部署配置由 -config 指定，不打包本机凭据。 */
+fun main(args: Array<String>) {
+    val localConfig = java.io.File("src/main/resources/application.yaml")
+    val options = if (args.none { it.startsWith("-config=") } && localConfig.isFile) {
+        arrayOf("-config=${localConfig.path}", *args)
+    } else args
+    EngineMain.main(options)
+}
 
 /** 安装插件并挂载路由：文档页、Swagger、HR 查询接口。 */
 fun Application.module() {

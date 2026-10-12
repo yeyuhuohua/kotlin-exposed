@@ -9,5 +9,5 @@ class JobHistoryMcpTools(
     private val jobHistoryService: JobHistoryService,
 ) {
     @McpTool(name = "list_job_history", description = "查询全部任职历史，按员工编号和开始日期升序。")
-    fun listJobHistory(): List<JobHistoryDto> = jobHistoryService.list().first
+    fun listJobHistory(): List<JobHistoryDto> = jobHistoryService.list()
 }

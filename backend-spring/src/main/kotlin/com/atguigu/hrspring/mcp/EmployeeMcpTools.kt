@@ -4,6 +4,7 @@ import com.atguigu.hrspring.common.api.pageParams
 import com.atguigu.hrspring.dto.EmployeeCreateRequest
 import com.atguigu.hrspring.dto.EmployeeDetailDto
 import com.atguigu.hrspring.dto.EmployeeDto
+import com.atguigu.hrspring.dto.EmployeePatch
 import com.atguigu.hrspring.dto.EmployeeUpdateRequest
 import com.atguigu.hrspring.service.EmployeeService
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -35,12 +36,12 @@ class EmployeeMcpTools(
         jobId,
         q,
         unassignedOnly == true,
-    ).first
+    )
 
     @McpTool(name = "get_employee", description = "按主键查询员工。")
     fun getEmployee(
         @McpToolParam(description = "员工主键 employee_id", required = true) id: Int,
-    ): EmployeeDto = employeeService.get(id).first
+    ): EmployeeDto = employeeService.get(id)
 
     @McpTool(
         name = "create_employee",
@@ -101,7 +102,7 @@ class EmployeeMcpTools(
             description = "要修改的字段对象。显式 null 清空可空列，缺省字段不改",
             required = true,
         ) patch: JsonNode,
-    ): EmployeeDto = employeeService.patch(id, objectMapper.readTree(patch.toString()))
+    ): EmployeeDto = employeeService.patch(id, EmployeePatch.parse(objectMapper.readTree(patch.toString())))
 
     @McpTool(name = "delete_employee", description = "删除员工并清除相关缓存。被任职历史等外键引用时会失败。")
     fun deleteEmployee(
@@ -114,11 +115,11 @@ class EmployeeMcpTools(
     @McpTool(name = "get_employee_details", description = "查询员工详情，包含岗位、部门、地点、国家和区域。")
     fun getEmployeeDetails(
         @McpToolParam(description = "员工主键 employee_id", required = true) id: Int,
-    ): EmployeeDetailDto = employeeService.getDetail(id).first
+    ): EmployeeDetailDto = employeeService.getDetail(id)
 
     @McpTool(name = "list_emp_details", description = "分页查询员工详情视图 emp_details_view。视图没有邮箱、电话和入职日期。")
     fun listEmpDetails(
         @McpToolParam(description = "每页条数，默认 50，最大 200", required = false) limit: Int?,
         @McpToolParam(description = "跳过条数，默认 0", required = false) offset: Long?,
-    ): ApiList<EmployeeDetailDto> = employeeService.listDetails(pageParams(limit, offset)).first
+    ): ApiList<EmployeeDetailDto> = employeeService.listDetails(pageParams(limit, offset))
 }

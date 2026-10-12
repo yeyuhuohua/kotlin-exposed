@@ -1,6 +1,8 @@
 package com.atguigu.hrspring.auth
 
 import com.atguigu.hrspring.common.api.ApiException
+import com.atguigu.hrspring.common.api.applicationPath
+import com.atguigu.hrspring.mcp.McpSecurityConfig
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.stereotype.Component
@@ -14,7 +16,8 @@ import org.springframework.web.servlet.HandlerInterceptor
 class PermissionInterceptor : HandlerInterceptor {
 
     override fun preHandle(request: HttpServletRequest, response: HttpServletResponse, handler: Any): Boolean {
-        val path = request.requestURI
+        if (request.getAttribute(McpSecurityConfig.AUTHENTICATED_REQUEST) == true) return true
+        val path = request.applicationPath()
         if (!path.startsWith("/api/")) return true
         if (path == "/api/health" || path == "/api/auth/login") return true
 

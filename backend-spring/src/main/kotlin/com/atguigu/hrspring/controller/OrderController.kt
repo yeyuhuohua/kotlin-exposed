@@ -18,7 +18,6 @@ class OrderController(
     @Operation(summary = "order 表示例数据")
     @GetMapping("/api/orders")
     fun list(): ResponseEntity<ApiResult<List<OrderDto>>> {
-        val (data, hit) = orderService.list()
-        return cachedOk(data, hit)
+        return cachedOk(orderService.list())
     }
 }

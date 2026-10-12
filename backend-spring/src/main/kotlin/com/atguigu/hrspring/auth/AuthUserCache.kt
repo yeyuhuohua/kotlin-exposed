@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicLong
 @Component
 class AuthUserCache(
     properties: com.atguigu.hrspring.config.HrProperties,
+    private val shared: SharedAuthInvalidation? = null,
 ) {
     private val ttlMillis = properties.auth.permissionCacheSeconds * 1000
     private val entries = ConcurrentHashMap<String, Entry>()
@@ -27,6 +28,7 @@ class AuthUserCache(
     val enabled: Boolean get() = ttlMillis > 0
 
     fun get(userId: Int, tokenVersion: Int): AuthUser? {
+        if (shared?.advanced() == true) clearLocal()
         if (!enabled) return null
         val entry = entries["$userId:$tokenVersion"] ?: return null
         if (!entry.fresh) {
@@ -53,10 +55,16 @@ class AuthUserCache(
             entries.keys.removeIf { it.startsWith("$userId:") }
             generation.incrementAndGet()
         }
+        shared?.broadcast()
     }
 
     /** 角色级失效:直接全清,简单且行为安全。 */
     fun invalidateAll() {
+        clearLocal()
+        shared?.broadcast()
+    }
+
+    private fun clearLocal() {
         synchronized(lock) {
             entries.clear()
             generation.incrementAndGet()

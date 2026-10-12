@@ -47,7 +47,7 @@ class AuthMcpTools(
     fun listUsers(
         @McpToolParam(description = "每页条数，默认 50，最大 200", required = false) limit: Int? = null,
         @McpToolParam(description = "跳过条数，默认 0", required = false) offset: Long? = null,
-    ): ApiList<UserDto> = authService.listUsers(limit, offset).first
+    ): ApiList<UserDto> = authService.listUsers(limit, offset)
 
     @McpTool(name = "create_user", description = "创建用户。用户名 3 到 64 位，密码 8 到 128 位。不能使用保留用户名 admin。")
     fun createUser(
@@ -82,7 +82,7 @@ class AuthMcpTools(
     }
 
     @McpTool(name = "list_roles", description = "查询全部角色，按角色编码排序。")
-    fun listRoles(): List<RoleDto> = authService.listRoles().first
+    fun listRoles(): List<RoleDto> = authService.listRoles()
 
     @McpTool(
         name = "create_role",

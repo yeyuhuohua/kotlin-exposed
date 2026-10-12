@@ -12,7 +12,7 @@ class JobMcpTools(
     private val jobService: JobService,
 ) {
     @McpTool(name = "list_jobs", description = "查询全部岗位，按 jobId 升序返回。无参数。")
-    fun listJobs(): List<JobDto> = jobService.list().first
+    fun listJobs(): List<JobDto> = jobService.list()
 
     @McpTool(
         name = "create_job",

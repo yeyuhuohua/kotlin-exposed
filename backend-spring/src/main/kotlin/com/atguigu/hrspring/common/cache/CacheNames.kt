@@ -1,29 +1,74 @@
 package com.atguigu.hrspring.common.cache
 
+import com.atguigu.hrspring.common.api.PageParams
+
 /**
- * Spring 侧缓存键。前缀与 Ktor 的 hr: 分开，两边序列化格式不同，不能共用同一批 key。
+ * Spring Cache 的缓存名。Redis 键再加 `hrs:` 前缀，避免和 Ktor 的 `hr:` 撞车。
+ * 一次清空用 [org.springframework.cache.annotation.CacheEvict.allEntries]。
  */
 object CacheNames {
-    const val JOBS = "hrs:jobs"
-    const val DEPARTMENTS = "hrs:departments"
-    fun department(id: Int) = "hrs:department:$id"
-    const val LOCATIONS = "hrs:locations"
-    const val COUNTRIES = "hrs:countries"
-    const val REGIONS = "hrs:regions"
-    const val JOB_GRADES = "hrs:job-grades"
-    const val JOB_HISTORY_PREFIX = "hrs:job-history:"
-    const val EMPLOYEE_PREFIX = "hrs:employee:"
-    const val EMPLOYEES_PREFIX = "hrs:employees:"
-    const val EMP_DETAILS_PREFIX = "hrs:emp-details:"
-    const val OVERVIEW = "hrs:overview"
-    const val T_DEPT = "hrs:t-dept"
-    const val T_EMP_PREFIX = "hrs:t-emp:"
-    const val ORDERS_PREFIX = "hrs:orders:"
-    const val USERS_PREFIX = "hrs:users:"
-    const val ROLES = "hrs:roles"
-    const val MENUS = "hrs:menus"
+    const val JOBS = "jobs"
+    const val DEPARTMENTS = "departments"
+    const val DEPARTMENT = "department"
+    const val LOCATIONS = "locations"
+    const val COUNTRIES = "countries"
+    const val REGIONS = "regions"
+    const val JOB_GRADES = "job-grades"
+    const val JOB_HISTORY = "job-history"
+    const val EMPLOYEES = "employees"
+    const val EMPLOYEES_BY_DEPT = "employees-by-dept"
+    const val EMPLOYEE = "employee"
+    const val EMPLOYEE_DETAILS = "employee-details"
+    const val EMP_DETAILS = "emp-details"
+    const val OVERVIEW = "overview"
+    const val T_DEPT = "t-dept"
+    const val T_EMP = "t-emp"
+    const val ORDERS = "orders"
+    const val USERS = "users"
+    const val ROLES = "roles"
+    const val MENUS = "menus"
+}
 
-    fun employee(id: Int) = "hrs:employee:$id"
-    fun employeeDetails(id: Int) = "hrs:employee:$id:details"
-    fun employeesDept(departmentId: Int) = "hrs:employees:dept:$departmentId"
+/** 查询串里的分隔符转义，避免不同筛选条件写成同一个缓存键。 */
+object CacheKeys {
+    @JvmStatic
+    fun employees(
+        page: PageParams,
+        departmentId: Int?,
+        jobId: String?,
+        q: String?,
+        unassignedOnly: Boolean,
+    ): String {
+        fun token(value: String?): String = value?.let { "${it.length}:$it" } ?: "N"
+        return listOf(
+            page.limit.toString(),
+            page.offset.toString(),
+            departmentId?.toString() ?: "-",
+            token(jobId),
+            token(q),
+            unassignedOnly.toString(),
+        ).joinToString(":")
+    }
+
+    @JvmStatic
+    fun users(limit: Int?, offset: Long?): String {
+        val size = (limit ?: 50).coerceIn(1, 200)
+        val skip = (offset ?: 0L).coerceAtLeast(0L)
+        return "$size:$skip"
+    }
+}
+
+/** 本请求里第一次缓存读取的命中情况，给 X-Cache。嵌套读取不再覆盖。 */
+object CacheHitMarker {
+    private val hit = ThreadLocal<Boolean?>()
+
+    fun markFirst(value: Boolean) {
+        if (hit.get() == null) hit.set(value)
+    }
+
+    fun current(): Boolean = hit.get() == true
+
+    fun clear() {
+        hit.remove()
+    }
 }

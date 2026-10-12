@@ -34,12 +34,9 @@ cp backend/gradle.properties.example backend/gradle.properties
 跨域部署时同时配置 `cors.allowedHosts`；`auth.loginRateLimit` 段可调整登录失败限流的窗口与阈值（默认开启）。
 这些本地配置已加入忽略规则，仓库只保留不含真实凭据的示例。Gradle 使用 JDK 21；可通过 `JAVA_HOME` 或 IDEA 的 Gradle JVM 设置指定，不应提交本机 JDK 绝对路径。
 
-在一个终端中启动后端：
-
-```sh
-cd backend
-./gradlew run
-```
+在 IntelliJ IDEA 中以 Debug 模式启动 `com.atguigu.hr.ApplicationKt`，工作目录设为 `backend/`。
+入口会读取 `src/main/resources/application.yaml`；构建产物排除此本机配置。
+部署时通过 `-config=/path/to/application.yaml` 指定外部配置。
 
 JWT 密钥和初始管理员配置在 `backend/src/main/resources/application.yaml`。
 现有管理员账号为 `admin`。不要将数据库密码、账号密码或 JWT 签名密钥放入任何 `VITE_*` 变量。

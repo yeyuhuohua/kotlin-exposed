@@ -26,11 +26,10 @@ class JobController(
     @Operation(summary = "全部岗位")
     @GetMapping
     fun list(): ResponseEntity<ApiResult<List<JobDto>>> {
-        val (items, hit) = jobService.list()
-        return cachedOk(items, hit)
+        return cachedOk(jobService.list())
     }
 
-    @Operation(summary = "新增岗位并刷新缓存")
+    @Operation(summary = "新增岗位并刷新缓存", description = "岗位编码不能是 . 或 ..，也不能包含路径分隔符或控制字符。")
     @PostMapping
     fun create(@RequestBody request: JobCreateRequest): ResponseEntity<ApiResult<JobDto>> =
         body(jobService.create(request), "created")

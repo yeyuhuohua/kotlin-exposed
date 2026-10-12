@@ -26,6 +26,7 @@ const employeesTo = computed(() => pagePath(auth.pages, 'employees'))
 const canDetail = computed(
   () =>
     auth.canPage('employees') &&
+    !!employeesTo.value &&
     (auth.canApi('GET', employeesPaths.item) || auth.canApi('GET', employeesPaths.itemDetails)),
 )
 const { data, loading, error, refresh } = useResource(async (signal) => {
@@ -57,7 +58,8 @@ const metrics = computed(() =>
           unit: '人',
           icon: Users,
           color: 'green',
-          route: '/employees',
+          key: 'employees',
+          route: pagePath(auth.pages, 'employees'),
           foot: '员工档案',
         },
         {
@@ -66,7 +68,8 @@ const metrics = computed(() =>
           unit: '个',
           icon: Building2,
           color: 'blue',
-          route: '/departments',
+          key: 'departments',
+          route: departmentsTo.value,
           foot: '组织架构',
         },
         {
@@ -75,7 +78,8 @@ const metrics = computed(() =>
           unit: '个',
           icon: BriefcaseBusiness,
           color: 'amber',
-          route: '/jobs',
+          key: 'jobs',
+          route: pagePath(auth.pages, 'jobs'),
           foot: '岗位目录',
         },
         {
@@ -84,7 +88,8 @@ const metrics = computed(() =>
           unit: '处',
           icon: MapPin,
           color: 'violet',
-          route: '/locations',
+          key: 'locations',
+          route: pagePath(auth.pages, 'locations'),
           foot: `${data.value.overview.regionCount} 个区域`,
         },
       ]
@@ -139,10 +144,10 @@ function departmentName(id: number | null) {
     <template v-if="data && !loading && !error">
       <div class="metrics-grid">
         <component
-          :is="auth.canPage(metric.route) ? RouterLink : 'div'"
+          :is="auth.canPage(metric.key) && metric.route ? RouterLink : 'div'"
           v-for="metric in metrics"
           :key="metric.label"
-          :to="metric.route"
+          :to="metric.route ?? undefined"
           class="metric"
         >
           <div class="metric-label">
@@ -180,7 +185,7 @@ function departmentName(id: number | null) {
               <div>
                 <span class="rank">{{ String(index + 1).padStart(2, '0') }}</span>
                 <component
-                  :is="auth.canPage('employees') ? RouterLink : 'span'"
+                :is="auth.canPage('employees') && employeesTo ? RouterLink : 'span'"
                   :to="
                     department.id === null
                       ? `${employeesTo}?departmentId=none`
@@ -262,7 +267,7 @@ function departmentName(id: number | null) {
           </el-table-column>
           <el-table-column v-if="canDetail" width="65" fixed="right" align="right">
             <template #default="{ row }">
-              <RouterLink :to="`/employees?employeeId=${row.employeeId}`">
+              <RouterLink v-if="employeesTo" :to="{ path: employeesTo, query: { employeeId: row.employeeId } }">
                 <el-button link :icon="ArrowRight" aria-label="查看员工" />
               </RouterLink>
             </template>

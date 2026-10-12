@@ -36,13 +36,13 @@ fun Route.jobRoutes() {
     }.describe {
         summary = "新增岗位并刷新缓存"
         tag("jobs")
-        requestExample(sampleJobCreate, description = "jobId、jobTitle 必填")
+        requestExample(sampleJobCreate, description = "jobId、jobTitle 必填；jobId 不能是 . 或 ..，不能包含路径分隔符或控制字符")
         responseExamples(
             sampleJob.copy(jobId = "KT_DEV", jobTitle = "Kotlin Developer", minSalary = 4000, maxSalary = 9000),
             message = "created",
             okDescription = "创建成功",
             fails = arrayOf(
-                HttpStatusCode.BadRequest to "jobId and jobTitle are required / minSalary must be non-negative / minSalary must not exceed maxSalary",
+                HttpStatusCode.BadRequest to "jobId and jobTitle are required / jobId must not contain path separators or control characters / minSalary must be non-negative / minSalary must not exceed maxSalary",
                 HttpStatusCode.Conflict to "create failed",
             ),
         )

@@ -16,6 +16,7 @@ import RolePermissionEditor from '../src/components/RolePermissionEditor.vue'
 import Modal from '../src/components/Modal.vue'
 import LoginView from '../src/views/LoginView.vue'
 import ResourceView from '../src/views/ResourceView.vue'
+import EmployeesView from '../src/views/EmployeesView.vue'
 import { readSession, saveSession } from '../src/lib/session'
 
 /** 在内存 DOM 中验证组件契约，不读取本机账号、不访问浏览器或真实 API。 */
@@ -38,6 +39,7 @@ vi.mock('../src/stores/auth', () => ({
     isAdmin: true,
     canApi: () => true,
     canPage: mocks.canPage,
+    pages: [],
     home: '/account',
     login: mocks.login,
     clear: mocks.clear,
@@ -185,7 +187,7 @@ describe('Element Plus components', () => {
     })
   })
 
-  it('rejects dot-only job ids that would break the edit path', async () => {
+  it('rejects job ids that would break the edit path', async () => {
     const { resources } = await import('../src/config/resources')
     const jobs = resources.find((resource) => resource.key === 'jobs')!
     const wrapper = mount(RecordDialog, {
@@ -197,7 +199,7 @@ describe('Element Plus components', () => {
     const inputs = wrapper.findAllComponents(ElInput)
     await inputs[1]!.find('input').setValue('Dots')
     // "." 与 ".." 会被浏览器按路径段规范化，创建后 /jobs/{id} 永远到不了更新接口
-    for (const bad of ['.', '..']) {
+    for (const bad of ['.', '..', 'DEV/OPS', 'DEV\\OPS']) {
       await inputs[0]!.find('input').setValue(bad)
       await wrapper.findComponent(ElForm).trigger('submit')
       await flushPromises()
@@ -451,5 +453,34 @@ describe('Element Plus components', () => {
     expect(mocks.api).toHaveBeenCalledTimes(3)
     expect(String(mocks.api.mock.calls[2]?.[0])).toContain('offset=20')
     expect(wrapper.text()).not.toContain('列表加载失败')
+  })
+
+  it('员工翻页失败时保留页码并在原页重试', async () => {
+    let listRequests = 0
+    mocks.api.mockImplementation((path: string) => {
+      if (!path.startsWith('/employees?')) return Promise.resolve([])
+      listRequests++
+      if (listRequests === 2) return Promise.reject(new Error('员工加载失败'))
+      return Promise.resolve({ total: 40, items: [] })
+    })
+    const wrapper = mount(EmployeesView, options)
+    mounted.push(wrapper)
+    await flushPromises()
+
+    wrapper.findComponent(Pagination).vm.$emit('update:page', 2)
+    await flushPromises()
+    await flushPromises()
+
+    expect(listRequests).toBe(2)
+    expect(wrapper.text()).toContain('员工加载失败')
+    expect(wrapper.findComponent(ElPagination).props('currentPage')).toBe(2)
+    expect(wrapper.findComponent(ElPagination).props('total')).toBe(40)
+
+    await wrapper.get('button.secondary').trigger('click')
+    await flushPromises()
+    expect(listRequests).toBe(3)
+    const requests = mocks.api.mock.calls.filter(([path]) => String(path).startsWith('/employees?'))
+    expect(String(requests[2]?.[0])).toContain('offset=10')
+    expect(wrapper.text()).not.toContain('员工加载失败')
   })
 })

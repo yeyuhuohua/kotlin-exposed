@@ -15,12 +15,12 @@ class DepartmentMcpTools(
     private val employeeService: EmployeeService,
 ) {
     @McpTool(name = "list_departments", description = "查询全部部门，按 departmentId 升序返回。无参数。")
-    fun listDepartments(): List<DepartmentDto> = departmentService.list().first
+    fun listDepartments(): List<DepartmentDto> = departmentService.list()
 
     @McpTool(name = "get_department", description = "按 departmentId 查询单个部门。部门不存在时报 department not found。")
     fun getDepartment(
         @McpToolParam(description = "部门主键 department_id，例如 90") departmentId: Int,
-    ): DepartmentDto = departmentService.find(departmentId).first
+    ): DepartmentDto = departmentService.find(departmentId)
 
     @McpTool(
         name = "create_department",
@@ -46,5 +46,5 @@ class DepartmentMcpTools(
     )
     fun listDepartmentEmployees(
         @McpToolParam(description = "部门主键 department_id") departmentId: Int,
-    ): List<EmployeeDto> = employeeService.listByDepartment(departmentId).first
+    ): List<EmployeeDto> = employeeService.listByDepartment(departmentId)
 }

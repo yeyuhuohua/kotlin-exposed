@@ -1,6 +1,9 @@
 package com.atguigu.hrspring.dto
-import com.atguigu.hrspring.common.api.ApiException
-import com.atguigu.hrspring.common.api.Validation.requireMaxLength
+
+import com.atguigu.hrspring.common.validation.CodePointSize
+import com.fasterxml.jackson.annotation.JsonIgnore
+import jakarta.validation.constraints.AssertTrue
+import jakarta.validation.constraints.Min
 
 /** t_emp，示例人物表。 */
 data class TEmpDto(
@@ -13,32 +16,24 @@ data class TEmpDto(
 
 /** PUT /api/t-emp/{id}，只提交要改的字段。年龄省略或 0 合法，负数拒绝。 */
 data class TEmpUpdateRequest(
+    @field:CodePointSize(max = 20, message = "name must be at most 20 characters")
     val name: String? = null,
+    @field:Min(value = 0, message = "age must be non-negative")
     val age: Int? = null,
     val deptId: Int? = null,
     val empno: Int? = null,
 ) {
+    @JsonIgnore
+    @AssertTrue(message = "no fields to update")
     fun hasUpdates(): Boolean = name != null || age != null || deptId != null || empno != null
-
-    fun validate() {
-        requireMaxLength(name, "name", 20)
-        if (age != null && age < 0) {
-            throw ApiException.badRequest("age must be non-negative")
-        }
-    }
 }
 
 /** POST /api/t-emp，id 自增，empno 必填。年龄省略或 0 合法，负数拒绝。 */
 data class TEmpCreateRequest(
+    @field:CodePointSize(max = 20, message = "name must be at most 20 characters")
     val name: String? = null,
+    @field:Min(value = 0, message = "age must be non-negative")
     val age: Int? = null,
     val deptId: Int? = null,
     val empno: Int,
-) {
-    fun validate() {
-        requireMaxLength(name, "name", 20)
-        if (age != null && age < 0) {
-            throw ApiException.badRequest("age must be non-negative")
-        }
-    }
-}
+)

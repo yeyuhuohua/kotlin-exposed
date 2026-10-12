@@ -274,7 +274,7 @@ function saved() {
         >
           <template #default="{ row }">
             <div class="row-actions">
-              <RouterLink v-if="canLinkEmployees" :to="`/employees?departmentId=${row.departmentId}`">
+              <RouterLink v-if="canLinkEmployees && employeesTo" :to="{ path: employeesTo, query: { departmentId: row.departmentId } }">
                 <el-button link :icon="ArrowUpRight" aria-label="查看部门员工" title="查看部门员工" />
               </RouterLink>
               <el-button

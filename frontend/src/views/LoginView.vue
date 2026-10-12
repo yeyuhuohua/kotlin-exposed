@@ -44,14 +44,15 @@ async function submit() {
     form.password = ''
     const target = typeof route.query.redirect === 'string' ? route.query.redirect : auth.home
     // 不跳转到外部地址，也不返回已失去页面权限的旧地址。
-    await router.replace(
-      target.startsWith('/') &&
-        !target.startsWith('//') &&
-        !target.startsWith('/login') &&
-        auth.canPage(router.resolve(target).path)
-        ? target
-        : auth.home,
-    )
+    const local =
+      target.startsWith('/') && !target.startsWith('//') && !/[\u0000-\u001f\u007f\\]/.test(target)
+    const path = local ? router.resolve(target).path : ''
+    // 登录后的动态路由尚未注册，按已加载的菜单清单把路径映射回权限 key。
+    const page = auth.pages.find((page) => page.path === path)
+    const allowed = page
+      ? (!page.adminOnly || auth.isAdmin) && auth.canPage(page.key)
+      : ['/account', '/forbidden'].includes(path) && auth.canPage(path)
+    await router.replace(local && allowed ? target : auth.home)
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '登录失败'
   } finally {

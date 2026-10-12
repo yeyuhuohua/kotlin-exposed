@@ -2,12 +2,15 @@ package com.atguigu.hrspring.auth
 
 import com.atguigu.hrspring.common.api.ApiResult
 import com.atguigu.hrspring.common.api.ErrorCode
+import com.atguigu.hrspring.common.api.applicationPath
+import com.atguigu.hrspring.mcp.McpSecurityConfig
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
+import org.springframework.core.annotation.Order
 import org.springframework.web.filter.OncePerRequestFilter
 
 /**
@@ -15,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter
  * 未携带 token 放行给权限拦截器决定(同样 401),保证一处响应一处审计。
  */
 @Component
+@Order(100)
 class JwtAuthFilter(
     private val tokenService: TokenService,
     private val userLoader: AuthUserLoader,
@@ -22,7 +26,8 @@ class JwtAuthFilter(
 ) : OncePerRequestFilter() {
 
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
-        val path = request.requestURI
+        if (request.getAttribute(McpSecurityConfig.AUTHENTICATED_REQUEST) == true) return true
+        val path = request.applicationPath()
         if (!path.startsWith("/api/")) return true
         return path == "/api/health" || path == "/api/auth/login"
     }
@@ -34,7 +39,7 @@ class JwtAuthFilter(
     ) {
         try {
             val header = request.getHeader("Authorization")
-            val token = header?.takeIf { it.startsWith("Bearer ") }?.substring(7)?.trim()
+            val token = header?.takeIf { it.startsWith("Bearer ", ignoreCase = true) }?.substring(7)?.trim()
             if (token != null) {
                 val claims = tokenService.verify(token)
                 val user = claims?.let { (id, ver) -> userLoader.loadActiveUser(id, ver) }
@@ -43,6 +48,7 @@ class JwtAuthFilter(
                     return
                 }
                 CurrentUserHolder.set(user)
+                request.setAttribute(AUTHENTICATED_USER, user)
             }
             chain.doFilter(request, response)
         } finally {
@@ -57,5 +63,9 @@ class JwtAuthFilter(
         response.characterEncoding = "UTF-8"
         val body = ApiResult<Nothing>(401, "authentication required", null, ErrorCode.UNAUTHORIZED)
         response.writer.write(objectMapper.writeValueAsString(body))
+    }
+
+    companion object {
+        const val AUTHENTICATED_USER = "hrs.authenticatedUser"
     }
 }

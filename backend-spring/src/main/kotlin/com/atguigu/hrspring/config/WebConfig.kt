@@ -1,6 +1,7 @@
 package com.atguigu.hrspring.config
 
 import com.atguigu.hrspring.auth.PermissionInterceptor
+import com.atguigu.hrspring.common.api.applicationPath
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -50,6 +51,9 @@ class WebConfig(
     @Bean
     fun securityHeadersFilter(): FilterRegistrationBean<OncePerRequestFilter> {
         val filter = object : OncePerRequestFilter() {
+            override fun shouldNotFilter(request: HttpServletRequest): Boolean =
+                !request.applicationPath().startsWith("/api/")
+
             override fun doFilterInternal(
                 request: HttpServletRequest,
                 response: HttpServletResponse,
@@ -62,7 +66,7 @@ class WebConfig(
             }
         }
         return FilterRegistrationBean<OncePerRequestFilter>(filter).apply {
-            addUrlPatterns("/api/*")
+            addUrlPatterns("/*")
             order = Integer.MIN_VALUE
         }
     }

@@ -8,6 +8,17 @@ import kotlin.test.assertNull
 
 class TokenServiceTest {
 
+    @Test
+    fun `缺少过期时间或 claim 类型错误的签名 token 被拒绝`() {
+        val base = com.auth0.jwt.JWT.create()
+            .withIssuer("hr-api").withAudience("hr-api-client")
+            .withSubject("7").withIssuedAt(java.time.Instant.now())
+        val algorithm = com.auth0.jwt.algorithms.Algorithm.HMAC256("a".repeat(32))
+        assertNull(service().verify(base.withClaim("ver", 0).sign(algorithm)))
+        assertNull(service().verify(base.withExpiresAt(java.time.Instant.now().plusSeconds(60))
+            .withClaim("ver", "invalid").sign(algorithm)))
+    }
+
     private fun service(
         jwtSecret: String = "a".repeat(32),
         issuer: String = "hr-api",

@@ -108,8 +108,7 @@ class AuthController(
         @Parameter(description = "跳过条数，默认 0")
         @RequestParam(required = false) offset: Long?,
     ): ResponseEntity<ApiResult<ApiList<UserDto>>> {
-        val (data, hit) = authService.listUsers(limit, offset)
-        return noStore(cachedOk(data, hit))
+        return noStore(cachedOk(authService.listUsers(limit, offset)))
     }
 
     @Operation(summary = "创建用户（仅 ADMIN；不提供公开注册）")
@@ -143,8 +142,7 @@ class AuthController(
     @Operation(summary = "查询角色列表（仅 ADMIN）")
     @GetMapping("/roles")
     fun listRoles(): ResponseEntity<ApiResult<List<RoleDto>>> {
-        val (data, hit) = authService.listRoles()
-        return cachedOk(data, hit)
+        return cachedOk(authService.listRoles())
     }
 
     @Operation(summary = "创建角色（仅 ADMIN；初始业务权限为空）")

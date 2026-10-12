@@ -26,8 +26,7 @@ class MenuController(
     @Operation(summary = "查询全部菜单（含停用，仅 ADMIN）；当前用户可见菜单用 GET /api/auth/routes")
     @GetMapping("/api/menus")
     fun list(): ResponseEntity<ApiResult<List<MenuDto>>> {
-        val (data, hit) = menuService.list()
-        return cachedOk(data, hit)
+        return cachedOk(menuService.list())
     }
 
     @Operation(summary = "新增菜单（仅 ADMIN）；key 与路径全局唯一，adminOnly 创建后不可再改")

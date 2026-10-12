@@ -23,6 +23,8 @@ dependencyManagement {
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.ai:spring-ai-starter-mcp-server-webmvc")
 
@@ -31,6 +33,7 @@ dependencies {
 
     implementation("com.auth0:java-jwt:4.6.1")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
@@ -45,4 +48,8 @@ tasks.test {
     testLogging {
         events("passed", "failed", "skipped")
     }
+}
+
+tasks.processResources {
+    exclude("application.yaml")
 }
