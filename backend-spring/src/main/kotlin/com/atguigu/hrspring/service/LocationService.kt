@@ -83,7 +83,7 @@ class LocationService(
 }
 
 private fun LocationEntity.toDto() = LocationDto(
-    locationId = locationId,
+    locationId = checkNotNull(locationId),
     streetAddress = streetAddress,
     postalCode = postalCode,
     city = city,

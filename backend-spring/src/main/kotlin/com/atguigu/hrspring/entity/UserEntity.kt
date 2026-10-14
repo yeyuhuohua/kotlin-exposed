@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableName
 @TableName("auth_users")
 class UserEntity {
     @TableId(value = "id", type = IdType.AUTO)
-    var id: Int = 0
+    var id: Int? = null
     var username: String = ""
     var passwordHash: String = ""
     var roleCode: String = ""

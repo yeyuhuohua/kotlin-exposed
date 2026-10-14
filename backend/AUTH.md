@@ -1,5 +1,8 @@
 # 认证与权限管理
 
+本文件描述两个后端共享的权限模型，以及 Ktor 后端的配置与初始化流程。
+命令与配置路径均相对于 `backend/`；Spring 的配置键、初始化和 MCP 说明见 [Spring 指南](../backend-spring/README.md)。
+
 ## 数据表与权限规则
 
 认证模块使用以下数据表，与员工表 `employees` 相互独立：
@@ -22,7 +25,7 @@
 
 公开入口包括 `POST /api/auth/login`、`GET /api/health`，以及文档页面和静态资源。
 其余现有 HR 业务接口和演示接口均需要 Bearer Token。
-CORS 默认只允许 `localhost` 与 `127.0.0.1`，跨域部署需在 `application.yaml` 的 `cors.allowedHosts` 中显式列出域名。
+CORS 默认只允许本机回环来源（`localhost`、`127.0.0.1`、`::1`），跨域部署需在 `application.yaml` 的 `cors.allowedHosts` 中显式列出域名。
 
 ## 首次启动
 
@@ -33,7 +36,8 @@ JWT 签名密钥和可选的初始管理员写在 `src/main/resources/applicatio
 - `auth.jwtSecret`：至少 32 字节，用来签发和校验登录 Token
 - `auth.adminUsername` / `auth.adminPassword`：同时填写才会在库中还不存在该用户名时创建管理员；已有账号不会被覆盖
 
-在 IDEA 中以 **Debug** 运行配置 `ApplicationKt`（工作目录指向 `backend/`），或临时执行 `./gradlew run`。
+在 IDEA 中以 **Debug** 运行配置 `ApplicationKt`（入口 `com.atguigu.hr.ApplicationKt`，工作目录指向 `backend/`）。
+本机后端统一使用 Debug 启动，具体设置见 [Ktor 指南](README.md)。
 
 服务重启前后应保持 `jwtSecret` 不变，多实例部署时也应使用相同密钥。改密钥会使之前签发的全部 Token 失效，需要重新登录。
 
@@ -51,10 +55,13 @@ JWT 签名密钥和可选的初始管理员写在 `src/main/resources/applicatio
 升级到角色授权时，需要使用具备 DDL 权限的账号初始化一次，以创建两张角色权限表。
 首次初始化普通角色时，如存在旧账号级权限，按该角色所有成员原有权限的交集迁移，避免扩大权限。
 没有旧账号级限制的角色使用初始默认值；没有预设的自定义角色初始为空。
-初始化只执行一次，不会在重启后覆盖管理员保存的角色权限。迁移时会撤销现有账号 Token。
+已有角色权限档案不会再次执行首次授权播种，不会在重启后覆盖管理员保存的权限。迁移时会撤销现有账号 Token。
 旧 `auth_user_permission_profiles` 和 `auth_user_permissions` 表保留供核对，只在首次迁移时读取，不再参与请求鉴权，也不自动删除历史数据。
 该开关不会修改已有表的列结构；后续涉及列结构的变更需要显式迁移。
-正常运行时不应继续携带管理员初始化环境变量。
+Ktor 的管理员播种独立于该开关：保留成对管理员配置时，不存在的指定账号仍会被创建。
+管理员配置也参与受保护用户名判断；若要持续保护自定义管理员用户名，需要保留成对配置，并将密码放在受保护的外部配置中。
+同时省略两项后，保护规则只保留内置 `admin`；不能只删密码而留下用户名，否则会因配置不完整拒绝启动。
+Spring 可以在关闭初始化后保留 `hr.auth.admin-username`，同时移除初始密码，其行为见 Spring 指南。
 
 ## 登录限流
 
@@ -77,15 +84,16 @@ JWT 签名密钥和可选的初始管理员写在 `src/main/resources/applicatio
 
 1. 调用 `POST /api/auth/login`，提交 JSON：
    `{"username":"admin","password":"your-initial-admin-password"}`。
-   将密码示例值替换为实际初始密码。响应采用 `{code, message, data}` 格式，JWT 位于 `data.accessToken`。
+   将用户名和密码示例值替换为实际配置。响应采用 `{code, message, data, error}` 格式，JWT 位于 `data.accessToken`。
 2. 调用受保护接口时，携带 `Authorization: Bearer <accessToken>`。
    Swagger 和 Knife4j 会根据 `/v3/api-docs` 显示 Authorize 授权入口。
-3. 调用 `POST /api/auth/users` 创建默认只读账号，提交 JSON：
+3. 调用 `POST /api/auth/users` 创建默认分配给 READER 的账号，提交 JSON：
    `{"username":"reader","password":"a-unique-strong-password","roleCode":"READER"}`。
-   密码示例值应替换为独立设置的强密码。
+   密码示例值应替换为独立设置的强密码；实际权限取决于 READER 当前授权，不保证仍为初始只读配置。
 4. 使用管理员账号调用 `GET /api/auth/users?limit=50&offset=0` 和 `GET /api/auth/roles`，查询用户及角色。
 5. `PUT /api/auth/users/{id}` 接收 `roleCode`、`enabled` 和/或 `password`。
    修改后，该账号的全部 Token 会被撤销。管理员不能停用自己或降低自己的角色权限。
+   内置 `admin` 与配置指定的管理员都受保护，不能被停用、降级或由其他管理员重置密码。
    项目没有公开注册接口。用户只能分配已启用的角色，不能提交独立权限。
 6. `GET /api/auth/me` 返回当前账号信息；`POST /api/auth/logout` 撤销该账号在所有设备上的 Token。
    退出后需要重新登录以获取新 Token。
@@ -108,7 +116,7 @@ JWT 签名密钥和可选的初始管理员写在 `src/main/resources/applicatio
 - `POST /api/menus`：新增菜单，提交 `key`、`title`、`path`，可选 `icon`、`group`、`sort`；仅 ADMIN。
 - `PUT /api/menus/{key}`：修改菜单标题、路径、图标、分组、排序或启用状态；仅 ADMIN。`adminOnly` 创建后不可改，`menus`/`users`/`roles` 三个管理入口不可停用。
 - `DELETE /api/menus/{key}`：删除菜单，并在同一事务中清理所有角色的 `page:<key>` 授权；仅 ADMIN。内置菜单（`builtin`）不可删除。
-- `DELETE /api/auth/users/{id}`：删除账号。内置 `admin` 账号返回 403（`admin_account_protected`），
+- `DELETE /api/auth/users/{id}`：删除账号。内置 `admin` 或配置指定的管理员返回 403（`admin_account_protected`），
   删除当前登录账号返回 400（`self_deletion`），账号不存在返回 404。删除后该账号的 Token 立即失效。
 - `DELETE /api/auth/roles/{code}`：删除角色及其权限配置。`ADMIN` 角色返回 403（`role_protected`），
   仍有账号引用时返回 409（`role_in_use`，提示剩余账号数），角色不存在返回 404。
@@ -117,11 +125,12 @@ JWT 签名密钥和可选的初始管理员写在 `src/main/resources/applicatio
 两者权限分别登记为 `api:PUT:/api/employees/{id}` 与 `api:PATCH:/api/employees/{id}`。
 未授予 PATCH 权限的角色仍可编辑员工，但不能清空字段。
 
-这些接口只允许 `ADMIN` 角色调用。旧的账号级权限 GET/PUT 接口已移除。
-用户名为 `admin` 的内置账号受保护，不能被删除、移除权限、降级或停用，其他管理员也不能重置其密码；
+用户、角色授权与菜单管理接口只允许 `ADMIN` 角色调用；员工接口按各自的业务权限码授权。
+旧的账号级权限 GET/PUT 接口已移除。
+用户名为 `admin` 的内置账号和配置指定的管理员受保护，不能被删除、降级或停用，其他管理员也不能重置其密码；
 任何管理员都不能删除当前登录的账号。`ADMIN` 角色同样不能删除或改名，只有先把它下面的账号改到别的角色才能删普通角色。
 `ADMIN` 角色本身的名称、启用状态和权限不可修改，避免管理员丢失管理入口。
-内置 `admin` 仍可以通过已有的用户更新接口修改自己的密码。
+受保护管理员仍可以通过已有的用户更新接口修改自己的密码。
 
 请求示例，其中 `revision` 应使用 GET 接口返回的当前版本号：
 
@@ -148,7 +157,7 @@ JWT 签名密钥和可选的初始管理员写在 `src/main/resources/applicatio
 尝试修改 `ADMIN` 角色或由非管理员修改角色权限，会返回 403。
 并发修改时，如果提交的版本号已经过期，会返回 409，不会覆盖较新的配置。
 后端根据 HTTP 方法和已登记的路由模板匹配权限；未登记的受保护接口默认拒绝访问。
-OpenAPI 接口描述包含 `x-permission` 标记。
+Ktor 的 OpenAPI 接口描述包含 `x-permission` 标记。
 
 用户名会去除首尾空白并统一转换为小写，长度为 3-64 个字符，
 仅支持 ASCII 字母、数字、点、下划线和连字符。
@@ -163,15 +172,17 @@ JWT 使用 HS256 算法，签名密钥至少为 32 字节。
 验证内容包括签发者、受众、签名、有效期和必需的声明字段。
 当前未提供刷新 Token。
 
-JWT 验证通过后，每次受保护请求都会解析用户、角色及该角色的权限，不读取账号级授权，也不使用 Redis 缓存权限。
+JWT 验证通过后，受保护请求解析用户、角色及该角色的权限，不读取账号级授权，也不把权限值存入 Redis。
 进程内有一层短 TTL 缓存（`auth.permissionCacheSeconds`，默认 3 秒，设 0 关闭），key 含 `tokenVersion`：
-改密码、改角色、停用账号都会让版本 +1，缓存立即失效；只有"直接在数据库里改数据"最多滞后该 TTL。
+通过本实例管理接口改密码、改角色、停用账号都会让版本 +1，并立即清理本地缓存。
 用户被停用或删除、角色被停用、Token 版本过期时，请求都会被拒绝。
-直接在数据库中调整角色后，下一次请求即可读取到变化；通过管理接口修改时，还会撤销原有 Token。
+多个实例或两个后端共用同一 Redis 时，通过 `hr:auth:invalidate:epoch` 比较撤销版本并清理本地鉴权缓存，
+正常情况下在其他实例的后续请求中感知撤销。Redis 故障时退回本地短 TTL，跨实例感知可能滞后。
+直接在数据库中调整角色没有应用内广播，最多滞后鉴权缓存 TTL；通过管理接口修改时还会撤销原有 Token。
 权限变化发生前已经进入执行阶段的请求，不会被追溯取消。
 
 缺少凭据，或凭据无效、过期、被撤销时返回 401；已认证但权限不足时返回 403。
-数据库不可用时不会放行请求。登录失败提示不会透露用户名是否存在。
+鉴权需要查库时，数据库不可用不会退化为仅凭 JWT 放行。登录失败提示不会透露用户名是否存在。
 
 生产环境应使用 HTTPS 并保护密钥。
 内置登录限流只覆盖单实例，对外开放服务前仍应在反向代理或 API 网关配置分布式限流。

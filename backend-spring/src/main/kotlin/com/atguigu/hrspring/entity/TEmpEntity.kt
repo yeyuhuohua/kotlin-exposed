@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName
 @TableName("t_emp")
 class TEmpEntity {
     @TableId(value = "id", type = IdType.AUTO)
-    var id: Int = 0
+    var id: Int? = null
     var name: String? = null
     var age: Int? = null
 

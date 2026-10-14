@@ -38,7 +38,8 @@ hr:
     audience: hr-api-client
     ttl-seconds: 3600
     initialize-schema: true
-    # 首次启动创建的管理员；仅在库中没有该用户时生效
+    # 初始化时仅在库中没有该用户时创建；用户名也用于管理员保护和 MCP 固定口令执行身份。
+    # 关闭 initialize-schema 后仍保留正确的 admin-username，已有账号不会被重置。
     admin-username: admin
     admin-password: "改成初始管理员密码"
     permission-cache-seconds: 3
@@ -64,7 +65,7 @@ spring.ai.mcp.server:
   version: 0.0.1
   type: SYNC
   protocol: STREAMABLE
-  instructions: "HR 系统 REST 接口的 MCP 镜像。调用前需要 ADMIN 用户的 Bearer JWT。"
+  instructions: "HR 系统 REST 接口的 MCP 镜像。调用前需要 ADMIN 用户的 Bearer JWT 或配置的 MCP 服务口令。"
   annotation-scanner:
     enabled: true
   streamable-http:

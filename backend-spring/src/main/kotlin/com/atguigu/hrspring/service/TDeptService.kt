@@ -43,7 +43,8 @@ class TDeptService(
             log.warn("t_dept create conflict: {}", e.message)
             throw ApiException.conflict("create failed")
         }
-        return reload(entity.id) ?: error("t_dept insert missing row")
+        return reload(checkNotNull(entity.id) { "t_dept insert missing generated id" })
+            ?: error("t_dept insert missing row")
     }
 
     @CacheEvict(cacheNames = [CacheNames.T_DEPT, CacheNames.OVERVIEW], allEntries = true)
@@ -69,7 +70,7 @@ class TDeptService(
     private fun reload(id: Int): TDeptDto? = tDeptMapper.selectById(id)?.toDto()
 
     private fun TDeptEntity.toDto() = TDeptDto(
-        id = id,
+        id = checkNotNull(id),
         deptName = deptName,
         address = address,
     )

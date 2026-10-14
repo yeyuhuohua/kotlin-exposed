@@ -6,7 +6,7 @@ import java.time.LocalDateTime
 @TableName("audit_login_records")
 class AuditLoginRecordEntity {
     @TableId(value = "id", type = IdType.AUTO)
-    var id: Long = 0L
+    var id: Long? = null
     var username: String = ""
     var userId: Int? = null
     var ip: String = ""

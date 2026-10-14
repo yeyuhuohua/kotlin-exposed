@@ -47,7 +47,8 @@ class TEmpService(
             log.warn("t_emp create conflict: {}", e.message)
             throw ApiException.conflict("create failed")
         }
-        return reload(entity.id) ?: error("t_emp insert missing row")
+        return reload(checkNotNull(entity.id) { "t_emp insert missing generated id" })
+            ?: error("t_emp insert missing row")
     }
 
     @CacheEvict(cacheNames = [CacheNames.T_EMP, CacheNames.OVERVIEW], allEntries = true)
@@ -75,7 +76,7 @@ class TEmpService(
     private fun reload(id: Int): TEmpDto? = tEmpMapper.selectById(id)?.toDto()
 
     private fun TEmpEntity.toDto() = TEmpDto(
-        id = id,
+        id = checkNotNull(id),
         name = name,
         age = age,
         deptId = deptId,

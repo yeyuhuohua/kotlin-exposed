@@ -4,6 +4,7 @@ out/
 .kotlin/
 *.iml
 .idea/
+.codex/
 .debug/
 dsh/home/
 .env.auth.local

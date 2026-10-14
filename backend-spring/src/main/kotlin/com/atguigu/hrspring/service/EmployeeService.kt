@@ -254,7 +254,7 @@ private fun UpdateWrapper<EmployeeEntity>.assign(column: String, value: Any?) {
 }
 
 private fun EmployeeEntity.toDto() = EmployeeDto(
-    employeeId = employeeId,
+    employeeId = checkNotNull(employeeId),
     firstName = firstName,
     lastName = lastName,
     email = email,

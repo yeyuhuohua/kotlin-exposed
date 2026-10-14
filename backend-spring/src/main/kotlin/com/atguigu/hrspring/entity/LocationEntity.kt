@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableName
 @TableName("locations")
 class LocationEntity {
     @TableId(value = "location_id", type = IdType.INPUT)
-    var locationId: Int = 0
+    var locationId: Int? = null
     var streetAddress: String? = null
     var postalCode: String? = null
     var city: String = ""

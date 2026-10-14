@@ -65,7 +65,7 @@ class AuditQueryService(
     }
 
     private fun AuditLoginRecordEntity.toDto() = LoginRecordDto(
-        id = id,
+        id = checkNotNull(id),
         username = username,
         userId = userId,
         ip = ip,
@@ -76,7 +76,7 @@ class AuditQueryService(
     )
 
     private fun AuditApiCallEntity.toDto() = ApiCallRecordDto(
-        id = id,
+        id = checkNotNull(id),
         userId = userId,
         username = username,
         method = method,

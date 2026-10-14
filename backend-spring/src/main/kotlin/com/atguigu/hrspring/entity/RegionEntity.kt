@@ -5,6 +5,6 @@ import com.baomidou.mybatisplus.annotation.TableName
 @TableName("regions")
 class RegionEntity {
     @TableId(value = "region_id", type = IdType.INPUT)
-    var regionId: Int = 0
+    var regionId: Int? = null
     var regionName: String? = null
 }

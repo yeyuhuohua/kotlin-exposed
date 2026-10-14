@@ -207,7 +207,8 @@ class AuthService(
                     tokenVersion = 0
                 }
                 userMapper.insert(entity)
-                loadUser(entity.id)?.toUserDto() ?: throw ApiException.notFound("user not found")
+                loadUser(checkNotNull(entity.id) { "user insert missing generated id" })?.toUserDto()
+                    ?: throw ApiException.notFound("user not found")
             }
         } catch (ex: RuntimeException) {
             if (ex.isConstraintConflict()) {
@@ -413,7 +414,7 @@ class AuthService(
     }
 
     private fun toAuthUser(row: UserEntity, role: RoleEntity): AuthUser = AuthUser(
-        id = row.id,
+        id = checkNotNull(row.id),
         username = row.username,
         roleCode = row.roleCode,
         enabled = row.enabled,
@@ -591,7 +592,7 @@ private fun MenuPermissionDto.toPermissionDefinition(): PermissionDefinition {
     )
 }
 
-private fun UserEntity.toDto(): UserDto = UserDto(id, username, roleCode, enabled)
+private fun UserEntity.toDto(): UserDto = UserDto(checkNotNull(id), username, roleCode, enabled)
 
 private fun RoleEntity.toDto(): RoleDto = RoleDto(code, name, enabled)
 

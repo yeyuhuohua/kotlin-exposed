@@ -6,7 +6,7 @@ import java.time.LocalDate
 @TableName("employees")
 class EmployeeEntity {
     @TableId(value = "employee_id", type = IdType.INPUT)
-    var employeeId: Int = 0
+    var employeeId: Int? = null
     var firstName: String? = null
     var lastName: String = ""
     var email: String = ""

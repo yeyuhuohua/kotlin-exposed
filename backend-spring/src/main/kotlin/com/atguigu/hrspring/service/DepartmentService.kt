@@ -90,7 +90,7 @@ class DepartmentService(
 }
 
 private fun DepartmentEntity.toDto() = DepartmentDto(
-    departmentId = departmentId,
+    departmentId = checkNotNull(departmentId),
     departmentName = departmentName,
     managerId = managerId,
     locationId = locationId,

@@ -34,6 +34,6 @@ private fun CountryEntity.toDto() = CountryDto(
 )
 
 private fun RegionEntity.toDto() = RegionDto(
-    regionId = regionId,
+    regionId = checkNotNull(regionId),
     regionName = regionName,
 )
