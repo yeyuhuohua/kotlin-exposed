@@ -21,7 +21,7 @@ import com.atguigu.hrspring.common.api.created
 import com.atguigu.hrspring.common.api.ok
 import com.atguigu.hrspring.common.api.updated
 import com.atguigu.hrspring.dto.PageRoute
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag

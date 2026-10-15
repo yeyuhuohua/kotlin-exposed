@@ -3,12 +3,8 @@ package com.atguigu.hrspring.config
 import com.atguigu.hrspring.common.cache.CacheHitMarker
 import com.atguigu.hrspring.common.cache.CacheEpoch
 import com.atguigu.hrspring.common.cache.CacheLoads
-import com.fasterxml.jackson.annotation.JsonTypeInfo
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator
+import tools.jackson.module.kotlin.kotlinModule
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -24,7 +20,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.data.redis.cache.RedisCacheConfiguration
 import org.springframework.data.redis.cache.RedisCacheManager
 import org.springframework.data.redis.connection.RedisConnectionFactory
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer
+import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer
 import org.springframework.data.redis.serializer.RedisSerializationContext
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
@@ -63,7 +59,8 @@ class CacheConfig(
     override fun errorHandler(): CacheErrorHandler = LoggingCacheErrorHandler(epoch)
 }
 
-internal fun cacheSerializer(): GenericJackson2JsonRedisSerializer {
+/** Jackson 3。Kotlin 数据类是 final，序列化器仍会给它们写类型信息。 */
+internal fun cacheSerializer(): GenericJacksonJsonRedisSerializer {
     val validator = BasicPolymorphicTypeValidator.builder()
         .allowIfSubType("com.atguigu.hrspring.")
         .allowIfSubType("java.util.")
@@ -71,15 +68,12 @@ internal fun cacheSerializer(): GenericJackson2JsonRedisSerializer {
         .allowIfSubType("java.math.")
         .allowIfSubType(emptyList<Any>().javaClass)
         .build()
-    val mapper: ObjectMapper = jacksonObjectMapper()
-        .registerModule(JavaTimeModule())
-        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-    mapper.activateDefaultTyping(
-        validator,
-        ObjectMapper.DefaultTyping.EVERYTHING,
-        JsonTypeInfo.As.PROPERTY,
-    )
-    return GenericJackson2JsonRedisSerializer(mapper)
+    return GenericJacksonJsonRedisSerializer.builder()
+        .enableDefaultTyping(validator)
+        .customize { builder ->
+            builder.addModule(kotlinModule())
+        }
+        .build()
 }
 
 private class LoggingCacheErrorHandler(private val epoch: CacheEpoch) : CacheErrorHandler {

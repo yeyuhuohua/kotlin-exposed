@@ -4,7 +4,7 @@ import com.atguigu.hrspring.common.api.ApiResult
 import com.atguigu.hrspring.common.api.ErrorCode
 import com.atguigu.hrspring.common.api.applicationPath
 import com.atguigu.hrspring.mcp.McpSecurityConfig
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse

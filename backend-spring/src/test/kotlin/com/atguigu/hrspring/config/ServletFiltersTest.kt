@@ -9,7 +9,7 @@ import com.atguigu.hrspring.auth.PermissionInterceptor
 import com.atguigu.hrspring.auth.TokenService
 import com.atguigu.hrspring.common.api.ClientIp
 import com.atguigu.hrspring.mcp.McpSecurityConfig
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import tools.jackson.module.kotlin.jacksonObjectMapper
 import jakarta.servlet.http.HttpServlet
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse

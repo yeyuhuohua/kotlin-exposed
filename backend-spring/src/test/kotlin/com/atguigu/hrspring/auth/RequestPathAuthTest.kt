@@ -5,7 +5,7 @@ import com.atguigu.hrspring.config.HrProperties
 import com.atguigu.hrspring.controller.DepartmentController
 import com.atguigu.hrspring.service.DepartmentService
 import com.atguigu.hrspring.service.EmployeeService
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import tools.jackson.module.kotlin.jacksonObjectMapper
 import jakarta.servlet.http.MappingMatch
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verifyNoInteractions

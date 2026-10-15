@@ -2,7 +2,7 @@ package com.atguigu.hrspring.config
 
 import com.atguigu.hrspring.controller.AuthController
 import com.atguigu.hrspring.service.AuthService
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import com.atguigu.hrspring.dto.MenuCreateRequest
 import com.atguigu.hrspring.dto.MenuUpdateRequest
 import com.atguigu.hrspring.dto.EmployeeUpdateRequest

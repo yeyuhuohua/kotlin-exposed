@@ -5,7 +5,7 @@ import com.atguigu.hrspring.common.api.ApiList
 import com.atguigu.hrspring.config.RecordingCache
 import com.atguigu.hrspring.config.cacheSerializer
 import com.atguigu.hrspring.dto.DepartmentDto
-import com.fasterxml.jackson.databind.exc.InvalidTypeIdException
+import tools.jackson.databind.exc.InvalidTypeIdException
 import org.springframework.data.redis.serializer.SerializationException
 import org.springframework.cache.concurrent.ConcurrentMapCache
 import org.springframework.cache.transaction.TransactionAwareCacheDecorator

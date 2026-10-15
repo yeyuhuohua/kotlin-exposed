@@ -11,7 +11,6 @@ import com.atguigu.hrspring.dto.EmployeeDto
 import com.atguigu.hrspring.dto.EmployeePatch
 import com.atguigu.hrspring.dto.EmployeeUpdateRequest
 import com.atguigu.hrspring.service.EmployeeService
-import com.fasterxml.jackson.databind.ObjectMapper
 import tools.jackson.databind.JsonNode
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -30,7 +29,6 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 class EmployeeController(
     private val employeeService: EmployeeService,
-    private val objectMapper: ObjectMapper,
 ) {
     @Operation(summary = "分页查询员工")
     @GetMapping("/api/employees")
@@ -83,7 +81,7 @@ class EmployeeController(
         @RequestBody patch: JsonNode,
     ): ResponseEntity<ApiResult<EmployeeDto>> =
         body(
-            employeeService.patch(employeeId(id), EmployeePatch.parse(objectMapper.readTree(patch.toString()))),
+            employeeService.patch(employeeId(id), EmployeePatch.parse(patch)),
             "updated",
         )
 

@@ -11,6 +11,8 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.filter.OncePerRequestFilter
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 
 /**
@@ -50,7 +52,7 @@ class AuditFilterConfig(
                             username = user?.username,
                             method = request.method,
                             path = request.requestURI,
-                            queryString = request.queryString?.takeIf { it.isNotBlank() },
+                            queryString = auditQuery(request),
                             // 未处理异常的 500 由容器在过滤链退出后设置，此处响应可能仍是 200。
                             statusCode = if (failed && !response.isCommitted) 500 else response.status,
                             durationMs = (System.nanoTime() - started) / 1_000_000,
@@ -66,5 +68,28 @@ class AuditFilterConfig(
             addUrlPatterns("/*")
             order = -10
         }
+    }
+
+    /** 下载凭据只放在链接里，审计日志不能留下 token。 */
+    private fun auditQuery(request: HttpServletRequest): String? {
+        val query = request.queryString?.takeIf { it.isNotBlank() } ?: return null
+        if (!request.applicationPath().startsWith("/api/exports/")) return query
+        return redactExportQuery(query)
+    }
+}
+
+/** 参数名先按查询串解码再比较，避免 %74oken 这类写法漏掉下载凭据。 */
+internal fun redactExportQuery(query: String): String =
+    query.split('&').joinToString("&") { part ->
+        val encodedName = part.substringBefore('=')
+        if (decodeQueryName(encodedName).equals("token", ignoreCase = true)) "token=redacted" else part
+    }
+
+private fun decodeQueryName(raw: String): String {
+    val normalized = raw.replace('+', ' ')
+    return try {
+        URLDecoder.decode(normalized, StandardCharsets.UTF_8)
+    } catch (e: IllegalArgumentException) {
+        normalized
     }
 }

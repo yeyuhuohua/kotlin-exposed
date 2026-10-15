@@ -7,7 +7,6 @@ import com.atguigu.hrspring.dto.EmployeeDto
 import com.atguigu.hrspring.dto.EmployeePatch
 import com.atguigu.hrspring.dto.EmployeeUpdateRequest
 import com.atguigu.hrspring.service.EmployeeService
-import com.fasterxml.jackson.databind.ObjectMapper
 import tools.jackson.databind.JsonNode
 import org.springframework.ai.mcp.annotation.McpTool
 import org.springframework.ai.mcp.annotation.McpToolParam
@@ -16,7 +15,6 @@ import org.springframework.stereotype.Component
 @Component
 class EmployeeMcpTools(
     private val employeeService: EmployeeService,
-    private val objectMapper: ObjectMapper,
 ) {
     @McpTool(
         name = "list_employees",
@@ -102,7 +100,7 @@ class EmployeeMcpTools(
             description = "要修改的字段对象。显式 null 清空可空列，缺省字段不改",
             required = true,
         ) patch: JsonNode,
-    ): EmployeeDto = employeeService.patch(id, EmployeePatch.parse(objectMapper.readTree(patch.toString())))
+    ): EmployeeDto = employeeService.patch(id, EmployeePatch.parse(patch))
 
     @McpTool(name = "delete_employee", description = "删除员工并清除相关缓存。被任职历史等外键引用时会失败。")
     fun deleteEmployee(

@@ -7,8 +7,8 @@ import com.atguigu.hrspring.common.validation.FiniteRange
 import com.atguigu.hrspring.common.validation.HireDate
 import com.atguigu.hrspring.common.validation.NotBlankIfPresent
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.ObjectNode
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 import jakarta.validation.constraints.AssertTrue
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
@@ -97,7 +97,8 @@ class EmployeePatch(
         fun parse(body: JsonNode): EmployeePatch {
             if (body !is ObjectNode) throw ApiException.badRequest("invalid request body")
             if (body.size() == 0) throw ApiException.badRequest("no fields to update")
-            val unknown = body.fieldNames().asSequence().filter { it !in allowed }.sorted().toList()
+            val names = body.propertyNames()
+            val unknown = names.filter { it !in allowed }.sorted()
             if (unknown.isNotEmpty()) {
                 throw ApiException.badRequest("unknown fields: ${unknown.joinToString(", ")}")
             }
@@ -105,7 +106,7 @@ class EmployeePatch(
                 throw ApiException.badRequest("${requiredTexts.first()} must not be null")
             }
             return EmployeePatch(
-                present = body.fieldNames().asSequence().toSet(),
+                present = names.toSet(),
                 firstName = body.text("firstName"),
                 salary = body.number("salary"),
                 commissionPct = body.number("commissionPct"),

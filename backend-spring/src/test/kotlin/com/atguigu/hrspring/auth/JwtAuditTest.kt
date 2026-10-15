@@ -4,7 +4,7 @@ import com.atguigu.hrspring.audit.AuditFilterConfig
 import com.atguigu.hrspring.audit.AuditService
 import com.atguigu.hrspring.common.api.ClientIp
 import com.atguigu.hrspring.config.HrProperties
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import tools.jackson.module.kotlin.jacksonObjectMapper
 import jakarta.servlet.FilterChain
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.mockingDetails

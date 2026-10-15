@@ -2,28 +2,34 @@
 # application.yaml 已加入忽略规则，真实密码与密钥不得提交。
 
 server:
+  # 与 Ktor 的 8080 分开。前端本地代理指到这里。
   port: 8081
+  # 监听所有网卡，方便容器里的 DSH 通过 host.docker.internal 访问。
   address: 0.0.0.0
 
 spring:
   application:
     name: hr-spring
   datasource:
-    # 与 Ktor 后端共用 atguigudb 库
+    # 与 Ktor 后端共用 atguigudb。zeroDateTimeBehavior 把 0000-00-00 收成 null。
     url: jdbc:mysql://localhost:3306/atguigudb?useSSL=true&requireSSL=true&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Shanghai&characterEncoding=utf8
     username: root
     password: "改成你的数据库密码"
     hikari:
+      # 和业务查询的读已提交一致，避免连到库的默认隔离级别。
       transaction-isolation: TRANSACTION_READ_COMMITTED
   data:
     redis:
       host: localhost
       port: 6379
+      # 无密码留空。缓存不可用时服务仍能启动，请求旁路缓存。
       password: ""
       timeout: 5s
   jackson:
+    # null 字段也输出，前端不要靠“字段被省略”判断未传还是显式清空。
     default-property-inclusion: always
     generator:
+      # BigDecimal 用十进制原文，避免科学计数法。
       write-bigdecimal-as-plain: true
 
 # 与 Ktor 后端一致的配置段；另建库表由 initialize-schema 控制
@@ -34,18 +40,23 @@ hr:
   auth:
     # 至少 32 字节的随机串；可用 openssl rand -base64 48 生成
     jwt-secret: "改成至少32字节的随机密钥"
+    # JWT 的 iss / aud，校验时两边都要一致。
     issuer: hr-api
     audience: hr-api-client
+    # 访问令牌有效期，秒。
     ttl-seconds: 3600
     initialize-schema: true
     # 初始化时仅在库中没有该用户时创建；用户名也用于管理员保护和 MCP 固定口令执行身份。
     # 关闭 initialize-schema 后仍保留正确的 admin-username，已有账号不会被重置。
     admin-username: admin
     admin-password: "改成初始管理员密码"
+    # 权限目录的进程内短缓存，秒。
     permission-cache-seconds: 3
     login-rate-limit:
       enabled: true
+      # 滑动窗口长度，秒。
       window-seconds: 300
+      # 同一账号 / 同一 IP 在窗口内允许的失败次数。登录成功只清账号维度。
       max-account-failures: 8
       max-address-failures: 30
   security:
@@ -54,6 +65,16 @@ hr:
   mcp:
     # 本地 DSH 调用 /mcp 的固定口令；为空则只接受管理员 JWT
     service-token: ""
+  export:
+    # 写进下载链接的地址，必须是用户浏览器能打开的，不含路径。Excel、Word、PDF 共用。
+    public-base-url: http://127.0.0.1:8081
+    # 文件保留秒数。服务里会夹到 60 秒到 1 天。
+    ttl-seconds: 1800
+    # 空则写到系统临时目录下的 hr-spring-exports。不要指向会被静态站点直接列出的目录。
+    directory: ""
+    # 可选。PDF 优先嵌入的字体，ttf 或 ttc。空则自动查找系统字体。
+    # 缺字会继续试后面的候选，不会因为当前字符没有字形就丢掉这个文件。
+    pdf-font: ""
   cors:
     # 为空则放行 localhost/127.0.0.1/::1 任意端口；* 表示全部放行
     allowed-hosts: []
@@ -63,22 +84,28 @@ spring.ai.mcp.server:
   enabled: true
   name: hr-spring-mcp
   version: 0.0.1
+  # SYNC 对应阻塞式 MVC，不使用响应式传输。
   type: SYNC
   protocol: STREAMABLE
-  instructions: "HR 系统 REST 接口的 MCP 镜像。调用前需要 ADMIN 用户的 Bearer JWT 或配置的 MCP 服务口令。"
+  instructions: "HR 系统 REST 接口的 MCP 镜像。调用前需要 ADMIN 用户的 Bearer JWT 或配置的 MCP 服务口令。用户要求导出时，先用查询工具拿到数据，再把结果交给 export_excel、export_word 或 export_pdf，并把返回的 downloadUrl 原样发给用户。"
   annotation-scanner:
+    # 扫描 com.atguigu.hrspring 下带 @McpTool 的 @Component。
     enabled: true
   streamable-http:
+    # 完整地址是 http://127.0.0.1:8081/mcp。DSH 在容器里用 host.docker.internal。
     mcp-endpoint: /mcp
 
 mybatis-plus:
   configuration:
+    # 表字段下划线映射到 Kotlin 驼峰属性。
     map-underscore-to-camel-case: true
   global-config:
+    # 启动时不打印 MyBatis-Plus 横幅。
     banner: false
 
 springdoc:
   swagger-ui:
+    # 浏览器入口。OpenAPI JSON 仍是 /v3/api-docs。
     path: /swagger-ui/index.html
 
 logging:

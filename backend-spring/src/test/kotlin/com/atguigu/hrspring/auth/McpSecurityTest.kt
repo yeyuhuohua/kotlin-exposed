@@ -2,8 +2,8 @@ package com.atguigu.hrspring.auth
 
 import com.atguigu.hrspring.config.HrProperties
 import com.atguigu.hrspring.mcp.McpSecurityConfig
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.module.kotlin.jacksonObjectMapper
 import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper
 import io.modelcontextprotocol.server.McpServer
 import jakarta.servlet.http.MappingMatch

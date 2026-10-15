@@ -20,6 +20,8 @@ class PermissionInterceptor : HandlerInterceptor {
         val path = request.applicationPath()
         if (!path.startsWith("/api/")) return true
         if (path == "/api/health" || path == "/api/auth/login") return true
+        // 导出文件的下载凭据在 query token 里，浏览器点开链接时不会带 JWT。
+        if (isExportDownload(request)) return true
 
         val user = CurrentUserHolder.get()
             ?: throw ApiException.unauthorized()
@@ -31,5 +33,12 @@ class PermissionInterceptor : HandlerInterceptor {
             throw ApiException.forbidden()
         }
         return true
+    }
+
+    private fun isExportDownload(request: HttpServletRequest): Boolean {
+        val method = request.method
+        if (!method.equals("GET", ignoreCase = true) && !method.equals("HEAD", ignoreCase = true)) return false
+        val path = request.applicationPath()
+        return path.startsWith("/api/exports/") && !request.getParameter("token").isNullOrBlank()
     }
 }
