@@ -19,7 +19,7 @@
     "@lucide/vue": "^1.47.0",
     "chart.js": "^4.5.0",
     "element-plus": "^2.14.6",
-    "pinia": "^3.0.3",
+    "pinia": "^4.0.3",
     "vue": "^3.5.22",
     "vue-router": "^5.3.1"
   },
