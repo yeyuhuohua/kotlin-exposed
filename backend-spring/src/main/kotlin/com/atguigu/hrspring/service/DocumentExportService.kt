@@ -70,8 +70,8 @@ class DocumentExportService(
     private val exportMapper: JsonMapper = jsonMapper {
         enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
     }
-    private lateinit var liveChannel: FileChannel
-    private lateinit var liveLock: FileLock
+    private var liveChannel: FileChannel? = null
+    private var liveLock: FileLock? = null
     private val released = AtomicBoolean(false)
     private val shutdownHook = Thread { releaseInstanceLock() }
 
@@ -80,18 +80,20 @@ class DocumentExportService(
         try {
             Files.createDirectories(root)
             val livePath = root.resolve(LIVE_FILE)
-            liveChannel = FileChannel.open(
+            val channel = FileChannel.open(
                 livePath,
                 StandardOpenOption.CREATE,
                 StandardOpenOption.WRITE,
             )
-            liveLock = liveChannel.tryLock()
+            liveChannel = channel
+            val lock = channel.tryLock()
                 ?: throw IllegalStateException("export instance lock is unavailable")
+            liveLock = lock
             val payload = ByteBuffer.wrap(ttlSeconds.toString().toByteArray(StandardCharsets.UTF_8))
-            liveChannel.truncate(0)
-            liveChannel.position(0)
-            liveChannel.write(payload)
-            liveChannel.force(true)
+            channel.truncate(0)
+            channel.position(0)
+            channel.write(payload)
+            channel.force(true)
             Runtime.getRuntime().addShutdownHook(shutdownHook)
             hookAdded = true
             sweepOtherInstances()
@@ -115,12 +117,12 @@ class DocumentExportService(
     private fun releaseInstanceLock() {
         if (!released.compareAndSet(false, true)) return
         try {
-            if (::liveLock.isInitialized && liveLock.isValid) liveLock.release()
+            liveLock?.takeIf { it.isValid }?.release()
         } catch (e: Exception) {
             // 锁已经放开
         }
         try {
-            if (::liveChannel.isInitialized && liveChannel.isOpen) liveChannel.close()
+            liveChannel?.takeIf { it.isOpen }?.close()
         } catch (e: Exception) {
             // 通道已经关闭
         }
