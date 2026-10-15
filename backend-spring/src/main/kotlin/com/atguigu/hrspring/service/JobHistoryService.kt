@@ -3,7 +3,7 @@ import com.atguigu.hrspring.common.cache.CacheNames
 import com.atguigu.hrspring.dto.JobHistoryDto
 import com.atguigu.hrspring.entity.JobHistoryEntity
 import com.atguigu.hrspring.mapper.JobHistoryMapper
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtQueryWrapper
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -16,7 +16,7 @@ class JobHistoryService(
     @Transactional(readOnly = true)
     fun list(): List<JobHistoryDto> =
         jobHistoryMapper.selectList(
-            QueryWrapper<JobHistoryEntity>().orderByAsc("employee_id", "start_date"),
+            KtQueryWrapper(JobHistoryEntity::class.java).orderByAsc(JobHistoryEntity::employeeId, JobHistoryEntity::startDate),
         ).map { it.toDto() }
 }
 

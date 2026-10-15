@@ -6,8 +6,8 @@ import com.atguigu.hrspring.dto.TEmpDto
 import com.atguigu.hrspring.dto.TEmpUpdateRequest
 import com.atguigu.hrspring.entity.TEmpEntity
 import com.atguigu.hrspring.mapper.TEmpMapper
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtQueryWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtUpdateWrapper
 import jakarta.validation.Valid
 import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.CacheEvict
@@ -30,7 +30,7 @@ class TEmpService(
     @Cacheable(cacheNames = [CacheNames.T_EMP], key = "'all'")
     @Transactional(readOnly = true)
     fun list(): List<TEmpDto> =
-        tEmpMapper.selectList(QueryWrapper<TEmpEntity>().orderByAsc("id")).map { it.toDto() }
+        tEmpMapper.selectList(KtQueryWrapper(TEmpEntity::class.java).orderByAsc(TEmpEntity::id)).map { it.toDto() }
 
     @CacheEvict(cacheNames = [CacheNames.T_EMP, CacheNames.OVERVIEW], allEntries = true)
     @Transactional
@@ -55,11 +55,11 @@ class TEmpService(
     @Transactional
     fun update(id: Int, @Valid patch: TEmpUpdateRequest): TEmpDto {
         if (lock(id) == null) throw ApiException.notFound("t_emp not found")
-        val wrapper = UpdateWrapper<TEmpEntity>().eq("id", id)
-        if (patch.name != null) wrapper.set("name", patch.name)
-        if (patch.age != null) wrapper.set("age", patch.age)
-        if (patch.deptId != null) wrapper.set("deptId", patch.deptId)
-        if (patch.empno != null) wrapper.set("empno", patch.empno)
+        val wrapper = KtUpdateWrapper(TEmpEntity::class.java).eq(TEmpEntity::id, id)
+        if (patch.name != null) wrapper.set(TEmpEntity::name, patch.name)
+        if (patch.age != null) wrapper.set(TEmpEntity::age, patch.age)
+        if (patch.deptId != null) wrapper.set(TEmpEntity::deptId, patch.deptId)
+        if (patch.empno != null) wrapper.set(TEmpEntity::empno, patch.empno)
         try {
             tEmpMapper.update(wrapper)
         } catch (e: DataIntegrityViolationException) {
@@ -71,7 +71,9 @@ class TEmpService(
 
     /** selectList 走当前事务。selectOne 会另开 SqlSession，FOR UPDATE 锁不住后面的更新。 */
     private fun lock(id: Int): TEmpEntity? =
-        tEmpMapper.selectList(QueryWrapper<TEmpEntity>().eq("id", id).last("FOR UPDATE")).firstOrNull()
+        tEmpMapper.selectList(
+            KtQueryWrapper(TEmpEntity::class.java).eq(TEmpEntity::id, id).last("FOR UPDATE"),
+        ).firstOrNull()
 
     private fun reload(id: Int): TEmpDto? = tEmpMapper.selectById(id)?.toDto()
 

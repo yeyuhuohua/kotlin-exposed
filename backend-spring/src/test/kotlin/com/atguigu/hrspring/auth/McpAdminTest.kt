@@ -11,7 +11,8 @@ import com.atguigu.hrspring.mapper.RolePermissionProfileMapper
 import com.atguigu.hrspring.mapper.UserMapper
 import com.atguigu.hrspring.service.AuthService
 import com.atguigu.hrspring.service.MenuService
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
+import com.baomidou.mybatisplus.core.MybatisConfiguration
+import com.baomidou.mybatisplus.extension.kotlin.KtQueryWrapper
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
 import org.mockito.ArgumentMatchers.any
@@ -24,6 +25,13 @@ import kotlin.test.assertNull
 class McpAdminTest {
     @Test
     fun `服务口令使用配置的管理员并拒绝停用或降权账号`() {
+        // KtQueryWrapper 的列解析依赖 TableInfo，单测里用 MybatisConfiguration 手工初始化。
+        MybatisConfiguration().apply {
+            addMapper(UserMapper::class.java)
+            addMapper(RoleMapper::class.java)
+            addMapper(RolePermissionMapper::class.java)
+            addMapper(RolePermissionProfileMapper::class.java)
+        }
         val properties = HrProperties(auth = HrProperties.AuthProperties(adminUsername = "operator"))
         val users = mock(UserMapper::class.java)
         val roles = mock(RoleMapper::class.java)
@@ -32,7 +40,7 @@ class McpAdminTest {
         val row = UserEntity().apply { id = 7; username = "operator"; roleCode = "ADMIN" }
         val role = RoleEntity().apply { code = "ADMIN" }
         `when`(users.selectOne(any())).thenAnswer { invocation ->
-            val query = invocation.getArgument<QueryWrapper<UserEntity>>(0)
+            val query = invocation.getArgument<KtQueryWrapper<UserEntity>>(0)
             // 强制触发参数绑定，与真实 Mapper 的 SQL 构建顺序一致。
             query.sqlSegment
             assertTrueOperator(query.paramNameValuePairs.values)

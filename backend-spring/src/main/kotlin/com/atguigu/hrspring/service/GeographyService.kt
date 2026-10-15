@@ -6,7 +6,7 @@ import com.atguigu.hrspring.entity.CountryEntity
 import com.atguigu.hrspring.entity.RegionEntity
 import com.atguigu.hrspring.mapper.CountryMapper
 import com.atguigu.hrspring.mapper.RegionMapper
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtQueryWrapper
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -19,12 +19,12 @@ class GeographyService(
     @Cacheable(cacheNames = [CacheNames.COUNTRIES], key = "'all'")
     @Transactional(readOnly = true)
     fun listCountries(): List<CountryDto> =
-        countryMapper.selectList(QueryWrapper<CountryEntity>().orderByAsc("country_id")).map { it.toDto() }
+        countryMapper.selectList(KtQueryWrapper(CountryEntity::class.java).orderByAsc(CountryEntity::countryId)).map { it.toDto() }
 
     @Cacheable(cacheNames = [CacheNames.REGIONS], key = "'all'")
     @Transactional(readOnly = true)
     fun listRegions(): List<RegionDto> =
-        regionMapper.selectList(QueryWrapper<RegionEntity>().orderByAsc("region_id")).map { it.toDto() }
+        regionMapper.selectList(KtQueryWrapper(RegionEntity::class.java).orderByAsc(RegionEntity::regionId)).map { it.toDto() }
 }
 
 private fun CountryEntity.toDto() = CountryDto(

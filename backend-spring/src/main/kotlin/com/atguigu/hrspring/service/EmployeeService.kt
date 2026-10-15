@@ -18,7 +18,8 @@ import com.atguigu.hrspring.entity.EmployeeEntity
 import com.atguigu.hrspring.mapper.EmpDetailsViewMapper
 import com.atguigu.hrspring.mapper.EmployeeMapper
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtQueryWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtUpdateWrapper
 import jakarta.validation.Valid
 import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.CacheEvict
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.validation.annotation.Validated
 import kotlin.annotation.AnnotationRetention
 import kotlin.annotation.AnnotationTarget
+import kotlin.reflect.KProperty1
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.time.LocalDate
@@ -55,7 +57,7 @@ class EmployeeService(
     ): ApiList<EmployeeDto> {
         val rows = employeeMapper.selectPage(page) {
             applyEmployeeFilters(departmentId, jobId, q, unassignedOnly)
-            orderByAsc("employee_id")
+            orderByAsc(EmployeeEntity::employeeId)
         }
         return ApiList(rows.total, rows.items.map { it.toDto() })
     }
@@ -63,9 +65,9 @@ class EmployeeService(
     @Cacheable(cacheNames = [CacheNames.EMPLOYEES_BY_DEPT], key = "#departmentId")
     fun listByDepartment(departmentId: Int): List<EmployeeDto> =
         employeeMapper.selectList(
-            QueryWrapper<EmployeeEntity>()
-                .eq("department_id", departmentId)
-                .orderByAsc("employee_id"),
+            KtQueryWrapper(EmployeeEntity::class.java)
+                .eq(EmployeeEntity::departmentId, departmentId)
+                .orderByAsc(EmployeeEntity::employeeId),
         ).map { it.toDto() }
 
     /** 概览会缓存聚合结果，这里不单独进 Redis。 */
@@ -111,7 +113,7 @@ class EmployeeService(
     @Cacheable(cacheNames = [CacheNames.EMP_DETAILS], key = "#page.limit + ':' + #page.offset")
     fun listDetails(page: PageParams): ApiList<EmployeeDetailDto> {
         val rows = empDetailsViewMapper.selectPage(page) {
-            orderByAsc("employee_id")
+            orderByAsc(EmpDetailsViewEntity::employeeId)
         }
         return ApiList(rows.total, rows.items.map { it.toDto() })
     }
@@ -144,11 +146,11 @@ class EmployeeService(
     fun update(id: Int, @Valid request: EmployeeUpdateRequest): EmployeeDto {
         return write("update failed") {
             lock(id) ?: throw ApiException.notFound("employee not found")
-            val wrapper = UpdateWrapper<EmployeeEntity>().eq("employee_id", id)
-            request.salary?.let { wrapper.set("salary", it) }
-            request.departmentId?.let { wrapper.set("department_id", it) }
-            request.jobId?.let { wrapper.set("job_id", it) }
-            request.phoneNumber?.let { wrapper.set("phone_number", it) }
+            val wrapper = KtUpdateWrapper(EmployeeEntity::class.java).eq(EmployeeEntity::employeeId, id)
+            request.salary?.let { wrapper.set(EmployeeEntity::salary, it) }
+            request.departmentId?.let { wrapper.set(EmployeeEntity::departmentId, it) }
+            request.jobId?.let { wrapper.set(EmployeeEntity::jobId, it) }
+            request.phoneNumber?.let { wrapper.set(EmployeeEntity::phoneNumber, it) }
             employeeMapper.update(wrapper)
             load(id)
         }
@@ -159,14 +161,14 @@ class EmployeeService(
     fun patch(id: Int, @Valid patch: EmployeePatch): EmployeeDto {
         return write("resource conflict") {
             lock(id) ?: throw ApiException.notFound("employee not found")
-            val wrapper = UpdateWrapper<EmployeeEntity>().eq("employee_id", id)
-            if ("firstName" in patch.present) wrapper.assign("first_name", patch.firstName)
-            if ("salary" in patch.present) wrapper.assign("salary", patch.salary)
-            if ("commissionPct" in patch.present) wrapper.assign("commission_pct", patch.commissionPct)
-            if ("departmentId" in patch.present) wrapper.assign("department_id", patch.departmentId)
-            if ("managerId" in patch.present) wrapper.assign("manager_id", patch.managerId)
-            if ("phoneNumber" in patch.present) wrapper.assign("phone_number", patch.phoneNumber)
-            if ("jobId" in patch.present) wrapper.set("job_id", patch.jobId)
+            val wrapper = KtUpdateWrapper(EmployeeEntity::class.java).eq(EmployeeEntity::employeeId, id)
+            if ("firstName" in patch.present) wrapper.assign(EmployeeEntity::firstName, patch.firstName)
+            if ("salary" in patch.present) wrapper.assign(EmployeeEntity::salary, patch.salary)
+            if ("commissionPct" in patch.present) wrapper.assign(EmployeeEntity::commissionPct, patch.commissionPct)
+            if ("departmentId" in patch.present) wrapper.assign(EmployeeEntity::departmentId, patch.departmentId)
+            if ("managerId" in patch.present) wrapper.assign(EmployeeEntity::managerId, patch.managerId)
+            if ("phoneNumber" in patch.present) wrapper.assign(EmployeeEntity::phoneNumber, patch.phoneNumber)
+            if ("jobId" in patch.present) wrapper.set(EmployeeEntity::jobId, patch.jobId)
             employeeMapper.update(wrapper)
             load(id)
         }
@@ -184,8 +186,8 @@ class EmployeeService(
     /** selectList 走当前事务。selectOne 会另开 SqlSession，FOR UPDATE 锁不住后面的更新。 */
     private fun lock(id: Int): EmployeeEntity? =
         employeeMapper.selectList(
-            QueryWrapper<EmployeeEntity>()
-                .eq("employee_id", id)
+            KtQueryWrapper(EmployeeEntity::class.java)
+                .eq(EmployeeEntity::employeeId, id)
                 .last("FOR UPDATE"),
         ).firstOrNull()
 
@@ -218,19 +220,19 @@ class EmployeeService(
 )
 internal annotation class EvictEmployeeGraphs
 
-private fun QueryWrapper<EmployeeEntity>.applyEmployeeFilters(
+private fun KtQueryWrapper<EmployeeEntity>.applyEmployeeFilters(
     departmentId: Int?,
     jobId: String?,
     q: String?,
     unassignedOnly: Boolean,
 ) {
     if (unassignedOnly) {
-        isNull("department_id")
+        isNull(EmployeeEntity::departmentId)
     } else if (departmentId != null) {
-        eq("department_id", departmentId)
+        eq(EmployeeEntity::departmentId, departmentId)
     }
     if (jobId != null) {
-        eq("job_id", jobId)
+        eq(EmployeeEntity::jobId, jobId)
     }
     val keyword = q?.takeIf { it.isNotBlank() }?.trim()
     if (keyword != null) {
@@ -245,9 +247,9 @@ private fun QueryWrapper<EmployeeEntity>.applyEmployeeFilters(
 }
 
 /** 可空列写 null 时用 SQL NULL，避免 JDBC 把空参数当成 OTHER。 */
-private fun UpdateWrapper<EmployeeEntity>.assign(column: String, value: Any?) {
+private fun KtUpdateWrapper<EmployeeEntity>.assign(column: KProperty1<EmployeeEntity, *>, value: Any?) {
     if (value == null) {
-        setSql("$column = NULL")
+        setSql("${columnsToString(true, column)} = NULL")
     } else {
         set(column, value)
     }

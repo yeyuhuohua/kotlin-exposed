@@ -11,8 +11,8 @@ import com.atguigu.hrspring.dto.MenuUpdateRequest
 import com.atguigu.hrspring.dto.PageRoute
 import com.atguigu.hrspring.entity.MenuEntity
 import com.atguigu.hrspring.mapper.MenuMapper
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtQueryWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtUpdateWrapper
 import jakarta.validation.Valid
 import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.CacheEvict
@@ -42,7 +42,7 @@ class MenuService(
     @Transactional(readOnly = true)
     fun list(): List<MenuDto> =
         menuMapper.selectList(
-            QueryWrapper<MenuEntity>().orderByAsc("sort", "`key`"),
+            KtQueryWrapper(MenuEntity::class.java).orderByAsc(MenuEntity::sort, MenuEntity::key),
         ).map { it.toDto() }
 
     /** 启用菜单的 key，给当前用户装饰页面权限码。 */
@@ -116,18 +116,18 @@ class MenuService(
             throw ApiException.badRequest("management entry cannot be disabled")
         }
         if (lock(key) == null) throw ApiException.notFound("menu not found")
-        val wrapper = UpdateWrapper<MenuEntity>()
-            .eq("`key`", key)
-            .set("title", request.title.trim())
-            .set("path", request.path)
-            .set("group_label", request.group.trim())
-            .set("sort", request.sort)
-            .set("enabled", request.enabled)
+        val wrapper = KtUpdateWrapper(MenuEntity::class.java)
+            .eq(MenuEntity::key, key)
+            .set(MenuEntity::title, request.title.trim())
+            .set(MenuEntity::path, request.path)
+            .set(MenuEntity::groupLabel, request.group.trim())
+            .set(MenuEntity::sort, request.sort)
+            .set(MenuEntity::enabled, request.enabled)
         val icon = request.icon?.takeIf { it.isNotBlank() }
         if (icon == null) {
             wrapper.setSql("icon = NULL")
         } else {
-            wrapper.set("icon", icon)
+            wrapper.set(MenuEntity::icon, icon)
         }
         try {
             menuMapper.update(wrapper)
@@ -147,13 +147,13 @@ class MenuService(
             "DELETE FROM auth_role_permissions WHERE permission_code = ?",
             "page:$key",
         )
-        menuMapper.delete(QueryWrapper<MenuEntity>().eq("`key`", key))
+        menuMapper.delete(KtQueryWrapper(MenuEntity::class.java).eq(MenuEntity::key, key))
     }
 
     /** selectList 走当前事务。selectOne 会另开 SqlSession，FOR UPDATE 锁不住后面的更新。 */
     private fun lock(key: String): MenuEntity? =
         menuMapper.selectList(
-            QueryWrapper<MenuEntity>().eq("`key`", key).last("FOR UPDATE"),
+            KtQueryWrapper(MenuEntity::class.java).eq(MenuEntity::key, key).last("FOR UPDATE"),
         ).firstOrNull()
 
     private fun MenuEntity.toDto() = MenuDto(

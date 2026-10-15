@@ -3,7 +3,7 @@ import com.atguigu.hrspring.common.cache.CacheNames
 import com.atguigu.hrspring.dto.OrderDto
 import com.atguigu.hrspring.entity.OrderEntity
 import com.atguigu.hrspring.mapper.OrderMapper
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtQueryWrapper
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -16,7 +16,7 @@ class OrderService(
     @Cacheable(cacheNames = [CacheNames.ORDERS], key = "'all'")
     @Transactional(readOnly = true)
     fun list(): List<OrderDto> =
-        orderMapper.selectList(QueryWrapper<OrderEntity>()).map { it.toDto() }
+        orderMapper.selectList(KtQueryWrapper(OrderEntity::class.java)).map { it.toDto() }
 
     private fun OrderEntity.toDto() = OrderDto(
         orderId = orderId,

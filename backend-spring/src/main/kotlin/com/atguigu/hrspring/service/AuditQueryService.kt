@@ -9,7 +9,7 @@ import com.atguigu.hrspring.common.api.ApiList
 import com.atguigu.hrspring.common.api.LikeEscape
 import com.atguigu.hrspring.common.api.pageParams
 import com.atguigu.hrspring.common.api.selectPage
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtQueryWrapper
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -30,9 +30,9 @@ class AuditQueryService(
         val rows = loginRecordMapper.selectPage(page) {
             containsLike("username", username)
             if (success != null) {
-                eq("success", success)
+                eq(AuditLoginRecordEntity::success, success)
             }
-            orderByDesc("id")
+            orderByDesc(AuditLoginRecordEntity::id)
         }
         return ApiList(
             total = rows.total,
@@ -53,10 +53,10 @@ class AuditQueryService(
             containsLike("username", username)
             val normalizedMethod = method?.trim()?.takeIf { it.isNotEmpty() }?.uppercase()
             if (normalizedMethod != null) {
-                eq("method", normalizedMethod)
+                eq(AuditApiCallEntity::method, normalizedMethod)
             }
             prefixLike("path", path)
-            orderByDesc("id")
+            orderByDesc(AuditApiCallEntity::id)
         }
         return ApiList(
             total = rows.total,
@@ -91,12 +91,12 @@ class AuditQueryService(
 }
 
 /** LIKE 的列名是固定字面量；用户输入只进已转义的绑定参数。 */
-private fun <T> QueryWrapper<T>.containsLike(column: String, raw: String?) {
+private fun <T : Any> KtQueryWrapper<T>.containsLike(column: String, raw: String?) {
     val keyword = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return
     apply("$column LIKE {0} ESCAPE '\\\\'", LikeEscape.containsPattern(keyword))
 }
 
-private fun <T> QueryWrapper<T>.prefixLike(column: String, raw: String?) {
+private fun <T : Any> KtQueryWrapper<T>.prefixLike(column: String, raw: String?) {
     val keyword = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return
     apply("$column LIKE {0} ESCAPE '\\\\'", LikeEscape.prefixPattern(keyword))
 }

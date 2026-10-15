@@ -6,8 +6,8 @@ import com.atguigu.hrspring.dto.TDeptDto
 import com.atguigu.hrspring.dto.TDeptUpdateRequest
 import com.atguigu.hrspring.entity.TDeptEntity
 import com.atguigu.hrspring.mapper.TDeptMapper
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtQueryWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtUpdateWrapper
 import jakarta.validation.Valid
 import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.CacheEvict
@@ -28,7 +28,7 @@ class TDeptService(
     @Cacheable(cacheNames = [CacheNames.T_DEPT], key = "'all'")
     @Transactional(readOnly = true)
     fun list(): List<TDeptDto> =
-        tDeptMapper.selectList(QueryWrapper<TDeptEntity>().orderByAsc("id")).map { it.toDto() }
+        tDeptMapper.selectList(KtQueryWrapper(TDeptEntity::class.java).orderByAsc(TDeptEntity::id)).map { it.toDto() }
 
     @CacheEvict(cacheNames = [CacheNames.T_DEPT, CacheNames.OVERVIEW], allEntries = true)
     @Transactional
@@ -51,9 +51,9 @@ class TDeptService(
     @Transactional
     fun update(id: Int, @Valid patch: TDeptUpdateRequest): TDeptDto {
         if (lock(id) == null) throw ApiException.notFound("t_dept not found")
-        val wrapper = UpdateWrapper<TDeptEntity>().eq("id", id)
-        if (patch.deptName != null) wrapper.set("deptName", patch.deptName)
-        if (patch.address != null) wrapper.set("address", patch.address)
+        val wrapper = KtUpdateWrapper(TDeptEntity::class.java).eq(TDeptEntity::id, id)
+        if (patch.deptName != null) wrapper.set(TDeptEntity::deptName, patch.deptName)
+        if (patch.address != null) wrapper.set(TDeptEntity::address, patch.address)
         try {
             tDeptMapper.update(wrapper)
         } catch (e: DataIntegrityViolationException) {
@@ -65,7 +65,9 @@ class TDeptService(
 
     /** selectList 走当前事务。selectOne 会另开 SqlSession，FOR UPDATE 锁不住后面的更新。 */
     private fun lock(id: Int): TDeptEntity? =
-        tDeptMapper.selectList(QueryWrapper<TDeptEntity>().eq("id", id).last("FOR UPDATE")).firstOrNull()
+        tDeptMapper.selectList(
+            KtQueryWrapper(TDeptEntity::class.java).eq(TDeptEntity::id, id).last("FOR UPDATE"),
+        ).firstOrNull()
 
     private fun reload(id: Int): TDeptDto? = tDeptMapper.selectById(id)?.toDto()
 

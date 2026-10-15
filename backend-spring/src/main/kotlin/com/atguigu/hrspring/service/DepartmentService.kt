@@ -6,8 +6,8 @@ import com.atguigu.hrspring.dto.DepartmentDto
 import com.atguigu.hrspring.dto.DepartmentUpdateRequest
 import com.atguigu.hrspring.entity.DepartmentEntity
 import com.atguigu.hrspring.mapper.DepartmentMapper
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtQueryWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtUpdateWrapper
 import jakarta.validation.Valid
 import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.CacheEvict
@@ -27,7 +27,7 @@ class DepartmentService(
     @Cacheable(cacheNames = [CacheNames.DEPARTMENTS], key = "'all'")
     @Transactional(readOnly = true)
     fun list(): List<DepartmentDto> =
-        departmentMapper.selectList(QueryWrapper<DepartmentEntity>().orderByAsc("department_id"))
+        departmentMapper.selectList(KtQueryWrapper(DepartmentEntity::class.java).orderByAsc(DepartmentEntity::departmentId))
             .map { it.toDto() }
 
     @Cacheable(cacheNames = [CacheNames.DEPARTMENT], key = "#id")
@@ -74,10 +74,10 @@ class DepartmentService(
         if (departmentMapper.selectById(id) == null) {
             throw ApiException.notFound("department not found")
         }
-        val wrapper = UpdateWrapper<DepartmentEntity>().eq("department_id", id)
-        patch.departmentName?.let { wrapper.set("department_name", it) }
-        patch.managerId?.let { wrapper.set("manager_id", it) }
-        patch.locationId?.let { wrapper.set("location_id", it) }
+        val wrapper = KtUpdateWrapper(DepartmentEntity::class.java).eq(DepartmentEntity::departmentId, id)
+        patch.departmentName?.let { wrapper.set(DepartmentEntity::departmentName, it) }
+        patch.managerId?.let { wrapper.set(DepartmentEntity::managerId, it) }
+        patch.locationId?.let { wrapper.set(DepartmentEntity::locationId, it) }
         try {
             departmentMapper.update(null, wrapper)
         } catch (e: DataIntegrityViolationException) {

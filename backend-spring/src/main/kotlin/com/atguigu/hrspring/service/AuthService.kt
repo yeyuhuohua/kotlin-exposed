@@ -36,8 +36,8 @@ import com.atguigu.hrspring.common.cache.CacheNames
 import com.atguigu.hrspring.common.validation.RoleCode
 import com.atguigu.hrspring.dto.MenuPermissionDto
 import com.atguigu.hrspring.dto.PageRoute
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtQueryWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtUpdateWrapper
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import org.springframework.cache.annotation.CacheEvict
@@ -120,7 +120,9 @@ class AuthService(
     override fun loadActiveAdmin(): AuthUser? = readTx.execute<AuthUser?> {
         val username = properties.auth.adminUsername.trim().lowercase(Locale.ROOT)
         if (username.isEmpty()) return@execute null
-        val row = userMapper.selectOne(QueryWrapper<UserEntity>().eq("username", username)) ?: return@execute null
+        val row = userMapper.selectOne(
+            KtQueryWrapper(UserEntity::class.java).eq(UserEntity::username, username),
+        ) ?: return@execute null
         val role = roleMapper.selectById(row.roleCode) ?: return@execute null
         toAuthUser(row, role).takeIf { it.active && it.roleCode == Roles.ADMIN }
     }
@@ -156,8 +158,8 @@ class AuthService(
             tx.execute<Int> {
                 userMapper.update(
                     null,
-                    UpdateWrapper<UserEntity>()
-                        .eq("id", id)
+                    KtUpdateWrapper(UserEntity::class.java)
+                        .eq(UserEntity::id, id)
                         .setSql("token_version = token_version + 1"),
                 )
             }
@@ -173,10 +175,10 @@ class AuthService(
     fun listUsers(limit: Int?, offset: Long?): ApiList<UserDto> {
         val size = (limit ?: 50).coerceIn(1, 200)
         val skip = (offset ?: 0L).coerceAtLeast(0L)
-        val total = userMapper.selectCount(QueryWrapper<UserEntity>())
+        val total = userMapper.selectCount(KtQueryWrapper(UserEntity::class.java))
         val items = userMapper.selectList(
-            QueryWrapper<UserEntity>()
-                .orderByAsc("id")
+            KtQueryWrapper(UserEntity::class.java)
+                .orderByAsc(UserEntity::id)
                 .last("LIMIT $size OFFSET $skip"),
         ).map { it.toDto() }
         return ApiList(total, items)
@@ -184,7 +186,7 @@ class AuthService(
 
     @Cacheable(cacheNames = [CacheNames.ROLES], key = "'all'")
     fun listRoles(): List<RoleDto> =
-        roleMapper.selectList(QueryWrapper<RoleEntity>().orderByAsc("code"))
+        roleMapper.selectList(KtQueryWrapper(RoleEntity::class.java).orderByAsc(RoleEntity::code))
             .map { it.toDto() }
 
     @CacheEvict(cacheNames = [CacheNames.USERS], allEntries = true)
@@ -247,11 +249,11 @@ class AuthService(
                 body.roleCode?.let { requireEnabledRole(it) }
                 val rows = userMapper.update(
                     null,
-                    UpdateWrapper<UserEntity>()
-                        .eq("id", id)
-                        .set(body.roleCode != null, "role_code", body.roleCode)
-                        .set(body.enabled != null, "enabled", body.enabled)
-                        .set(hash != null, "password_hash", hash)
+                    KtUpdateWrapper(UserEntity::class.java)
+                        .eq(UserEntity::id, id)
+                        .set(body.roleCode != null, UserEntity::roleCode, body.roleCode)
+                        .set(body.enabled != null, UserEntity::enabled, body.enabled)
+                        .set(hash != null, UserEntity::passwordHash, hash)
                         .setSql("token_version = token_version + 1"),
                 )
                 if (rows == 0) null else loadUser(id)?.toUserDto()
@@ -317,17 +319,19 @@ class AuthService(
                 if (code == Roles.ADMIN) {
                     throw ApiException(403, "ADMIN role is protected", ErrorCode.ROLE_PROTECTED)
                 }
-                val row = roleMapper.selectOne(QueryWrapper<RoleEntity>().eq("code", code).last("FOR UPDATE"))
+                val row = roleMapper.selectOne(
+                    KtQueryWrapper(RoleEntity::class.java).eq(RoleEntity::code, code).last("FOR UPDATE"),
+                )
                 if (row == null) {
                     null
                 } else {
                     val enabledChanged = body.enabled != null && body.enabled != row.enabled
                     roleMapper.update(
                         null,
-                        UpdateWrapper<RoleEntity>()
-                            .eq("code", code)
-                            .set(name != null, "name", name)
-                            .set(body.enabled != null, "enabled", body.enabled),
+                        KtUpdateWrapper(RoleEntity::class.java)
+                            .eq(RoleEntity::code, code)
+                            .set(name != null, RoleEntity::name, name)
+                            .set(body.enabled != null, RoleEntity::enabled, body.enabled),
                     )
                     if (enabledChanged) revokeRoleTokens(code)
                     RoleDto(code, name ?: row.name, body.enabled ?: row.enabled)
@@ -345,17 +349,25 @@ class AuthService(
             throw ApiException(403, "ADMIN role is protected", ErrorCode.ROLE_PROTECTED)
         }
         val removed = tx.execute<Boolean> {
-            val row = roleMapper.selectOne(QueryWrapper<RoleEntity>().eq("code", code).last("FOR UPDATE"))
+            val row = roleMapper.selectOne(
+                KtQueryWrapper(RoleEntity::class.java).eq(RoleEntity::code, code).last("FOR UPDATE"),
+            )
             if (row == null) {
                 false
             } else {
-                val members = userMapper.selectCount(QueryWrapper<UserEntity>().eq("role_code", code))
+                val members = userMapper.selectCount(
+                    KtQueryWrapper(UserEntity::class.java).eq(UserEntity::roleCode, code),
+                )
                 if (members > 0) {
                     throw ApiException(409, "role still has $members user(s)", ErrorCode.ROLE_IN_USE)
                 }
-                rolePermissionMapper.delete(QueryWrapper<RolePermissionEntity>().eq("role_code", code))
-                profileMapper.delete(QueryWrapper<RolePermissionProfileEntity>().eq("role_code", code))
-                roleMapper.delete(QueryWrapper<RoleEntity>().eq("code", code)) > 0
+                rolePermissionMapper.delete(
+                    KtQueryWrapper(RolePermissionEntity::class.java).eq(RolePermissionEntity::roleCode, code),
+                )
+                profileMapper.delete(
+                    KtQueryWrapper(RolePermissionProfileEntity::class.java).eq(RolePermissionProfileEntity::roleCode, code),
+                )
+                roleMapper.delete(KtQueryWrapper(RoleEntity::class.java).eq(RoleEntity::code, code)) > 0
             }
         } ?: false
         if (removed) {
@@ -401,7 +413,9 @@ class AuthService(
     }
 
     private fun findForLogin(username: String): Pair<AuthUser, String>? {
-        val row = userMapper.selectOne(QueryWrapper<UserEntity>().eq("username", username)) ?: return null
+        val row = userMapper.selectOne(
+            KtQueryWrapper(UserEntity::class.java).eq(UserEntity::username, username),
+        ) ?: return null
         val role = roleMapper.selectById(row.roleCode) ?: return null
         return toAuthUser(row, role) to row.passwordHash
     }
@@ -425,14 +439,18 @@ class AuthService(
 
     private fun roleGrants(code: String): Set<String> {
         if (code == Roles.ADMIN) return PermissionCatalog.defaults(code)
-        return rolePermissionMapper.selectList(QueryWrapper<RolePermissionEntity>().eq("role_code", code))
+        return rolePermissionMapper.selectList(
+            KtQueryWrapper(RolePermissionEntity::class.java).eq(RolePermissionEntity::roleCode, code),
+        )
             .map { it.permissionCode }
             .filterTo(linkedSetOf()) { grantable(it) }
     }
 
     private fun loadRolePermissions(code: String): RolePermissionsDto? {
         val role = roleMapper.selectById(code) ?: return null
-        val profile = profileMapper.selectOne(QueryWrapper<RolePermissionProfileEntity>().eq("role_code", code))
+        val profile = profileMapper.selectOne(
+            KtQueryWrapper(RolePermissionProfileEntity::class.java).eq(RolePermissionProfileEntity::roleCode, code),
+        )
         return RolePermissionsDto(
             role = role.toDto(),
             revision = profile?.revision ?: 0,
@@ -445,10 +463,12 @@ class AuthService(
         if (code == Roles.ADMIN) {
             throw ApiException(403, "ADMIN role is protected", ErrorCode.ROLE_PROTECTED)
         }
-        roleMapper.selectOne(QueryWrapper<RoleEntity>().eq("code", code).last("FOR UPDATE"))
+        roleMapper.selectOne(KtQueryWrapper(RoleEntity::class.java).eq(RoleEntity::code, code).last("FOR UPDATE"))
             ?: throw ApiException.notFound("role not found")
         val profile = profileMapper.selectOne(
-            QueryWrapper<RolePermissionProfileEntity>().eq("role_code", code).last("FOR UPDATE"),
+            KtQueryWrapper(RolePermissionProfileEntity::class.java)
+                .eq(RolePermissionProfileEntity::roleCode, code)
+                .last("FOR UPDATE"),
         )
         val revision = profile?.revision ?: 0
         if (request.revision != revision) {
@@ -475,11 +495,13 @@ class AuthService(
         }
         profileMapper.update(
             null,
-            UpdateWrapper<RolePermissionProfileEntity>()
-                .eq("role_code", code)
-                .set("revision", revision + 1),
+            KtUpdateWrapper(RolePermissionProfileEntity::class.java)
+                .eq(RolePermissionProfileEntity::roleCode, code)
+                .set(RolePermissionProfileEntity::revision, revision + 1),
         )
-        rolePermissionMapper.delete(QueryWrapper<RolePermissionEntity>().eq("role_code", code))
+        rolePermissionMapper.delete(
+            KtQueryWrapper(RolePermissionEntity::class.java).eq(RolePermissionEntity::roleCode, code),
+        )
         for (permission in request.permissions) {
             rolePermissionMapper.insert(
                 RolePermissionEntity().apply {
@@ -502,14 +524,16 @@ class AuthService(
     private fun revokeRoleTokens(code: String) {
         userMapper.update(
             null,
-            UpdateWrapper<UserEntity>()
-                .eq("role_code", code)
+            KtUpdateWrapper(UserEntity::class.java)
+                .eq(UserEntity::roleCode, code)
                 .setSql("token_version = token_version + 1"),
         )
     }
 
     private fun requireEnabledRole(code: String) {
-        val role = roleMapper.selectOne(QueryWrapper<RoleEntity>().eq("code", code).last("FOR UPDATE"))
+        val role = roleMapper.selectOne(
+            KtQueryWrapper(RoleEntity::class.java).eq(RoleEntity::code, code).last("FOR UPDATE"),
+        )
         if (role == null || !role.enabled) badRequest("role must exist and be enabled")
     }
 

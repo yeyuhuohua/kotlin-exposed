@@ -6,8 +6,8 @@ import com.atguigu.hrspring.dto.LocationDto
 import com.atguigu.hrspring.dto.LocationUpdateRequest
 import com.atguigu.hrspring.entity.LocationEntity
 import com.atguigu.hrspring.mapper.LocationMapper
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtQueryWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtUpdateWrapper
 import jakarta.validation.Valid
 import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.CacheEvict
@@ -27,7 +27,7 @@ class LocationService(
     @Cacheable(cacheNames = [CacheNames.LOCATIONS], key = "'all'")
     @Transactional(readOnly = true)
     fun list(): List<LocationDto> =
-        locationMapper.selectList(QueryWrapper<LocationEntity>().orderByAsc("location_id")).map { it.toDto() }
+        locationMapper.selectList(KtQueryWrapper(LocationEntity::class.java).orderByAsc(LocationEntity::locationId)).map { it.toDto() }
 
     @CacheEvict(cacheNames = [CacheNames.LOCATIONS, CacheNames.OVERVIEW], allEntries = true)
     @Transactional
@@ -65,12 +65,12 @@ class LocationService(
         if (locationMapper.selectById(id) == null) {
             throw ApiException.notFound("location not found")
         }
-        val wrapper = UpdateWrapper<LocationEntity>().eq("location_id", id)
-        patch.streetAddress?.let { wrapper.set("street_address", it) }
-        patch.postalCode?.let { wrapper.set("postal_code", it) }
-        patch.city?.let { wrapper.set("city", it) }
-        patch.stateProvince?.let { wrapper.set("state_province", it) }
-        patch.countryId?.let { wrapper.set("country_id", it) }
+        val wrapper = KtUpdateWrapper(LocationEntity::class.java).eq(LocationEntity::locationId, id)
+        patch.streetAddress?.let { wrapper.set(LocationEntity::streetAddress, it) }
+        patch.postalCode?.let { wrapper.set(LocationEntity::postalCode, it) }
+        patch.city?.let { wrapper.set(LocationEntity::city, it) }
+        patch.stateProvince?.let { wrapper.set(LocationEntity::stateProvince, it) }
+        patch.countryId?.let { wrapper.set(LocationEntity::countryId, it) }
         try {
             locationMapper.update(null, wrapper)
         } catch (e: DataIntegrityViolationException) {

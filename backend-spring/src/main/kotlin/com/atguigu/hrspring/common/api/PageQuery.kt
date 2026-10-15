@@ -1,8 +1,8 @@
 package com.atguigu.hrspring.common.api
 
 import com.atguigu.hrspring.common.cache.CacheHitMarker
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
 import com.baomidou.mybatisplus.core.mapper.BaseMapper
+import com.baomidou.mybatisplus.extension.kotlin.KtQueryWrapper
 import org.springframework.http.ResponseEntity
 
 fun pageParams(limit: Int?, offset: Long?): PageParams = PageParams(limit ?: 50, offset ?: 0)
@@ -10,10 +10,10 @@ fun pageParams(limit: Int?, offset: Long?): PageParams = PageParams(limit ?: 50,
 /**
  * 用同一组条件分别计数和分页。limit/offset 已由 PageParams 校验成整数，拼进 LIMIT 是安全的。
  */
-fun <E> BaseMapper<E>.selectPage(page: PageParams, build: QueryWrapper<E>.() -> Unit): ApiList<E> {
-    val total = selectCount(QueryWrapper<E>().apply(build))
+inline fun <reified E : Any> BaseMapper<E>.selectPage(page: PageParams, build: KtQueryWrapper<E>.() -> Unit): ApiList<E> {
+    val total = selectCount(KtQueryWrapper(E::class.java).apply(build))
     val items = selectList(
-        QueryWrapper<E>().apply(build).last("LIMIT ${page.limit} OFFSET ${page.offset}"),
+        KtQueryWrapper(E::class.java).apply(build).last("LIMIT ${page.limit} OFFSET ${page.offset}"),
     )
     return ApiList(total, items)
 }

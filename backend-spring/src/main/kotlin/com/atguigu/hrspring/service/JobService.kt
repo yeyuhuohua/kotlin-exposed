@@ -6,8 +6,8 @@ import com.atguigu.hrspring.dto.JobDto
 import com.atguigu.hrspring.dto.JobUpdateRequest
 import com.atguigu.hrspring.entity.JobEntity
 import com.atguigu.hrspring.mapper.JobMapper
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtQueryWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtUpdateWrapper
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import org.slf4j.LoggerFactory
@@ -28,7 +28,7 @@ class JobService(
     @Cacheable(cacheNames = [CacheNames.JOBS], key = "'all'")
     @Transactional(readOnly = true)
     fun list(): List<JobDto> =
-        jobMapper.selectList(QueryWrapper<JobEntity>().orderByAsc("job_id")).map { it.toDto() }
+        jobMapper.selectList(KtQueryWrapper(JobEntity::class.java).orderByAsc(JobEntity::jobId)).map { it.toDto() }
 
     @CacheEvict(cacheNames = [CacheNames.JOBS, CacheNames.OVERVIEW], allEntries = true)
     @Transactional
@@ -61,17 +61,17 @@ class JobService(
     @Transactional
     fun update(@NotBlank(message = "invalid job id") jobId: String, @Valid patch: JobUpdateRequest): JobDto {
         val current = jobMapper.selectOne(
-            QueryWrapper<JobEntity>().eq("job_id", jobId).last("FOR UPDATE"),
+            KtQueryWrapper(JobEntity::class.java).eq(JobEntity::jobId, jobId).last("FOR UPDATE"),
         ) ?: throw ApiException.notFound("job not found")
         val min = patch.minSalary ?: current.minSalary
         val max = patch.maxSalary ?: current.maxSalary
         if (min != null && max != null && min > max) {
             throw ApiException.badRequest("minSalary must not exceed maxSalary")
         }
-        val wrapper = UpdateWrapper<JobEntity>().eq("job_id", jobId)
-        patch.jobTitle?.let { wrapper.set("job_title", it) }
-        patch.minSalary?.let { wrapper.set("min_salary", it) }
-        patch.maxSalary?.let { wrapper.set("max_salary", it) }
+        val wrapper = KtUpdateWrapper(JobEntity::class.java).eq(JobEntity::jobId, jobId)
+        patch.jobTitle?.let { wrapper.set(JobEntity::jobTitle, it) }
+        patch.minSalary?.let { wrapper.set(JobEntity::minSalary, it) }
+        patch.maxSalary?.let { wrapper.set(JobEntity::maxSalary, it) }
         try {
             jobMapper.update(null, wrapper)
         } catch (e: DataIntegrityViolationException) {
