@@ -6,5 +6,7 @@ export default defineConfig({
   plugins: [vue()],
   test: {
     server: { deps: { inline: ['element-plus', 'async-validator'] } },
+    // CI 冷缓存下整体 import 路由模块的转换可能超过默认 5 秒。
+    testTimeout: 15000,
   },
 })
