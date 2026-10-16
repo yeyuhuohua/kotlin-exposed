@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { ArrowUpRight, BookOpen, Users, X } from '@lucide/vue'
-import { docsPaths } from '../api/paths'
+import { docsHref, docsPaths } from '../api/paths'
 import { menuIcon } from '../lib/menuIcons'
 import { useAuth } from '../stores/auth'
 
@@ -71,7 +71,7 @@ const bottomPages = computed(() =>
           <span>{{ item.label }}</span>
         </el-menu-item>
       </el-menu>
-      <a class="nav-link" :href="docsPaths.swagger" target="_blank" rel="noopener">
+      <a class="nav-link" :href="docsHref(docsPaths.swagger)" target="_blank" rel="noopener">
         <BookOpen :size="18" />
         接口文档
         <ArrowUpRight :size="14" class="push-right" />

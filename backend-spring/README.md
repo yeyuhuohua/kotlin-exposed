@@ -151,7 +151,7 @@ java -jar build/libs/kotlin-spring-0.0.1.jar \
 ```
 
 不要使用 `-plain.jar` 作为独立部署包。外部配置和凭据不进入镜像或版本控制。
-前端开发期设置 `API_PROXY_TARGET=http://127.0.0.1:8081` 并重启 Vite；
+前端开发默认直连本服务（8081，跨域由本服务 CORS 放行），无需额外配置；
 生产反向代理 `/api` 和文档路径，助手还需 `/mcp` 的 Streamable HTTP 转发，避免代理缓冲或截断协议连接。
 自定义 `server.servlet.context-path` 或 `spring.mvc.servlet.path` 后要同步更新客户端 URL 和网关路径。
 文档默认公开，对外部署按需要在网关限制。

@@ -42,7 +42,7 @@ dsh/                     DeepSeek Harness 对话助手容器（品牌补丁 + HR
 | --- | --- | --- |
 | 前端 | <http://127.0.0.1:5173> | 浏览器工作台 |
 | Ktor API | <http://127.0.0.1:8080> | 两个后端至少选一个 |
-| Spring API / MCP | <http://127.0.0.1:8081> | 使用 DSH 的 HR 工具时必需 |
+| Spring API / MCP | <http://127.0.0.1:8081> | 前端开发默认连接；使用 DSH 的 HR 工具时必需 |
 | DSH 登录态代理 | <http://127.0.0.1:3080> | 使用助手时必需 |
 | LM Studio API | <http://127.0.0.1:1234/v1> | 默认模型提供方，可在 DSH 中更换 |
 
@@ -52,8 +52,10 @@ dsh/                     DeepSeek Harness 对话助手容器（品牌补丁 + HR
 自动初始化只负责认证、菜单和审计表，不会创建数据库或这些业务表。
 Redis 故障时业务缓存旁路；`GET /api/health` 在任一依赖不可用时返回 503，详情仍保留在 `data` 中。
 
-以下流程使用 Ktor 后端。使用 Spring 时按 [Spring 指南](backend-spring/README.md) 准备配置并启动，
-然后将前端 `API_PROXY_TARGET` 切到 8081；使用助手时继续完成 [DSH 指南](dsh/README.md) 的模型和 MCP 配置。
+以下流程使用 Ktor 后端；前端开发默认直连 Spring（8081），跟随本流程时先把
+`VITE_API_BASE_URL` 设为 `http://127.0.0.1:8080`（见 `frontend/.env.example`）。
+使用 Spring 时按 [Spring 指南](backend-spring/README.md) 准备配置并启动即可；
+使用助手时继续完成 [DSH 指南](dsh/README.md) 的模型和 MCP 配置。
 
 首次克隆仓库后，在仓库根目录准备本地配置：
 
@@ -85,8 +87,9 @@ pnpm dev
 前端地址：[http://127.0.0.1:5173](http://127.0.0.1:5173)。
 后端地址：[http://127.0.0.1:8080](http://127.0.0.1:8080)。
 如果 5173 端口已被占用，Vite 会自动选择其他前端端口。
-前端的 `/api` 和接口文档请求会被代理到后端。
-如需修改代理目标，请根据 `frontend/.env.example` 中的配置键创建 `frontend/.env.local`，然后重启 Vite。
+前端的 API 和接口文档请求由浏览器直接跨域发往后端，本机来源已被后端 CORS 放行，无需开发代理。
+前端开发默认直连 Spring（8081）；本流程使用 Ktor，请根据 `frontend/.env.example` 创建
+`frontend/.env.local` 并设置 `VITE_API_BASE_URL=http://127.0.0.1:8080`，然后重启 Vite。
 
 可以在 IntelliJ IDEA 中打开仓库根目录，同时开发前后端。
 在 Gradle 工具窗口中关联 `backend/build.gradle.kts`，使用
@@ -236,11 +239,11 @@ Gradle Wrapper、`pnpm-lock.yaml`、源码、文档和无密钥的示例配置�
 ## 生产部署
 
 使用 Web 服务器托管 `frontend/dist/`，并配置单页应用的历史路由回退。
-将 `/api`、`/swagger`、`/v3` 和 `/doc.html` 反向代理到选定后端。
+同源部署时将 `/api`、`/swagger`、`/v3` 和 `/doc.html` 反向代理到选定后端。
 Ktor 还需要 `/swagger-resources` 和 `/webjars`；Spring 需要 `/swagger-ui`。
-完整的前端代理与部署约定见 [前端指南](frontend/README.md)。
-Vite 的开发代理不会被打包进生产构建产物。
-如果 API 使用独立域名或端口，请在构建时设置 `VITE_API_BASE_URL`，并为该部署配置后端 CORS 和文档链接。
+完整的部署约定见 [前端指南](frontend/README.md)。
+如果 API 使用独立域名或端口，请在构建时设置 `VITE_API_BASE_URL` 并为该部署配置后端 CORS，
+文档链接会随 `VITE_API_BASE_URL` 一起指向目标后端。
 
 Ktor 在 `backend/` 下运行 `./gradlew buildFatJar` 生成 `build/libs/kotlin-exposed-all.jar`。
 以下启动命令从仓库根目录执行，并显式传入外部配置：

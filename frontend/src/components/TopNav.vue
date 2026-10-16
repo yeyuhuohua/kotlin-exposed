@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowUpRight, BookOpen } from '@lucide/vue'
-import { docsPaths } from '../api/paths'
+import { docsHref, docsPaths } from '../api/paths'
 import { menuIcon } from '../lib/menuIcons'
 import { useAuth } from '../stores/auth'
 
@@ -33,7 +33,7 @@ const DOCS_INDEX = '__docs__'
 
 function onSelect(index: string) {
   if (index === DOCS_INDEX) {
-    window.open(docsPaths.swagger, '_blank', 'noopener')
+    window.open(docsHref(docsPaths.swagger), '_blank', 'noopener')
     return
   }
   if (index.startsWith('/')) void router.push(index)

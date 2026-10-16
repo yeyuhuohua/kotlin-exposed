@@ -39,6 +39,14 @@ const errorMessages: Record<string, string> = {
   internal_error: '服务暂时不可用，请稍后重试',
   dependency_unavailable: '服务暂时不可用，请稍后重试',
 }
+/**
+ * 浏览器访问 API 的地址前缀，客户端会继续追加 `/api`。
+ * 未设置时：开发模式直连本机 Spring（后端 CORS 已放行本机来源），生产构建同源。
+ * 显式设置为空串表示同源部署；指向其它地址（如 Ktor 的 8080）时为跨域直连。
+ */
+export const apiBaseUrl: string =
+  import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? 'http://127.0.0.1:8081' : '')
+
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const token = options.auth === false ? undefined : readSession()?.token
   const controller = new AbortController()
@@ -50,7 +58,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     15000,
   )
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api${path}`, {
+    const response = await fetch(`${apiBaseUrl}/api${path}`, {
       method: options.method || 'GET',
       signal: controller.signal,
       headers: {

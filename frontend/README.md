@@ -29,20 +29,17 @@ cp .env.example .env.local
 
 | 变量 | 默认值/示例 | 作用 |
 | --- | --- | --- |
-| `API_PROXY_TARGET` | `http://127.0.0.1:8080` | 只用于 Vite 开发服务器，代理 API 和文档请求 |
-| `VITE_API_BASE_URL` | 空 | 浏览器 API 的地址前缀；客户端会继续追加 `/api`，不要重复填写 `/api` |
+| `VITE_API_BASE_URL` | 开发默认 `http://127.0.0.1:8081` | 浏览器 API 的地址前缀；客户端会继续追加 `/api`，不要重复填写 `/api`。显式留空表示同源部署 |
 | `VITE_DSH_URL` | `http://127.0.0.1:3080` | 助手 iframe 与 `/hr-session` 请求的基础地址，末尾不要加 `/` |
 
-使用 Spring 及 DSH 时，在 `.env.local` 配置：
+开发默认直连 Spring（8081），DSH 开箱即用。改用 Ktor 时，在 `.env.local` 配置：
 
 ```dotenv
-API_PROXY_TARGET=http://127.0.0.1:8081
-VITE_API_BASE_URL=
-VITE_DSH_URL=http://127.0.0.1:3080
+VITE_API_BASE_URL=http://127.0.0.1:8080
 ```
 
-开发代理覆盖 `/api`、`/swagger`、`/v3`、`/webjars` 与 `/doc.html` 前缀。
-助手请求直接发往 `VITE_DSH_URL`，不会被 `API_PROXY_TARGET` 代理。
+前端没有开发代理：API 和文档请求由浏览器直接跨域访问后端，本机来源由后端 CORS 放行。
+助手请求直接发往 `VITE_DSH_URL`，与 API 地址互不影响。
 所有 `VITE_*` 值都会进入浏览器代码，不能保存数据库密码、JWT 签名密钥或 MCP 固定口令。
 
 ## 源码与动态菜单
@@ -94,8 +91,7 @@ pnpm build
 
 测试使用 Vitest、Vue Test Utils 和 happy-dom，不连接真实后端。
 `pnpm format` 会改写代码，按需使用；CI 执行类型检查、测试和构建。
-生产产物在 `dist/`；`pnpm preview` 只用于本机预览构建产物，不是生产服务器。
-当前 Vite 的 preview 会沿用配置的代理，但真正部署 `dist/` 后仍需由网关提供 API 转发。
+生产产物在 `dist/`；`pnpm preview` 只用于本机预览构建产物，不是生产服务器，也不提供 API 代理。
 
 ## 生产部署
 
@@ -105,10 +101,9 @@ API 和文档路径必须先匹配反向代理，不能把 `/api` 的失败响�
 同源部署时 `VITE_API_BASE_URL` 保持空，网关将 `/api` 代理到选定后端，并根据后端转发文档入口：
 Ktor 使用 `/swagger`、`/swagger-resources`、`/v3`、`/webjars`、`/doc.html`；
 Spring 使用 `/swagger`、`/swagger-ui`、`/v3`、`/doc.html`。
-Vite 的 `API_PROXY_TARGET` 不会进入生产产物。
 
-跨域 API 在构建时设置 `VITE_API_BASE_URL`，并配置对应后端 CORS。
-导航中的文档链接仍是同源 `/swagger`，只更改 API 地址不会改变文档链接，仍需网关转发。
+跨域部署在构建时设置 `VITE_API_BASE_URL`，并配置对应后端 CORS；
+导航中的文档链接与 API 共用这个前缀，会一并指向目标后端。
 目前 Vite 没有设置自定义 `base`，路由也没有子路径基址，不应仅修改环境变量就宣称支持子目录部署。
 
 助手部署需要额外处理 Origin 白名单、Cookie、iframe、WebSocket 和 DSH trusted host，见 [DSH 指南](../dsh/README.md)。
@@ -117,10 +112,10 @@ Vite 的 `API_PROXY_TARGET` 不会进入生产产物。
 
 | 现象 | 检查与处理 |
 | --- | --- |
-| 请求超时或无法连接后端 | 先检查目标后端 `/api/health`，确认 IDEA Debug 在线及 `API_PROXY_TARGET` 正确 |
+| 请求超时或无法连接后端 | 先检查目标后端 `/api/health`，确认 IDEA Debug 在线及 `VITE_API_BASE_URL` 指向正确 |
 | 切换后端后登录失效 | 重新登录；如要共用 Token，两套后端需使用相同 JWT 密钥、issuer、audience |
 | 新增菜单没有页面 | 核对菜单 key 是否已在 `router.ts` 或 `resources.ts` 注册，以及菜单是否启用 |
 | 页面可见但查询/保存返回 403 | 核对页面、查询、写入和下拉数据各自的接口权限 |
 | 部署后刷新页面返回 404 | 配置单页应用的 history 回退，同时保留 API 代理优先级 |
-| 生产 API 仍连错地址 | `API_PROXY_TARGET` 仅用于开发；确认构建时的 `VITE_API_BASE_URL` 与网关配置 |
+| 生产 API 仍连错地址 | 确认构建时的 `VITE_API_BASE_URL` 与网关配置；修改后需要重新构建 |
 | 助手返回 401/503 或 iframe 无法连接 | 检查 Spring、DSH、模型服务和 Cookie；本机地址统一使用 `127.0.0.1`，避免与 `localhost` 混用 |

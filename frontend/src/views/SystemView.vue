@@ -2,7 +2,7 @@
 /** 展示数据库和 Redis 的实际健康状态，保留依赖故障时返回的诊断数据。 */
 import { onMounted, ref } from 'vue'
 import { Activity, ArrowUpRight, Database, RefreshCw, Server, Workflow } from '@lucide/vue'
-import { docsPaths, systemPaths } from '../api/paths'
+import { docsHref, docsPaths, systemPaths } from '../api/paths'
 import { api } from '../lib/api'
 import { useResource } from '../composables/useResource'
 import StateBlock from '../components/StateBlock.vue'
@@ -79,7 +79,7 @@ onMounted(refresh)
             { label: 'OpenAPI JSON', path: docsPaths.openapi },
           ]"
           :key="link.path"
-          :href="link.path"
+          :href="docsHref(link.path)"
           target="_blank"
           rel="noopener"
           class="doc-link"

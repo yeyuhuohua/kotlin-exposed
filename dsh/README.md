@@ -47,8 +47,8 @@ docker compose logs --tail=100 dsh
 Compose 默认只向主机回环发布 3080，不发布容器内的 3081。
 代理或 DSH 进程退出都会结束容器，再由 `restart: unless-stopped` 恢复完整服务。
 
-前端在 `.env.local` 设置 `API_PROXY_TARGET=http://127.0.0.1:8081`，保持
-`VITE_DSH_URL=http://127.0.0.1:3080`，重启 Vite 后用 ADMIN 登录并打开助手。
+前端开发默认直连 Spring（8081），无需额外配置；保持
+`VITE_DSH_URL=http://127.0.0.1:3080`，用 ADMIN 登录并打开助手。
 本机浏览器统一使用 `127.0.0.1`，避免 HR 页面用 `localhost`、助手用 `127.0.0.1` 导致 Cookie 站点不一致。
 
 ## 环境变量和模型配置
