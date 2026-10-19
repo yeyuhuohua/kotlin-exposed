@@ -9,8 +9,9 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.filter.CorsFilter
 import org.springframework.web.filter.OncePerRequestFilter
-import org.springframework.web.servlet.config.annotation.CorsRegistry
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 
@@ -25,14 +26,18 @@ class WebConfig(
         registry.addInterceptor(permissionInterceptor).addPathPatterns("/api/**")
     }
 
-    override fun addCorsMappings(registry: CorsRegistry) {
+    /** 在鉴权之前完成预检，并让 401 等提前返回的响应也带上跨域头。 */
+    @Bean
+    fun corsFilter(): FilterRegistrationBean<CorsFilter> {
         val allowed = properties.cors.allowedHosts
-        val registration = registry.addMapping("/api/**")
-            .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE")
-            .allowedHeaders("Content-Type", "Authorization")
+        val cors = CorsConfiguration().apply {
+            allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE")
+            allowedHeaders = listOf("Content-Type", "Authorization")
+            maxAge = 1800L
+        }
         when {
-            allowed.contains("*") -> registration.allowedOriginPatterns("*")
-            allowed.isEmpty() -> registration.allowedOriginPatterns(
+            allowed.contains("*") -> cors.allowedOriginPatterns = listOf("*")
+            allowed.isEmpty() -> cors.allowedOriginPatterns = listOf(
                 "http://localhost:*",
                 "http://127.0.0.1:*",
                 "http://[::1]:*",
@@ -41,9 +46,14 @@ class WebConfig(
                 val origins = allowed.flatMap { originVariants(it) }
                 val patterns = origins.filter { it.contains('*') }
                 val exact = origins.filterNot { it.contains('*') }
-                if (exact.isNotEmpty()) registration.allowedOrigins(*exact.toTypedArray())
-                if (patterns.isNotEmpty()) registration.allowedOriginPatterns(*patterns.toTypedArray())
+                if (exact.isNotEmpty()) cors.allowedOrigins = exact
+                if (patterns.isNotEmpty()) cors.allowedOriginPatterns = patterns
             }
+        }
+        val filter = CorsFilter { request -> cors.takeIf { request.applicationPath().startsWith("/api/") } }
+        return FilterRegistrationBean(filter).apply {
+            addUrlPatterns("/*")
+            order = Integer.MIN_VALUE + 1
         }
     }
 

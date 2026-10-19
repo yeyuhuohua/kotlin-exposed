@@ -29,6 +29,7 @@ class StartupLogging {
         val base = "$scheme://$browseHost:$port$contextPath$servletPath"
 
         if (environment.getProperty("springdoc.swagger-ui.enabled", Boolean::class.java, true)) {
+            log.info("Knife4j: {}/doc.html", base)
             log.info("Swagger UI: {}{}", base, environment.getProperty("springdoc.swagger-ui.path", "/swagger-ui.html"))
         }
         log.info("OpenAPI JSON: {}{}", base, environment.getProperty("springdoc.api-docs.path", "/v3/api-docs"))

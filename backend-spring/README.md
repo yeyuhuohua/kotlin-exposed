@@ -58,15 +58,16 @@ cp src/main/resources/application.example.yaml src/main/resources/application.ya
 
 | 入口 | 默认地址 |
 | --- | --- |
+| Knife4j | <http://127.0.0.1:8081/doc.html> |
 | Swagger UI | <http://127.0.0.1:8081/swagger-ui/index.html> |
-| 兼容文档入口 | <http://127.0.0.1:8081/swagger>、<http://127.0.0.1:8081/doc.html> |
+| Swagger UI 快捷入口 | <http://127.0.0.1:8081/swagger> |
 | OpenAPI JSON | <http://127.0.0.1:8081/v3/api-docs> |
 | 健康检查 | <http://127.0.0.1:8081/api/health> |
 | MCP | <http://127.0.0.1:8081/mcp> |
 
-启动成功后控制台打印实际端口、HTTP/HTTPS、context path 和 servlet path 下的文档地址。
+启动成功后控制台打印 Knife4j、Swagger UI 和 OpenAPI JSON 地址，包含实际端口、HTTP/HTTPS、context path 和 servlet path。
 禁用 OpenAPI 或 Swagger UI 时，相应入口不会打印。
-`/doc.html` 与 `/swagger` 在 Spring 中跳转到 Swagger UI，并不是另一套 Knife4j 页面。
+`/doc.html` 提供本地 JAR 中的 Knife4j 页面，`/swagger` 跳转到 Swagger UI；两者共用 springdoc 生成的接口文档。
 
 ```sh
 curl -i http://127.0.0.1:8081/api/health

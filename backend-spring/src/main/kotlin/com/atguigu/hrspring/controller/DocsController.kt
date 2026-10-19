@@ -8,10 +8,7 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder
 import java.net.URI
 
-/**
- * 文档入口兼容：保留 Ktor 后端的 /swagger、/doc.html 入口，统一落到 springdoc 的 Swagger UI。
- * /v3/api-docs 由 springdoc 自动提供。
- */
+/** 文档入口跳转；/doc.html 由 Knife4j UI 资源提供，/v3/api-docs 由 springdoc 生成。 */
 @RestController
 class DocsController(
     @Value("\${springdoc.swagger-ui.path:/swagger-ui.html}") private val swaggerUiPath: String,
@@ -24,9 +21,6 @@ class DocsController(
 
     @GetMapping("/", "/docs", "/scalar")
     fun root(request: HttpServletRequest): ResponseEntity<Void> = redirect(request, "/doc.html")
-
-    @GetMapping("/doc.html")
-    fun doc(request: HttpServletRequest): ResponseEntity<Void> = redirect(request, swaggerUiPath)
 
     @GetMapping("/swagger")
     fun swagger(request: HttpServletRequest): ResponseEntity<Void> = redirect(request, swaggerUiPath)

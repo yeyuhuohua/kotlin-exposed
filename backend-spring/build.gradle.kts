@@ -56,7 +56,8 @@ dependencies {
     // 配置绑定和 Kotlin 数据类需要 kotlin-reflect。
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
-    // Swagger UI 和 OpenAPI JSON。
+    // Knife4j 只引入 UI 资源，OpenAPI JSON 和 Swagger UI 由 Boot 4 对应的 springdoc 提供。
+    implementation("com.github.xiaoymin:knife4j-openapi3-ui:4.5.0")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
 
     // 切片测试和 MockMvc。导出测试不连 MySQL / Redis。

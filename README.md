@@ -138,7 +138,7 @@ Token 保存在当前标签页的会话存储中，不写入持久化的本地�
 ## 接口契约
 
 接口字段和可用操作以运行时 `/v3/api-docs` 为准，不维护另一份静态接口规范。
-Ktor 的 `/doc.html` 是 Knife4j，`/swagger` 是 Swagger UI；Spring 的兼容入口会跳转到 Swagger UI。
+两个后端的 `/doc.html` 都是 Knife4j，`/swagger` 是 Swagger UI。
 登录返回 `data.accessToken`；受保护请求携带 `Authorization: Bearer <accessToken>`。
 分页接口使用 `limit`（1-200，默认 50）和 `offset`（跳过条数，默认 0），而不是页码。
 
@@ -240,7 +240,7 @@ Gradle Wrapper、`pnpm-lock.yaml`、源码、文档和无密钥的示例配置�
 
 使用 Web 服务器托管 `frontend/dist/`，并配置单页应用的历史路由回退。
 同源部署时将 `/api`、`/swagger`、`/v3` 和 `/doc.html` 反向代理到选定后端。
-Ktor 还需要 `/swagger-resources` 和 `/webjars`；Spring 需要 `/swagger-ui`。
+两个后端都需要 `/webjars`；Ktor 还需要 `/swagger-resources`，Spring 还需要 `/swagger-ui`。
 完整的部署约定见 [前端指南](frontend/README.md)。
 如果 API 使用独立域名或端口，请在构建时设置 `VITE_API_BASE_URL` 并为该部署配置后端 CORS，
 文档链接会随 `VITE_API_BASE_URL` 一起指向目标后端。

@@ -64,8 +64,10 @@ class ServletFiltersTest {
             })
             context.addServletMappingDecoded("/gateway/*", "gateway")
             context.addServletMappingDecoded("/", "gateway")
+            val web = WebConfig(properties, PermissionInterceptor())
             val filters = listOf(
-                WebConfig(properties, PermissionInterceptor()).securityHeadersFilter(),
+                web.securityHeadersFilter(),
+                web.corsFilter(),
                 AuditFilterConfig(audit, ClientIp(properties)).auditFilter(),
                 McpSecurityConfig(tokens, loader, properties, jacksonObjectMapper(), mcpProperties).mcpSecurityFilter(),
                 FilterRegistrationBean(JwtAuthFilter(tokens, loader, jacksonObjectMapper())).apply {
@@ -86,16 +88,29 @@ class ServletFiltersTest {
             }
             server.start()
             val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()
-            fun request(path: String, token: String? = null): HttpResponse<String> {
+            fun request(path: String, token: String? = null, origin: String? = null, method: String = "GET"): HttpResponse<String> {
                 val builder = HttpRequest.newBuilder(
                     URI.create("http://127.0.0.1:${server.connector.localPort}/hr$path"),
                 ).timeout(Duration.ofSeconds(5))
                 if (token != null) builder.header("Authorization", "Bearer $token")
-                return client.send(builder.GET().build(), HttpResponse.BodyHandlers.ofString())
+                if (origin != null) builder.header("Origin", origin)
+                if (method == "OPTIONS") {
+                    builder.header("Access-Control-Request-Method", "GET")
+                    builder.header("Access-Control-Request-Headers", "authorization")
+                }
+                return client.send(
+                    builder.method(method, HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString(),
+                )
             }
             fun records() = mockingDetails(audit).invocations.filter { it.method.name == "recordApiCall" }
 
             for (prefix in listOf("", "/gateway")) {
+                val origin = "http://localhost:5173"
+                val beforePreflight = records().size
+                val preflight = request("$prefix/api/jobs", origin = origin, method = "OPTIONS")
+                assertEquals(200, preflight.statusCode())
+                assertEquals(origin, preflight.headers().firstValue("Access-Control-Allow-Origin").orElse(null))
+                assertEquals(beforePreflight, records().size)
                 assertEquals(400, request("$prefix/api/jobs/DEV%2FOPS", tokens.issue(7, 0)).statusCode())
                 for (path in listOf("/api/jobs", "/%61pi/jobs", "/api;v=1/jobs")) {
                     val before = records().size
@@ -108,8 +123,9 @@ class ServletFiltersTest {
                     assertEquals(7, records().last().arguments[0])
                     assertEquals("/hr$prefix$path", records().last().arguments[3])
                 }
-                val response = request("$prefix/api/jobs", "invalid")
+                val response = request("$prefix/api/jobs", "invalid", origin)
                 assertEquals(401, response.statusCode())
+                assertEquals(origin, response.headers().firstValue("Access-Control-Allow-Origin").orElse(null))
                 assertEquals("nosniff", response.headers().firstValue("X-Content-Type-Options").orElse(null))
                 assertEquals(401, records().last().arguments[5])
                 assertNull(records().last().arguments[0])
