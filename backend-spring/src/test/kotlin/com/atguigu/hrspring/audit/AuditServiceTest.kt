@@ -4,6 +4,8 @@ import com.atguigu.hrspring.mapper.AuditApiCallMapper
 import com.atguigu.hrspring.mapper.AuditLoginRecordMapper
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Proxy
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.test.Test
@@ -19,9 +21,14 @@ class AuditServiceTest {
         fakeMapper(AuditApiCallMapper::class.java, AtomicInteger()),
     )
 
-    private fun <T> fakeMapper(type: Class<T>, inserts: AtomicInteger): T {
+    private fun <T> fakeMapper(
+        type: Class<T>,
+        inserts: AtomicInteger,
+        beforeInsert: () -> Unit = {},
+    ): T {
         val handler = InvocationHandler { _, method, _ ->
             if (method.name == "insert") {
+                beforeInsert()
                 inserts.incrementAndGet()
                 1
             } else {
@@ -64,6 +71,8 @@ class AuditServiceTest {
         assertEquals(1, droppedOf(s))
         assertEquals(0, loginInserts.get())
         s.shutdown()
+        assertEquals(AuditService.QUEUE_CAPACITY + 1L, droppedOf(s))
+        assertEquals(0, loginInserts.get())
     }
 
     @Test
@@ -76,6 +85,33 @@ class AuditServiceTest {
         // shutdown() 会 join 消费者线程,返回即代表队列已排空,无需 sleep
         s.shutdown()
         assertEquals(50, loginInserts.get())
+        assertEquals(0, droppedOf(s))
+    }
+
+    @Test
+    fun `停机超时取消在途写入并与排队记录一起恰好计一次`() {
+        val entered = CountDownLatch(2)
+        val written = AtomicInteger()
+        val s = AuditService(
+            fakeMapper(AuditLoginRecordMapper::class.java, written) {
+                entered.countDown()
+                Thread.sleep(60_000)
+            },
+            fakeMapper(AuditApiCallMapper::class.java, AtomicInteger()),
+        )
+        s.drainTimeoutMs = 100
+        try {
+            s.start()
+            repeat(5) {
+                s.recordLogin("user$it", it, "127.0.0.1", "agent", true, null)
+            }
+            assertTrue(entered.await(2, TimeUnit.SECONDS))
+            s.shutdown()
+            assertEquals(0, written.get())
+            assertEquals(5, droppedOf(s), "在途 2 条 + 排队 3 条必须恰好计一次")
+        } finally {
+            s.shutdown()
+        }
     }
 
     @Test

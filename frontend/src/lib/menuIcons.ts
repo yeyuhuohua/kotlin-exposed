@@ -54,5 +54,6 @@ const registry: Record<string, Component> = {
 export const menuIconNames = Object.keys(registry).sort()
 
 export function menuIcon(name: string | null | undefined): Component {
-  return (name && registry[name]) || File
+  if (name && Object.hasOwn(registry, name)) return registry[name]
+  return File
 }

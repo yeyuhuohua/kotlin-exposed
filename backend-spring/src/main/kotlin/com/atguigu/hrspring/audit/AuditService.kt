@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -24,39 +25,96 @@ class AuditService(
     private val apiCallMapper: AuditApiCallMapper,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
-    private val queue = ArrayBlockingQueue<() -> Unit>(QUEUE_CAPACITY)
+    private val queue = ArrayBlockingQueue<AuditTask>(QUEUE_CAPACITY)
     private val accepting = AtomicBoolean(true)
+    private val stopping = AtomicBoolean(false)
     private val dropped = AtomicLong(0)
     private val consumers = mutableListOf<Thread>()
+    private val inFlight = ConcurrentHashMap.newKeySet<AuditTask>()
+    private val lifecycleLock = Any()
+
+    @Volatile
+    internal var drainTimeoutMs = SHUTDOWN_DRAIN_MILLIS
 
     @PostConstruct
     fun start() {
         repeat(CONSUMER_COUNT) { index ->
-            val thread = Thread({
-                while (accepting.get() || queue.isNotEmpty()) {
-                    val task = queue.poll(200, TimeUnit.MILLISECONDS) ?: continue
-                    runCatching { task.invoke() }
-                        .onFailure { log.warn("audit write failed: {}", it.message) }
-                }
-            }, "audit-writer-$index")
+            val thread = Thread({ consume() }, "audit-writer-$index")
             thread.isDaemon = true
             thread.start()
             consumers.add(thread)
         }
     }
 
+    private fun consume() {
+        while (!stopping.get() && (accepting.get() || queue.isNotEmpty())) {
+            val task = try {
+                queue.poll(200, TimeUnit.MILLISECONDS)
+            } catch (e: InterruptedException) {
+                if (stopping.get()) break else continue
+            } ?: continue
+            val accepted = synchronized(lifecycleLock) {
+                if (stopping.get()) {
+                    task.discard()
+                    false
+                } else {
+                    inFlight += task
+                    true
+                }
+            }
+            if (!accepted) continue
+            try {
+                task.write.invoke()
+            } catch (e: Exception) {
+                if (isInterruption(e)) {
+                    task.discard()
+                    Thread.currentThread().interrupt()
+                } else {
+                    log.warn("audit write failed: {}", e.message)
+                }
+            } finally {
+                task.complete()
+                inFlight -= task
+            }
+            if (Thread.currentThread().isInterrupted) break
+        }
+    }
+
+    private fun isInterruption(error: Exception): Boolean {
+        var current: Throwable? = error
+        while (current != null) {
+            if (current is InterruptedException) return true
+            current = current.cause
+        }
+        return false
+    }
+
     @PreDestroy
     fun shutdown() {
-        accepting.set(false)
-        val deadline = System.currentTimeMillis() + SHUTDOWN_DRAIN_MILLIS
+        synchronized(lifecycleLock) { accepting.set(false) }
+        joinConsumers(System.currentTimeMillis() + drainTimeoutMs)
+        if (consumers.any { it.isAlive }) {
+            synchronized(lifecycleLock) { stopping.set(true) }
+            consumers.forEach { it.interrupt() }
+            joinConsumers(System.currentTimeMillis() + 1_000)
+        }
+        inFlight.toSet().forEach { it.discard() }
+        val remaining = mutableListOf<AuditTask>()
+        queue.drainTo(remaining)
+        remaining.forEach { it.discard() }
+    }
+
+    private fun joinConsumers(deadline: Long) {
         for (thread in consumers) {
             val remaining = deadline - System.currentTimeMillis()
-            if (remaining <= 0) break
-            runCatching { thread.join(remaining) }
+            if (remaining <= 0) return
+            try {
+                thread.join(remaining)
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                return
+            }
         }
-        val lost = queue.size
-        if (lost > 0) log.warn("audit shutdown discarded {} queued records", lost)
-        queue.clear()
     }
 
     fun recordLogin(
@@ -113,13 +171,29 @@ class AuditService(
         }
     }
 
-    private fun enqueue(task: () -> Unit) {
-        if (!accepting.get()) return
-        if (!queue.offer(task)) {
-            val count = dropped.incrementAndGet()
-            if (count == 1L || count % 1000 == 0L) {
-                log.warn("audit queue full, dropped {} records so far", count)
-            }
+    private fun enqueue(write: () -> Unit) {
+        synchronized(lifecycleLock) {
+            if (!accepting.get()) return
+            if (!queue.offer(AuditTask(write))) recordLoss()
+        }
+    }
+
+    private inner class AuditTask(val write: () -> Unit) {
+        private val settled = AtomicBoolean(false)
+
+        fun complete() {
+            settled.set(true)
+        }
+
+        fun discard() {
+            if (settled.compareAndSet(false, true)) recordLoss()
+        }
+    }
+
+    private fun recordLoss() {
+        val count = dropped.incrementAndGet()
+        if (count == 1L || count % 1000 == 0L) {
+            log.warn("audit records dropped, {} so far", count)
         }
     }
 

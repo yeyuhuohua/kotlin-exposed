@@ -1,8 +1,10 @@
 package com.atguigu.hr.audit
 
 import com.atguigu.hr.common.api.ApiList
+import com.atguigu.hr.common.api.respondFail
 import com.atguigu.hr.common.api.respondOk
 import com.atguigu.hr.docs.responseExamples
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
@@ -16,7 +18,10 @@ fun Route.auditRoutes() {
         val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 200) ?: 50
         val offset = call.request.queryParameters["offset"]?.toLongOrNull()?.coerceAtLeast(0) ?: 0L
         val username = call.request.queryParameters["username"]
-        val success = call.request.queryParameters["success"]?.toBooleanStrictOrNull()
+        val success = call.request.queryParameters["success"]?.let { raw ->
+            raw.toBooleanStrictOrNull()
+                ?: return@get call.respondFail(HttpStatusCode.BadRequest, "invalid success")
+        }
         call.respondOk(AuditService.listLogins(limit, offset, username, success))
     }.describe {
         summary = "分页查询登录记录（仅 ADMIN）"
@@ -27,7 +32,10 @@ fun Route.auditRoutes() {
             query("username") { description = "按用户名模糊过滤（包含匹配），例如 adm" }
             query("success") { description = "按结果过滤：true=仅成功，false=仅失败" }
         }
-        responseExamples(ApiList(total = 2, items = listOf(sampleLoginRecord, sampleLoginRecordFailed)))
+        responseExamples(
+            ApiList(total = 2, items = listOf(sampleLoginRecord, sampleLoginRecordFailed)),
+            fails = arrayOf(HttpStatusCode.BadRequest to "invalid success"),
+        )
     }
 
     /** 分页查询接口调用记录，支持用户名、方法与路径前缀过滤。 */

@@ -48,16 +48,14 @@ describe('动态路由注册', () => {
     const departments = buildRouteRecord(grantedPages[1]!)
     expect(departments?.path).toBe('departments')
     expect(departments?.props).toMatchObject({ resource: { key: 'departments' } })
-    expect(
-      buildRouteRecord({
-        key: 'not-a-page',
-        title: '未知',
-        path: '/not-a-page',
-        icon: null,
-        group: 'g',
-        sort: 1,
-      }),
-    ).toBeNull()
+    for (const key of ['not-a-page', 'constructor']) {
+      expect(
+        buildRouteRecord({ key, title: '未知', path: `/${key}`, icon: null, group: 'g', sort: 1 }),
+        key,
+      ).toBeNull()
+    }
+    const { menuIcon } = await import('../src/lib/menuIcons')
+    expect(menuIcon('constructor')).toBe(menuIcon('not-registered'))
   })
 
   it('ensurePageRoutes 注册下发清单，指纹不变时不重复注册', async () => {

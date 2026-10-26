@@ -305,7 +305,7 @@ async function syncPages() {
           </label>
           <label class="form-field">
             <span>标题</span>
-            <el-input v-model="form.title" placeholder="导航显示的名称" maxlength="30" />
+            <el-input v-model="form.title" placeholder="导航显示的名称" />
           </label>
           <label class="form-field">
             <span>路径</span>

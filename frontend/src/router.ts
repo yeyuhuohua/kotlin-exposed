@@ -26,7 +26,7 @@ const fillHeightViews = new Set(['chat'])
 /** 把后端下发的页面转成 AppLayout 下的子路由；前端没有对应组件的页面跳过并告警。 */
 export function buildRouteRecord(page: PageRoute): RouteRecordRaw | null {
   const meta = { title: page.title, adminOnly: page.adminOnly, page: page.key, fillHeight: fillHeightViews.has(page.key) }
-  const staticView = staticViews[page.key]
+  const staticView = Object.hasOwn(staticViews, page.key) ? staticViews[page.key] : undefined
   if (staticView) {
     return {
       path: page.path === '/' ? '' : page.path.replace(/^\//, ''),

@@ -99,6 +99,16 @@ describe('typed API client', () => {
     )
     expect(await api('/health', { acceptUnavailable: true })).toEqual({ status: 'DOWN' })
   })
+  it('shows the backend detail for field validation failures', async () => {
+    const detail = 'phoneNumber must be at most 20 characters'
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      code: 400,
+      message: detail,
+      data: null,
+      error: 'validation_failed',
+    }), { status: 400 })))
+    await expect(api('/employees/100', { method: 'PATCH', body: {}, auth: false })).rejects.toThrow(detail)
+  })
   it('handles network failures and unexpected non-JSON responses', async () => {
     vi.stubGlobal(
       'fetch',

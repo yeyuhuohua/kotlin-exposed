@@ -1,4 +1,5 @@
 package com.atguigu.hrspring.controller
+import com.atguigu.hrspring.common.api.ApiException
 import com.atguigu.hrspring.dto.ApiCallRecordDto
 import com.atguigu.hrspring.dto.LoginRecordDto
 import com.atguigu.hrspring.service.AuditQueryService
@@ -30,7 +31,9 @@ class AuditController(
             limit = limit,
             offset = offset,
             username = username,
-            success = success?.toBooleanStrictOrNull(),
+            success = success?.let { raw ->
+                raw.toBooleanStrictOrNull() ?: throw ApiException.badRequest("invalid success")
+            },
         ),
         "ok",
     )

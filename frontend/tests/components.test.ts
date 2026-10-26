@@ -17,6 +17,8 @@ import Modal from '../src/components/Modal.vue'
 import LoginView from '../src/views/LoginView.vue'
 import ResourceView from '../src/views/ResourceView.vue'
 import EmployeesView from '../src/views/EmployeesView.vue'
+import MenusView from '../src/views/MenusView.vue'
+import AuditView from '../src/views/AuditView.vue'
 import { readSession, saveSession } from '../src/lib/session'
 
 /** 在内存 DOM 中验证组件契约，不读取本机账号、不访问浏览器或真实 API。 */
@@ -43,6 +45,8 @@ vi.mock('../src/stores/auth', () => ({
     home: '/account',
     login: mocks.login,
     clear: mocks.clear,
+    refreshUser: vi.fn(),
+    loadPages: vi.fn(),
   }),
 }))
 vi.mock('vue-router', () => ({
@@ -482,5 +486,44 @@ describe('Element Plus components', () => {
     const requests = mocks.api.mock.calls.filter(([path]) => String(path).startsWith('/employees?'))
     expect(String(requests[2]?.[0])).toContain('offset=10')
     expect(wrapper.text()).not.toContain('员工加载失败')
+  })
+
+  it('菜单标题按码点校验且不设置 UTF-16 原生长度限制', async () => {
+    mocks.api.mockResolvedValue([])
+    const wrapper = mount(MenusView, options)
+    mounted.push(wrapper)
+    await flushPromises()
+    await wrapper.findAllComponents(ElButton).find((button) => button.text() === '新增菜单')!.trigger('click')
+    await flushPromises()
+    const inputs = wrapper.findAllComponents(ElInput)
+    const byPlaceholder = (placeholder: string) =>
+      inputs.find((input) => input.props('placeholder') === placeholder)!
+    const title = '𠮷' + 'a'.repeat(29)
+    const titleInput = byPlaceholder('导航显示的名称')
+    expect(titleInput.find('input').attributes('maxlength')).toBeUndefined()
+    await byPlaceholder('如 handbook，创建后不可改').find('input').setValue('unicode-menu')
+    await titleInput.find('input').setValue(title)
+    await byPlaceholder('如 /handbook').find('input').setValue('/unicode-menu')
+    await wrapper.findAllComponents(ElButton).find((button) => button.text() === '保存菜单')!.trigger('click')
+    await flushPromises()
+    expect(mocks.api).toHaveBeenCalledWith('/menus', {
+      method: 'POST',
+      body: expect.objectContaining({ title }),
+    })
+  })
+
+  it('审计日志切换每页条数时回到第一页', async () => {
+    mocks.api.mockResolvedValue({ total: 100, items: [] })
+    const wrapper = mount(AuditView, options)
+    mounted.push(wrapper)
+    await flushPromises()
+    const pagination = wrapper.findComponent(Pagination)
+    pagination.vm.$emit('update:page', 5)
+    await flushPromises()
+    pagination.vm.$emit('update:pageSize', 50)
+    await flushPromises()
+    const requests = mocks.api.mock.calls.map(([path]) => String(path)).filter((path) => path.startsWith('/audit/logins?'))
+    expect(requests.at(-1)).toContain('limit=50&offset=0')
+    expect(wrapper.findComponent(ElPagination).props('currentPage')).toBe(1)
   })
 })

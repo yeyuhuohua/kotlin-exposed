@@ -79,10 +79,10 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     if (response.status === 403) window.dispatchEvent(new Event('hr:forbidden'))
     if (!response.ok && !(options.acceptUnavailable && response.status === 503 && envelope?.data)) {
       const detail = envelope?.message
-      const coded = envelope?.error ? errorMessages[envelope.error] : undefined
       const mapped = messageForStatus(response.status, envelope?.error)
-      // 400 的具体原因由后端给出，比通用文案更有用
-      throw new ApiError(response.status, !coded && response.status === 400 && detail ? detail : mapped)
+      // 字段校验失败时展示具体原因；其他稳定业务错误码继续使用中文映射。
+      const message = response.status === 400 && envelope?.error === 'validation_failed' && detail ? detail : mapped
+      throw new ApiError(response.status, message)
     }
     if (!envelope || typeof envelope.code !== 'number' || !('data' in envelope))
       throw new ApiError(502, '服务返回了无法识别的数据')

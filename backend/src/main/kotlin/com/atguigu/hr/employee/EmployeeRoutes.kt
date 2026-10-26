@@ -27,7 +27,9 @@ fun Route.employeeRoutes() {
         // departmentId=none 表示只查未分配部门的员工
         val departmentParam = call.request.queryParameters["departmentId"]
         val unassignedOnly = departmentParam == "none"
-        val departmentId = if (unassignedOnly) null else departmentParam?.toIntOrNull()
+        val departmentId = if (unassignedOnly) null else departmentParam?.let { raw ->
+            raw.toIntOrNull() ?: return@get call.respondFail(HttpStatusCode.BadRequest, "invalid department id")
+        }
         val jobId = call.request.queryParameters["jobId"]
         val q = call.request.queryParameters["q"]
         val cached = EmployeeService.listEmployees(limit, offset, departmentId, jobId, q, unassignedOnly)
@@ -43,7 +45,10 @@ fun Route.employeeRoutes() {
             query("jobId") { description = "按岗位编码精确过滤，例如 IT_PROG" }
             query("q") { description = "姓名或邮箱模糊搜索，例如 King" }
         }
-        responseExamples(ApiList(total = 107, items = listOf(sampleEmployee)))
+        responseExamples(
+            ApiList(total = 107, items = listOf(sampleEmployee)),
+            fails = arrayOf(HttpStatusCode.BadRequest to "invalid department id"),
+        )
     }
 
     /** 新增员工并刷新缓存。employeeId 由调用方提供。 */

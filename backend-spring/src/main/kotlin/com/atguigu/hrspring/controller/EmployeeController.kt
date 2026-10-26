@@ -40,7 +40,9 @@ class EmployeeController(
         @RequestParam(name = "q", required = false) q: String?,
     ): ResponseEntity<ApiResult<ApiList<EmployeeDto>>> {
         val unassignedOnly = departmentId == "none"
-        val department = if (unassignedOnly) null else departmentId?.toIntOrNull()
+        val department = if (unassignedOnly) null else departmentId?.let { raw ->
+            raw.toIntOrNull() ?: throw ApiException.badRequest("invalid department id")
+        }
         return cachedOk(
             employeeService.list(
                 pageParams(limit, offset),

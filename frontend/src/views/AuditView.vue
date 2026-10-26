@@ -64,6 +64,14 @@ function applyCallFilters() {
   if (callPage.value === 1) void calls.refresh()
   else callPage.value = 1
 }
+function setLoginPageSize(value: number) {
+  loginPageSize.value = value
+  loginPage.value = 1
+}
+function setCallPageSize(value: number) {
+  callPageSize.value = value
+  callPage.value = 1
+}
 
 const methodOptions = ['', 'GET', 'POST', 'PUT', 'PATCH', 'DELETE']
 function statusType(status: number): 'success' | 'info' | 'warning' | 'danger' {
@@ -173,7 +181,7 @@ watch([callPage, callPageSize], () => void calls.refresh())
         :total="logins.data.value.total"
         :disabled="logins.loading.value"
         @update:page="loginPage = $event"
-        @update:page-size="loginPageSize = $event"
+        @update:page-size="setLoginPageSize"
       />
     </section>
 
@@ -255,7 +263,7 @@ watch([callPage, callPageSize], () => void calls.refresh())
         :total="calls.data.value.total"
         :disabled="calls.loading.value"
         @update:page="callPage = $event"
-        @update:page-size="callPageSize = $event"
+        @update:page-size="setCallPageSize"
       />
     </section>
   </section>
