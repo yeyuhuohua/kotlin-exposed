@@ -28,16 +28,16 @@ function draw() {
           data: props.entries.map((item) => item.count),
           backgroundColor: colors.value,
           borderColor: cssToken('--surface'),
-          borderWidth: 4,
-          hoverOffset: 4,
+          borderWidth: 3,
+          hoverOffset: 3,
         },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: '78%',
-      animation: { duration: 500 },
+      cutout: '74%',
+      animation: { duration: 400 },
       plugins: { tooltip: { callbacks: { label: (context) => `${context.label}: ${context.raw} 人` } } },
     },
   })
@@ -56,6 +56,7 @@ watch(
 )
 onBeforeUnmount(() => chart?.destroy())
 </script>
+
 <template>
   <div class="distribution">
     <div class="donut-wrap">
@@ -76,18 +77,17 @@ onBeforeUnmount(() => chart?.destroy())
 </template>
 
 <style scoped>
-/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
 .distribution {
   display: flex;
   align-items: center;
   gap: 24px;
-  min-height: 223px;
+  min-height: 220px;
 }
 
 .donut-wrap {
   position: relative;
-  width: 180px;
-  height: 180px;
+  width: 168px;
+  height: 168px;
   flex-shrink: 0;
 }
 
@@ -102,49 +102,48 @@ onBeforeUnmount(() => chart?.destroy())
 }
 
 .donut-center strong {
-  font-size: 30px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
   color: var(--text-strong);
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
 
 .donut-center span {
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--text-faint);
   margin-top: 4px;
+  color: var(--text-faint);
+  font-size: 11px;
 }
 
 .chart-legend {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  min-width: 0;
   flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .chart-legend li {
   display: flex;
   align-items: center;
   gap: 9px;
-  margin: 14px 0;
-  font-size: 12px;
-  color: var(--text-muted);
   min-width: 0;
+  margin: 11px 0;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .chart-legend i {
   width: 8px;
   height: 8px;
-  border-radius: 2.5px;
   flex-shrink: 0;
+  border-radius: 2px;
 }
 
 .chart-legend li > span {
   overflow: hidden;
-  white-space: nowrap;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chart-legend strong {
@@ -155,61 +154,61 @@ onBeforeUnmount(() => chart?.destroy())
   font-variant-numeric: tabular-nums;
 }
 
-@media (min-width: 1500px) {
-  .distribution {
-    gap: 35px;
-  }
-  .donut-wrap {
-    width: 210px;
-    height: 210px;
-  }
-}
-
 @media (max-width: 1200px) {
   .distribution {
-    gap: 10px;
     flex-direction: column;
     align-items: stretch;
+    gap: 14px;
   }
+
   .donut-wrap {
-    width: 155px;
-    height: 155px;
+    width: 150px;
+    height: 150px;
     align-self: center;
   }
+
   .chart-legend {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0 14px;
   }
+
   .chart-legend li {
     margin: 6px 0;
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
   .distribution {
     flex-direction: row;
-    gap: 35px;
-    padding: 5px 15px;
-    min-height: 180px;
+    gap: 32px;
+    min-height: 190px;
   }
+
+  .donut-wrap {
+    width: 170px;
+    height: 170px;
+  }
+
   .chart-legend {
     display: block;
   }
+
   .chart-legend li {
-    margin: 13px 0;
+    margin: 10px 0;
   }
 }
 
 @media (max-width: 680px) {
   .distribution {
-    gap: 21px;
-    padding: 4px 0;
+    gap: 20px;
   }
+
   .donut-wrap {
-    width: 156px;
-    height: 156px;
+    width: 148px;
+    height: 148px;
   }
+
   .chart-legend li {
     font-size: 11px;
   }

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { LogOut, Menu, Moon, Sun, Users } from '@lucide/vue'
+import { LogOut, Menu, Moon, Sun } from '@lucide/vue'
+import AppLogo from './AppLogo.vue'
 import SidebarNav from './SidebarNav.vue'
 import TopNav from './TopNav.vue'
 import { useAuth } from '../stores/auth'
@@ -22,7 +23,6 @@ const router = useRouter()
 const mobileOpen = ref(false)
 const signingOut = ref(false)
 const health = ref<Health>()
-/** 内嵌 iframe 类页面（meta.fillHeight）占满视口高度,主区不再产生页面滚动。 */
 const fillHeight = computed(() => route.meta.fillHeight === true)
 const systemTo = computed(() => pagePath(auth.pages, 'system'))
 watch(
@@ -43,7 +43,7 @@ async function logout() {
   try {
     await auth.logout()
   } catch {
-    notices.show('已退出本机;服务端会话撤销失败', true)
+    notices.show('已退出本机；服务端会话撤销失败', true)
   } finally {
     signingOut.value = false
     await router.replace('/login')
@@ -52,53 +52,60 @@ async function logout() {
 </script>
 
 <template>
-  <div class="app-shell">
-    <header class="topbar">
-      <div class="topbar-left">
-        <el-button text class="mobile-menu" :icon="Menu" aria-label="打开导航" @click="mobileOpen = true" />
-        <RouterLink :to="auth.home" class="brand">
-          <span class="brand-icon"><Users :size="22" /></span>
-          <span>
-            人事工作台
-            <small>HR WORKSPACE</small>
-          </span>
-        </RouterLink>
+  <div :class="['app-shell', { 'fill-height': fillHeight }]">
+    <header class="workspace-header">
+      <div class="topbar">
+        <div class="topbar-left">
+          <el-button text class="mobile-menu" :icon="Menu" aria-label="打开导航" @click="mobileOpen = true" />
+          <RouterLink :to="auth.home" class="brand-link" aria-label="返回工作区首页">
+            <AppLogo />
+          </RouterLink>
+        </div>
+        <div class="topbar-actions">
+          <RouterLink
+            v-if="auth.canPage('system') && systemTo"
+            :to="systemTo"
+            :class="['status-link', { down: health?.status !== 'UP' }]"
+            :title="health?.status === 'UP' ? '服务运行正常' : '查看服务状态'"
+          >
+            <span class="status-dot" aria-hidden="true"></span>
+            <span class="status-label">{{ health?.status === 'UP' ? '服务正常' : health ? '服务异常' : '状态未知' }}</span>
+          </RouterLink>
+          <span class="action-divider" aria-hidden="true"></span>
+          <el-tooltip :content="theme.isDark ? '切换到浅色模式' : '切换到深色模式'">
+            <el-button
+              text
+              class="icon-button outlined"
+              :icon="theme.isDark ? Sun : Moon"
+              :aria-label="theme.isDark ? '切换到浅色模式' : '切换到深色模式'"
+              @click="theme.toggle()"
+            />
+          </el-tooltip>
+          <RouterLink to="/account" class="account-trigger" aria-label="我的账号">
+            <el-avatar :size="30">{{ initials(auth.user?.username || 'U') }}</el-avatar>
+            <span class="account-meta">
+              <strong>{{ auth.user?.username }}</strong>
+              <small>{{ auth.isAdmin ? '管理员' : '普通用户' }}</small>
+            </span>
+          </RouterLink>
+          <el-tooltip content="退出登录">
+            <el-button
+              text
+              class="icon-button outlined logout-button"
+              :icon="LogOut"
+              :loading="signingOut"
+              aria-label="退出登录"
+              @click="logout"
+            />
+          </el-tooltip>
+        </div>
       </div>
-      <TopNav class="topbar-center" />
-      <div class="topbar-actions">
-        <RouterLink
-          v-if="auth.canPage('system') && systemTo"
-          :to="systemTo"
-          :class="['status-pill', { down: health?.status !== 'UP' }]"
-        >
-          <span class="status-dot"></span>
-          {{ health?.status === 'UP' ? '服务已连接' : health ? '服务异常' : '状态未确认' }}
-        </RouterLink>
-        <el-tooltip :content="theme.isDark ? '切换到白天模式' : '切换到夜间模式'">
-          <el-button
-            text
-            class="icon-button outlined"
-            :icon="theme.isDark ? Sun : Moon"
-            :aria-label="theme.isDark ? '切换到白天模式' : '切换到夜间模式'"
-            @click="theme.toggle()"
-          />
-        </el-tooltip>
-        <RouterLink to="/account" class="account-link">
-          <el-avatar :size="32">{{ initials(auth.user?.username || 'U') }}</el-avatar>
-          <span class="account-meta">
-            {{ auth.user?.username }}
-            <small>{{ auth.isAdmin ? '管理员' : '普通用户' }}</small>
-          </span>
-        </RouterLink>
-        <el-tooltip content="退出登录">
-          <el-button text :icon="LogOut" aria-label="退出登录" :loading="signingOut" @click="logout" />
-        </el-tooltip>
-      </div>
+      <div class="navigation-row"><TopNav /></div>
     </header>
     <el-drawer
       v-model="mobileOpen"
       direction="ltr"
-      size="260px"
+      size="280px"
       :with-header="false"
       class="navigation-drawer"
       title="工作空间导航"
@@ -108,97 +115,82 @@ async function logout() {
     <main id="main-content" :class="['main-content', { 'fill-height': fillHeight }]">
       <RouterView v-slot="{ Component }"><component :is="Component" :key="route.path" /></RouterView>
     </main>
-    <footer v-if="!fillHeight" class="workspace-footer">
-      <span>HR Workspace</span>
-      <span class="footer-dot"></span>
-      <span>组织 · 人才 · 协作</span>
-    </footer>
   </div>
 </template>
 
 <style scoped>
-/* 本组件样式:颜色只用 styles.css 里的语义 token。 */
 .app-shell {
-  min-height: 100vh;
-  background: var(--bg-page);
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  background: var(--bg-page);
 }
 
-/* 顶栏三栏网格:左右两栏按内容占位,中间栏占满剩余空间给导航 */
-.topbar {
-  height: 64px;
-  background: var(--surface-translucent);
-  border-bottom: 1px solid var(--border);
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  padding: 0 24px;
-  gap: 16px;
+.app-shell.fill-height {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.workspace-header {
   position: sticky;
   top: 0;
   z-index: 30;
-  backdrop-filter: blur(14px);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-translucent);
+  backdrop-filter: blur(18px);
 }
 
-.topbar-left {
+.topbar {
+  height: var(--header-height);
   display: flex;
   align-items: center;
-  gap: 10px;
-  justify-self: start;
-  min-width: 0;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 var(--page-gutter);
 }
 
-.topbar-center {
-  justify-self: center;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 17px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-}
-
-.brand small {
-  display: block;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--text-faint);
-  margin-top: 3px;
-  font-weight: 500;
-}
-
+.topbar-left,
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  justify-self: end;
+  min-width: 0;
 }
 
-/* 服务状态:描边胶囊,点状指示灯 */
-.status-pill {
+.topbar-left {
+  gap: 10px;
+}
+
+.topbar-actions {
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.brand-link {
+  display: inline-flex;
+  border-radius: 11px;
+}
+
+.navigation-row {
+  height: var(--nav-height);
+  padding: 0 var(--page-gutter);
+  border-top: 1px solid var(--border-soft);
+}
+
+.status-link {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--text-medium);
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 6px;
+  border-radius: 8px;
+  color: var(--text-muted);
   font-size: 12px;
   white-space: nowrap;
-  transition:
-    border-color 0.15s,
-    color 0.15s;
 }
 
-.status-pill:hover {
-  border-color: var(--border-strong);
+.status-link:hover {
+  background: var(--surface-hover);
   color: var(--text-strong);
 }
 
@@ -210,58 +202,86 @@ async function logout() {
   box-shadow: 0 0 0 3px var(--status-up-soft);
 }
 
-.status-pill.down .status-dot {
+.status-link.down .status-dot {
   background: var(--status-down);
   box-shadow: none;
 }
 
-/* 账户入口:头像 + 双行文字的胶囊链接 */
-.account-link {
+.action-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+  background: var(--border);
+}
+
+.account-trigger {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 44px;
-  padding: 5px 14px 5px 5px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  font-size: 13px;
-  font-weight: 600;
+  gap: 9px;
+  height: 42px;
+  padding: 4px 8px 4px 5px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
   color: var(--text);
-  transition:
-    border-color 0.15s,
-    background 0.15s;
+  text-align: left;
 }
 
-.account-link:hover {
-  border-color: var(--border-strong);
-  background: var(--surface-subtle);
+.account-trigger:hover,
+.account-trigger:focus-visible {
+  border-color: var(--border);
+  background: var(--surface-hover);
 }
 
-.account-link small {
-  display: block;
+.account-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.account-meta strong {
+  max-width: 130px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-meta small {
+  margin-top: 2px;
   color: var(--text-faint);
+  font-size: 10px;
+}
+
+.logout-button:hover:not(:disabled) {
+  background: var(--danger-hover);
+  color: var(--danger);
+}
+
+.topbar :deep(.el-avatar) {
+  background: var(--accent-soft);
+  color: var(--accent-text);
   font-size: 11px;
-  font-weight: 400;
-  margin-top: 1px;
+  font-weight: 650;
 }
 
 .main-content {
-  padding: 34px 36px 44px;
-  max-width: 1440px;
   width: 100%;
+  max-width: var(--content-max);
   margin: 0 auto;
+  padding: 32px var(--page-gutter) 48px;
   flex: 1;
 }
 
-/* 填满视口模式（对话页等内嵌 iframe 页面）:主区高度锁死为视口剩余空间,
-   无内边距、无页面滚动,内容自己在区域内滚动 */
 .main-content.fill-height {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 0;
   max-width: none;
+  padding: 0;
   overflow: hidden;
 }
 
@@ -270,99 +290,75 @@ async function logout() {
   min-height: 0;
 }
 
-.workspace-footer {
-  padding: 0 36px 22px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  color: var(--text-pale);
-  font-size: 11px;
-}
-
-.footer-dot {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: var(--text-pale);
-}
-
 .mobile-menu {
   display: none !important;
 }
 
-@media (min-width: 1500px) {
-  .main-content {
-    padding: 42px 48px;
-  }
+.navigation-drawer :deep(.el-drawer__body) {
+  padding: 0;
+  background: var(--surface);
 }
 
-@media (max-width: 1200px) {
-  .topbar {
-    padding: 0 20px;
-    gap: 12px;
-  }
+@media (min-width: 1500px) {
   .main-content {
-    padding: 28px 26px;
-  }
-  .topbar-actions {
-    gap: 10px;
-  }
-  .brand small {
-    display: none;
+    padding-top: 40px;
   }
 }
 
 @media (max-width: 1100px) {
-  .status-pill {
+  .status-label {
     display: none;
+  }
+
+  .status-link {
+    width: 32px;
+    justify-content: center;
+    padding: 0;
   }
 }
 
 @media (max-width: 900px) {
   .topbar {
-    display: flex;
-    justify-content: space-between;
-    padding: 0 16px;
-    gap: 9px;
-    height: 58px;
+    height: 60px;
+    gap: 10px;
   }
+
+  .navigation-row {
+    display: none;
+  }
+
   .mobile-menu {
     display: inline-flex !important;
   }
-  .topbar-actions {
-    gap: 7px;
-  }
+
   .main-content {
-    padding: 24px 20px;
+    padding-top: 24px;
   }
 }
 
 @media (max-width: 680px) {
-  .account-meta {
+  .topbar-actions {
+    gap: 6px;
+  }
+
+  .account-meta,
+  .action-divider {
     display: none;
   }
-  .account-link {
+
+  .account-trigger {
     padding-right: 5px;
-    height: 40px;
   }
+
   .main-content {
-    padding: 20px 16px;
-  }
-  .workspace-footer {
-    padding: 0 16px 18px;
-    font-size: 10px;
+    padding-top: 20px;
+    padding-bottom: 32px;
   }
 }
 
-.navigation-drawer :deep(.el-drawer__body) {
-  padding: 0;
-}
-
-.topbar :deep(.el-avatar) {
-  background: var(--green-soft);
-  color: var(--green-deep);
-  font-size: 11px;
-  font-weight: 600;
+@media (max-width: 480px) {
+  .brand-link :deep(.logo-copy small) {
+    display: none;
+  }
 }
 </style>

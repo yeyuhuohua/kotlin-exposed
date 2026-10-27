@@ -36,7 +36,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <p v-if="error" class="dsh-error">{{ error }}</p>
+  <p v-if="error" class="dsh-error" role="alert">{{ error }}</p>
   <iframe v-else-if="ready" class="dsh-frame" :src="dshUrl" title="人事工作台助手"></iframe>
 </template>
 
@@ -50,7 +50,15 @@ onMounted(async () => {
 }
 
 .dsh-error {
-  margin: 24px;
+  display: grid;
+  place-content: center;
+  min-height: 100%;
+  margin: 0;
+  padding: 32px;
+  background: var(--surface);
   color: var(--warn);
+  font-size: 14px;
+  line-height: 1.7;
+  text-align: center;
 }
 </style>

@@ -153,18 +153,17 @@ onMounted(load)
 </template>
 
 <style scoped>
-/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
 .permission-summary {
   display: flex;
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  padding: 13px 16px;
-  background: var(--surface-subtle);
-  border: 1px solid var(--border-soft);
+  padding: 14px 16px;
+  border: 1px solid var(--border-accent);
   border-radius: var(--control-radius);
-  font-size: 13px;
+  background: var(--accent-tint);
   color: var(--text-muted);
+  font-size: 13px;
 }
 
 .role-chip {
@@ -177,22 +176,23 @@ onMounted(load)
 
 .summary-revision {
   margin-left: auto;
+  color: var(--text-muted);
   font-size: 12px;
-  color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
 
 .permission-impact {
-  margin: 16px 2px 18px;
+  margin: 16px 2px;
+  color: var(--text-muted);
   font-size: 12px;
   line-height: 1.7;
-  color: var(--text-dim);
 }
 
 .permission-toolbar {
   display: flex;
   align-items: center;
   gap: 14px;
+  margin-bottom: 14px;
 }
 
 .permission-toolbar :deep(.el-tabs) {
@@ -211,15 +211,18 @@ onMounted(load)
 
 .permission-list {
   max-height: 46dvh;
+  padding: 0 12px;
   overflow-y: auto;
-  padding-right: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
 }
 
 .permission-group {
-  border: 0;
+  min-width: 0;
   margin: 0;
   padding: 8px 0 12px;
-  min-width: 0;
+  border: 0;
 }
 
 .permission-group:not(:last-child) {
@@ -228,11 +231,10 @@ onMounted(load)
 
 .permission-group legend {
   padding: 12px 2px 6px;
+  color: var(--text-faint);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-faint);
+  letter-spacing: 0.06em;
 }
 
 .permission-item.el-checkbox {
@@ -241,13 +243,17 @@ onMounted(load)
   width: 100%;
   height: auto;
   margin: 0;
-  padding: 9px 10px;
-  border-radius: var(--control-radius);
+  padding: 10px;
+  border-radius: 8px;
   white-space: normal;
 }
 
 .permission-item.el-checkbox:hover {
-  background: var(--surface-subtle);
+  background: var(--surface-hover);
+}
+
+.permission-item.el-checkbox.is-checked {
+  background: var(--accent-tint);
 }
 
 .permission-item :deep(.el-checkbox__label) {
@@ -266,17 +272,21 @@ onMounted(load)
 
 .permission-text strong {
   display: block;
+  color: var(--text);
   font-size: 13px;
   font-weight: 550;
-  color: var(--text);
+}
+
+.permission-item.is-checked .permission-text strong {
+  color: var(--accent-text);
 }
 
 .permission-text code {
   display: block;
   margin-top: 4px;
-  font-size: 11px;
-  color: var(--text-faint);
   overflow-wrap: anywhere;
+  color: var(--text-faint);
+  font-size: 11px;
   white-space: normal;
 }
 
@@ -291,20 +301,16 @@ onMounted(load)
 .save-error {
   margin: 16px 0 0;
   padding: 12px 14px;
+  overflow-wrap: anywhere;
   border: 1px solid var(--danger-soft);
+  border-radius: var(--control-radius);
   background: var(--danger-tint);
   color: var(--danger);
-  border-radius: var(--control-radius);
   font-size: 13px;
   line-height: 1.7;
-  overflow-wrap: anywhere;
 }
 
 .save-error .text-button {
   margin-left: 8px;
-}
-
-.spin {
-  animation: spin 0.8s linear infinite;
 }
 </style>

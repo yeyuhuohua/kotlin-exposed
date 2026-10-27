@@ -6,7 +6,7 @@ import { docsHref, docsPaths } from '../api/paths'
 import { menuIcon } from '../lib/menuIcons'
 import { useAuth } from '../stores/auth'
 
-/** 顶部胶囊导航:分组、图标、顺序全部来自后端下发的页面清单,与移动抽屉共用数据源。 */
+/** 顶部导航:分组、图标、顺序全部来自后端下发的页面清单,与移动抽屉共用数据源。 */
 const emit = defineEmits<{ navigate: [] }>()
 const auth = useAuth()
 const route = useRoute()
@@ -46,7 +46,7 @@ function onSelect(index: string) {
     <el-menu
       mode="horizontal"
       :default-active="route.path"
-      :ellipsis="true"
+      :ellipsis="false"
       class="top-menu"
       @select="onSelect"
     >
@@ -71,80 +71,85 @@ function onSelect(index: string) {
 </template>
 
 <style scoped>
-/* 本组件样式:颜色只用 styles.css 里的语义 token。
-   下拉浮层挂在 body 下,样式在 styles.css 的 Element Plus 覆盖区。 */
 .top-nav {
-  min-width: 0;
   width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-/* 菜单本体为占满中间栏的圆角胶囊,菜单项在胶囊内居中;
-   宽度确定后 el-menu 的 ellipsis 才能正确测量,空间够就全部展示 */
+.top-nav::-webkit-scrollbar {
+  display: none;
+}
+
 .top-menu.el-menu {
-  width: 100%;
-  justify-content: center;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  box-shadow: 0 1px 2px var(--shadow-card);
+  width: max-content;
+  min-width: 100%;
+  justify-content: flex-start;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   --el-menu-bg-color: transparent;
   --el-menu-border-color: var(--border);
-  --el-menu-text-color: var(--text-medium);
+  --el-menu-text-color: var(--text-nav);
   --el-menu-hover-text-color: var(--text-strong);
   --el-menu-hover-bg-color: var(--surface-hover);
-  --el-menu-active-color: var(--green);
-  --el-menu-item-height: 36px;
-  --el-menu-sub-item-height: 38px;
-  --el-menu-horizontal-height: 46px;
+  --el-menu-active-color: var(--accent-text);
+  --el-menu-item-height: 47px;
+  --el-menu-sub-item-height: 47px;
+  --el-menu-horizontal-height: 47px;
   --el-menu-horizontal-line-height: 0;
 }
 
-/* 药丸形菜单项:去掉 Element 默认的底部指示线,统一圆角 hover */
 .top-menu :deep(.el-menu-item),
 .top-menu :deep(.el-sub-menu__title) {
-  height: 36px;
-  line-height: 36px;
+  position: relative;
+  height: 47px;
+  line-height: 47px;
+  margin: 0;
   padding: 0 15px;
-  margin: 0 1px;
-  gap: 6px;
-  font-size: 13px;
+  gap: 7px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 8px 8px 0 0;
+  font-size: 13px;
+  font-weight: 500;
   transition:
     background 0.15s,
     color 0.15s;
 }
 
-/* 子菜单箭头在横向模式里是绝对定位的,标题右侧要预留它的位置 */
-.top-menu :deep(.el-sub-menu__title) {
-  padding-right: 28px;
-}
-
 .top-menu :deep(.el-sub-menu__icon-arrow) {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  margin: -6px 0 0;
+  position: static;
   width: 12px;
+  margin: 0 -2px 0 2px;
+  color: var(--text-faint);
 }
 
-/* 选中态:药丸底色 + 翡翠文字,彻底清掉横向模式默认的底部指示线 */
-.top-menu.el-menu--horizontal :deep(.el-menu-item.is-active) {
-  background: var(--green-soft);
-  color: var(--green);
-  font-weight: 600;
-  border-bottom: none;
-}
-
+.top-menu.el-menu--horizontal :deep(.el-menu-item.is-active),
 .top-menu.el-menu--horizontal :deep(.el-sub-menu.is-active .el-sub-menu__title) {
-  color: var(--green);
   border-bottom: none;
+  background: transparent;
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.top-menu.el-menu--horizontal :deep(.el-menu-item.is-active)::after,
+.top-menu.el-menu--horizontal :deep(.el-sub-menu.is-active .el-sub-menu__title)::after {
+  content: '';
+  position: absolute;
+  right: 15px;
+  bottom: 0;
+  left: 15px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent);
 }
 
 .external-mark {
-  color: var(--text-dim);
-  margin-left: 2px;
+  margin-left: 1px;
+  color: var(--text-faint);
 }
 
 @media (max-width: 900px) {

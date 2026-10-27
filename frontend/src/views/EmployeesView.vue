@@ -11,6 +11,8 @@ import { departmentsPaths, employeesPaths, fillTemplate, jobsPaths } from '../ap
 import { useAuth } from '../stores/auth'
 import { pagePath } from '../lib/pages'
 import { useNotices } from '../stores/notices'
+import DataPanel from '../components/DataPanel.vue'
+import PageHeader from '../components/PageHeader.vue'
 import StateBlock from '../components/StateBlock.vue'
 import Pagination from '../components/Pagination.vue'
 import RecordDialog from '../components/RecordDialog.vue'
@@ -149,27 +151,22 @@ async function remove() {
 </script>
 <template>
   <section>
-    <header class="page-heading">
-      <div>
-        <p class="eyebrow">PEOPLE DIRECTORY</p>
-        <h1>
-          员工管理
-          <el-tag v-if="data" type="info" effect="plain">{{ data.total }}</el-tag>
-        </h1>
-        <p class="page-subtitle">人事档案 · 组织成员</p>
-      </div>
-      <div class="heading-actions">
-        <el-button :icon="RefreshCw" :loading="loading" aria-label="刷新员工" @click="refresh" />
-        <el-button
-          v-if="auth.canApi('POST', employeesPaths.collection)"
-          type="primary"
-          :icon="Plus"
-          @click="edit()"
-        >
-          新增员工
-        </el-button>
-      </div>
-    </header>
+    <PageHeader
+      title="员工管理"
+      description="人事档案与组织成员"
+      category="组织资料"
+      :count="data?.total"
+    >
+      <el-button :icon="RefreshCw" :loading="loading" aria-label="刷新员工" @click="refresh" />
+      <el-button
+        v-if="auth.canApi('POST', employeesPaths.collection)"
+        type="primary"
+        :icon="Plus"
+        @click="edit()"
+      >
+        新增员工
+      </el-button>
+    </PageHeader>
     <el-tabs
       model-value="directory"
       @tab-change="(name) => name === 'details' && detailsTo && router.push(detailsTo)"
@@ -177,51 +174,53 @@ async function remove() {
       <el-tab-pane name="directory" label="员工名录" />
       <el-tab-pane v-if="auth.canPage('emp-details')" name="details" label="详情视图" />
     </el-tabs>
-    <section class="data-card">
-      <div class="table-toolbar">
-        <el-input
-          v-model="search"
-          class="search-control"
-          aria-label="搜索员工"
-          placeholder="搜索姓名或邮箱…"
-          clearable
-          @keyup.enter="applySearch"
-          @clear="applySearch"
-        >
-          <template #prefix><Search :size="17" /></template>
-          <template #append>
-            <el-button :icon="Search" aria-label="执行搜索" @click="applySearch" />
-          </template>
-        </el-input>
-        <div class="filters">
-          <el-select
-            v-model="departmentId"
-            placeholder="全部部门"
-            aria-label="部门筛选"
+    <DataPanel>
+      <template #toolbar>
+        <div class="table-toolbar">
+          <el-input
+            v-model="search"
+            class="search-control"
+            aria-label="搜索员工"
+            placeholder="搜索姓名或邮箱…"
             clearable
-            filterable
-            @change="page = 1"
+            @keyup.enter="applySearch"
+            @clear="applySearch"
           >
-            <el-option
-              v-for="department in departmentOptions"
-              :key="department.value"
-              :value="department.value"
-              :label="department.label"
-            />
-          </el-select>
-          <el-select
-            v-model="jobId"
-            placeholder="全部岗位"
-            aria-label="岗位筛选"
-            clearable
-            filterable
-            @change="page = 1"
-          >
-            <el-option v-for="job in jobs" :key="job.jobId" :value="job.jobId" :label="job.jobTitle" />
-          </el-select>
-          <el-button v-if="filtered" :icon="X" aria-label="清除筛选" @click="resetFilters" />
+            <template #prefix><Search :size="17" /></template>
+            <template #append>
+              <el-button :icon="Search" aria-label="执行搜索" @click="applySearch" />
+            </template>
+          </el-input>
+          <div class="filters">
+            <el-select
+              v-model="departmentId"
+              placeholder="全部部门"
+              aria-label="部门筛选"
+              clearable
+              filterable
+              @change="page = 1"
+            >
+              <el-option
+                v-for="department in departmentOptions"
+                :key="department.value"
+                :value="department.value"
+                :label="department.label"
+              />
+            </el-select>
+            <el-select
+              v-model="jobId"
+              placeholder="全部岗位"
+              aria-label="岗位筛选"
+              clearable
+              filterable
+              @change="page = 1"
+            >
+              <el-option v-for="job in jobs" :key="job.jobId" :value="job.jobId" :label="job.jobTitle" />
+            </el-select>
+            <el-button v-if="filtered" :icon="X" aria-label="清除筛选" @click="resetFilters" />
+          </div>
         </div>
-      </div>
+      </template>
       <el-alert
         v-if="lookupError"
         class="lookup-alert"
@@ -327,15 +326,17 @@ async function remove() {
           </template>
         </el-table-column>
       </el-table>
-      <Pagination
-        :page="page"
-        :page-size="pageSize"
-        :total="data?.total ?? knownTotal"
-        :disabled="loading"
-        @update:page="page = $event"
-        @update:page-size="setPageSize"
-      />
-    </section>
+      <template #footer>
+        <Pagination
+          :page="page"
+          :page-size="pageSize"
+          :total="data?.total ?? knownTotal"
+          :disabled="loading"
+          @update:page="page = $event"
+          @update:page-size="setPageSize"
+        />
+      </template>
+    </DataPanel>
     <RecordDialog
       v-if="formOpen"
       :title="editing ? '编辑员工' : '新增员工'"
@@ -368,27 +369,8 @@ async function remove() {
 
 <style scoped>
 /* 本组件样式：颜色只用 styles.css 里的语义 token。 */
-.data-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--card-radius);
-  padding: 24px 26px;
-  min-width: 0;
-}
-
-.data-card > .table-toolbar {
-  margin-bottom: 16px;
-}
-
 .lookup-alert {
-  margin-bottom: 16px;
-}
-
-/* 分页收进卡片，与表格之间用一条分隔线断开。 */
-.data-card :deep(.pagination) {
-  margin-top: 18px;
-  border-top: 1px solid var(--border);
-  padding: 18px 2px 2px;
+  margin: 16px 20px 0;
 }
 
 .person-button {
@@ -399,7 +381,7 @@ async function remove() {
 }
 
 .person-button:hover strong {
-  color: var(--green);
+  color: var(--accent);
 }
 
 .cell-subtitle {
@@ -418,6 +400,8 @@ async function remove() {
   align-items: center;
   gap: 9px;
   min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .filters :deep(.el-select) {
@@ -443,12 +427,6 @@ async function remove() {
   min-width: 0;
 }
 
-@media (max-width: 1200px) {
-  .data-card {
-    padding: 20px;
-  }
-}
-
 @media (max-width: 900px) {
   .filters {
     width: 100%;
@@ -456,8 +434,8 @@ async function remove() {
 }
 
 @media (max-width: 680px) {
-  .data-card {
-    padding: 16px;
+  .lookup-alert {
+    margin: 14px 14px 0;
   }
   .filters :deep(.el-select) {
     flex: 1;

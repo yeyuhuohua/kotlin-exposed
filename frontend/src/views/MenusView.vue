@@ -2,6 +2,8 @@
 /** 菜单管理页：页面清单（导航分组、图标、路径、可见性）的运行时来源，仅 ADMIN 可见。 */
 import { computed, onMounted, ref } from 'vue'
 import { Folder, LoaderCircle, Pencil, Plus, RefreshCw, Save, Trash2 } from '@lucide/vue'
+import DataPanel from '../components/DataPanel.vue'
+import PageHeader from '../components/PageHeader.vue'
 import Modal from '../components/Modal.vue'
 import StateBlock from '../components/StateBlock.vue'
 import { fillTemplate, menusPaths } from '../api/paths'
@@ -47,6 +49,10 @@ const treeRows = computed<TreeRow[]>(() => {
   for (const group of rows) group.count = group.children!.length
   return rows
 })
+
+function treeRowClass({ row }: { row: TreeRow }) {
+  return row.kind === 'group' ? 'menu-group-row' : ''
+}
 
 // ── 新增 / 编辑弹窗 ─────────────────────────────────────────
 interface MenuForm {
@@ -191,37 +197,37 @@ async function syncPages() {
 </script>
 <template>
   <section>
-    <header class="page-heading">
-      <div>
-        <p class="eyebrow">MENU MANAGEMENT</p>
-        <h1>菜单管理</h1>
-        <p class="page-subtitle">顶部导航页面清单的运行时来源 · 仅管理员可见</p>
-      </div>
-      <div class="heading-actions">
-        <el-button class="button primary" :disabled="menus.loading.value" @click="openCreate">
-          <Plus :size="16" />
-          新增菜单
-        </el-button>
-        <el-button
-          text
-          class="icon-button outlined"
-          aria-label="刷新菜单列表"
-          title="刷新"
-          :disabled="menus.loading.value"
-          @click="menus.refresh"
-        >
-          <RefreshCw :size="17" :class="{ spin: menus.loading.value }" />
-        </el-button>
-      </div>
-    </header>
+    <PageHeader
+      title="菜单管理"
+      description="顶部导航页面清单的运行时来源 · 仅管理员可见"
+      category="系统管理"
+      :count="menus.data.value?.length"
+    >
+      <el-button type="primary" :icon="Plus" :disabled="menus.loading.value" @click="openCreate">
+        新增菜单
+      </el-button>
+      <el-button
+        :icon="RefreshCw"
+        :loading="menus.loading.value"
+        aria-label="刷新菜单列表"
+        @click="menus.refresh"
+      />
+    </PageHeader>
 
-    <section class="data-card">
+    <DataPanel>
+      <template v-if="!menus.loading.value && !menus.error.value && menus.data.value" #toolbar>
+        <div class="table-toolbar">
+          <span class="table-caption">导航分组与页面</span>
+          <span class="badge neutral">{{ menus.data.value.length }} 个页面</span>
+        </div>
+      </template>
       <StateBlock :loading="menus.loading.value" :error="menus.error.value" @retry="menus.refresh" />
       <el-table
         v-if="!menus.loading.value && !menus.error.value && menus.data.value"
         :data="treeRows"
         row-key="rowKey"
         :tree-props="{ children: 'children' }"
+        :row-class-name="treeRowClass"
         default-expand-all
         class="data-table"
       >
@@ -270,12 +276,12 @@ async function syncPages() {
         <el-table-column label="操作" width="150" align="center">
           <template #default="{ row }">
             <template v-if="row.kind === 'menu'">
-              <el-button text class="text-button" aria-label="编辑菜单" @click="openEdit(row.menu as MenuItem)">
+                <el-button text class="icon-button" aria-label="编辑菜单" @click="openEdit(row.menu as MenuItem)">
                 <Pencil :size="15" />
               </el-button>
               <el-button
                 text
-                class="text-button danger"
+                class="icon-button danger"
                 :aria-label="row.menu.builtin ? '内置菜单不可删除' : '删除菜单'"
                 :disabled="row.menu.builtin"
                 @click="openDelete(row.menu as MenuItem)"
@@ -286,10 +292,12 @@ async function syncPages() {
           </template>
         </el-table-column>
       </el-table>
-      <p class="card-footnote">
-        内置菜单随后端启动播种，不可删除；菜单的标题、路径、图标与状态修改后，其他账号刷新页面或重新登录后生效。
-      </p>
-    </section>
+      <template #footer>
+        <p class="card-footnote">
+          内置菜单随后端启动播种，不可删除；菜单的标题、路径、图标与状态修改后，其他账号刷新页面或重新登录后生效。
+        </p>
+      </template>
+    </DataPanel>
 
     <Modal
       v-if="dialogOpen"
@@ -401,6 +409,10 @@ async function syncPages() {
   color: var(--text-dim);
 }
 
+.data-table :deep(.menu-group-row > td.el-table__cell) {
+  background: var(--surface-subtle);
+}
+
 .group-count {
   font-size: 11px;
   font-weight: 500;
@@ -424,13 +436,15 @@ async function syncPages() {
 .menu-key {
   font-size: 12px;
   color: var(--text-muted);
-  background: var(--surface-subtle);
+  background: var(--surface-neutral);
   border-radius: 6px;
   padding: 2px 6px;
 }
 
 .card-footnote {
-  margin: 14px 4px 2px;
+  margin: 0;
+  padding: 14px 20px 16px;
+  border-top: 1px solid var(--border);
   font-size: 12px;
   line-height: 1.7;
   color: var(--text-faint);
@@ -487,10 +501,6 @@ async function syncPages() {
   border-radius: var(--control-radius);
   font-size: 13px;
   line-height: 1.7;
-}
-
-.spin {
-  animation: spin 0.8s linear infinite;
 }
 
 @media (max-width: 680px) {

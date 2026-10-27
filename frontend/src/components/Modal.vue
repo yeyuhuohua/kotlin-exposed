@@ -10,7 +10,7 @@ const slots = useSlots()
   <el-dialog
     :model-value="true"
     :title="title"
-    :width="wide ? 'min(820px, calc(100vw - 24px))' : 'min(600px, calc(100vw - 24px))'"
+    :width="wide ? 'min(860px, calc(100vw - 24px))' : 'min(620px, calc(100vw - 24px))'"
     class="app-dialog"
     append-to-body
     destroy-on-close
@@ -29,33 +29,34 @@ const slots = useSlots()
 </template>
 
 <style scoped>
-/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
 .app-dialog.el-dialog {
   padding: 0;
-  border-radius: var(--card-radius);
-  box-shadow: 0 22px 90px var(--shadow-modal);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 24px 80px var(--shadow-modal);
 }
 
 .app-dialog :deep(.el-dialog__header) {
   margin: 0;
-  padding: 20px 56px 19px 26px;
+  padding: 20px 56px 18px 24px;
   border-bottom: 1px solid var(--border);
 }
 
 .app-dialog :deep(.el-dialog__title) {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--text-strong);
   overflow-wrap: anywhere;
+  color: var(--text-strong);
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 .app-dialog :deep(.el-dialog__headerbtn) {
-  top: 13px;
-  right: 13px;
+  top: 12px;
+  right: 12px;
   width: 34px;
   height: 34px;
-  border-radius: 9px;
+  border-radius: 8px;
   color: var(--text-muted);
 }
 
@@ -69,17 +70,18 @@ const slots = useSlots()
 }
 
 .app-dialog :deep(.el-dialog__body) {
+  max-height: 70dvh;
   padding: 0;
-  max-height: 78dvh;
   overflow-y: auto;
 }
 
 @media (max-width: 680px) {
   .app-dialog :deep(.el-dialog__header) {
-    padding: 18px 52px 17px 22px;
+    padding: 18px 50px 16px 20px;
   }
+
   .app-dialog :deep(.el-dialog__body) {
-    max-height: 77dvh;
+    max-height: 75dvh;
   }
 }
 </style>

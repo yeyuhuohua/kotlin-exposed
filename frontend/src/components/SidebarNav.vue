@@ -1,19 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { ArrowUpRight, BookOpen, Users, X } from '@lucide/vue'
+import { ArrowUpRight, BookOpen, X } from '@lucide/vue'
+import AppLogo from './AppLogo.vue'
 import { docsHref, docsPaths } from '../api/paths'
 import { menuIcon } from '../lib/menuIcons'
 import { useAuth } from '../stores/auth'
 
-/** 桌面侧栏与移动抽屉共用同一菜单；分组、图标、顺序全部来自后端下发的页面清单。 */
+/** 移动抽屉菜单；分组、图标、顺序全部来自后端下发的页面清单。 */
 defineProps<{ mobile?: boolean }>()
 const emit = defineEmits<{ navigate: [] }>()
 const auth = useAuth()
 const route = useRoute()
 
-// 清单与顺序数据源是后端 /api/auth/routes（菜单表按 sort 排序下发）；
-// group 为空的页面固定在侧栏底部，不参与分组。
 const visiblePages = computed(() => auth.pages.filter((page) => auth.canPage(page.key)))
 const groups = computed(() => {
   const byGroup = new Map<string, { to: string; label: string; icon: ReturnType<typeof menuIcon> }[]>()
@@ -31,34 +30,27 @@ const bottomPages = computed(() =>
     .map((page) => ({ to: page.path, label: page.title, icon: menuIcon(page.icon) })),
 )
 </script>
+
 <template>
   <div class="sidebar-content">
-    <RouterLink :to="auth.home" class="brand" @click="emit('navigate')">
-      <span class="brand-icon"><Users :size="22" /></span>
-      <span>
-        人事工作台
-        <small>HR WORKSPACE</small>
-      </span>
-    </RouterLink>
-    <el-button
-      v-if="mobile"
-      text
-      class="drawer-close"
-      :icon="X"
-      aria-label="关闭导航"
-      @click="emit('navigate')"
-    />
+    <div class="drawer-header">
+      <RouterLink :to="auth.home" class="brand-link" @click="emit('navigate')">
+        <AppLogo />
+      </RouterLink>
+      <el-button
+        v-if="mobile"
+        text
+        class="drawer-close"
+        :icon="X"
+        aria-label="关闭导航"
+        @click="emit('navigate')"
+      />
+    </div>
     <nav class="main-nav" aria-label="主导航">
-      <el-menu
-        :default-active="route.path"
-        router
-        unique-opened
-        class="workspace-menu"
-        @select="emit('navigate')"
-      >
+      <el-menu :default-active="route.path" router class="workspace-menu" @select="emit('navigate')">
         <el-menu-item-group v-for="group in groups" :key="group.label" :title="group.label">
           <el-menu-item v-for="item in group.items" :key="item.to" :index="item.to">
-            <component :is="item.icon" :size="18" />
+            <component :is="item.icon" :size="17" />
             <span>{{ item.label }}</span>
           </el-menu-item>
         </el-menu-item-group>
@@ -67,18 +59,18 @@ const bottomPages = computed(() =>
     <div class="sidebar-bottom">
       <el-menu :default-active="route.path" router class="workspace-menu" @select="emit('navigate')">
         <el-menu-item v-for="item in bottomPages" :key="item.to" :index="item.to">
-          <component :is="item.icon" :size="18" />
+          <component :is="item.icon" :size="17" />
           <span>{{ item.label }}</span>
         </el-menu-item>
       </el-menu>
       <a class="nav-link" :href="docsHref(docsPaths.swagger)" target="_blank" rel="noopener">
-        <BookOpen :size="18" />
-        接口文档
+        <BookOpen :size="17" />
+        <span>接口文档</span>
         <ArrowUpRight :size="14" class="push-right" />
       </a>
       <div class="sidebar-footnote">
-        <span class="tiny-square"></span>
-        HR / 组织管理
+        <span class="footnote-dot"></span>
+        <span>HR Workspace</span>
         <span>v1.0</span>
       </div>
     </div>
@@ -86,110 +78,57 @@ const bottomPages = computed(() =>
 </template>
 
 <style scoped>
-/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
 .sidebar-content {
   height: 100%;
   display: flex;
   flex-direction: column;
-  position: relative;
+  background: var(--surface);
 }
 
-.brand {
+.drawer-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  padding: 24px 20px 26px;
-  font-size: 17px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
+  padding: 18px;
+  border-bottom: 1px solid var(--border);
 }
 
-.brand small {
-  display: block;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--text-faint);
-  margin-top: 3px;
-  font-weight: 500;
+.brand-link {
+  display: inline-flex;
+  border-radius: 11px;
+}
+
+.drawer-close.el-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--text-muted);
 }
 
 .main-nav {
-  overflow-y: auto;
   flex: 1;
-  padding: 0 14px 12px;
+  overflow-y: auto;
+  padding: 12px;
   scrollbar-width: thin;
-}
-
-.nav-link {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 10px 12px;
-  margin: 3px 0;
-  font-size: 13px;
-  color: var(--text-nav);
-  min-height: 40px;
-  border-radius: 10px;
-  transition:
-    background 0.15s,
-    color 0.15s;
-}
-
-.nav-link svg {
-  color: var(--text-dim);
-}
-
-.nav-link:hover {
-  background: var(--surface-hover);
-  color: var(--text-strong);
-}
-
-.sidebar-bottom {
-  padding: 10px 14px 0;
-  border-top: 1px solid var(--border);
-}
-
-.sidebar-footnote {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-pale);
-  border-top: 1px solid var(--border);
-  padding: 16px 2px;
-  margin-top: 8px;
-}
-
-.sidebar-footnote > span:last-child {
-  margin-left: auto;
-}
-
-.tiny-square {
-  height: 6px;
-  width: 6px;
-  background: var(--green-text-light);
-  border-radius: 2px;
 }
 
 .workspace-menu.el-menu {
   border: 0;
   --el-menu-bg-color: transparent;
   --el-menu-hover-bg-color: var(--surface-hover);
-  --el-menu-active-color: var(--green);
+  --el-menu-active-color: var(--accent-text);
 }
 
 .workspace-menu :deep(.el-menu-item),
 .workspace-menu :deep(.el-sub-menu__title) {
-  height: 40px;
-  line-height: 40px;
+  height: 42px;
+  line-height: 42px;
   gap: 11px;
-  border-radius: 10px;
   margin: 2px 0;
-  font-size: 13px;
+  border-radius: 8px;
   color: var(--text-nav);
+  font-size: 13px;
 }
 
 .workspace-menu :deep(.el-menu-item:hover),
@@ -198,35 +137,69 @@ const bottomPages = computed(() =>
 }
 
 .workspace-menu :deep(.el-menu-item.is-active) {
-  background: var(--green-soft);
-  color: var(--green);
+  background: var(--accent-tint);
+  box-shadow: inset 2px 0 0 var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
 }
 
 .workspace-menu :deep(.el-menu-item-group__title) {
+  padding: 18px 12px 7px;
+  color: var(--text-faint);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  padding: 18px 12px 6px;
+  letter-spacing: 0.08em;
 }
 
 .workspace-menu :deep(.el-sub-menu .el-menu-item) {
   min-width: 0;
 }
 
-.drawer-close.el-button {
-  position: absolute;
-  top: 26px;
-  right: 8px;
+.sidebar-bottom {
+  padding: 12px;
+  border-top: 1px solid var(--border);
 }
 
-@media (max-width: 1200px) {
-  .brand {
-    padding-left: 16px;
-    font-size: 16px;
-    gap: 10px;
-  }
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 42px;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--text-nav);
+  font-size: 13px;
+}
+
+.nav-link:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.nav-link svg {
+  color: var(--text-faint);
+}
+
+.sidebar-footnote {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  padding: 16px 4px 4px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--text-faint);
+  font-size: 10px;
+}
+
+.sidebar-footnote > span:last-child {
+  margin-left: auto;
+}
+
+.footnote-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 </style>

@@ -11,6 +11,8 @@ import { isProtectedRole, isProtectedUser } from '../lib/permissions'
 import { useAuth } from '../stores/auth'
 import { pagePath } from '../lib/pages'
 import { useNotices } from '../stores/notices'
+import DataPanel from '../components/DataPanel.vue'
+import PageHeader from '../components/PageHeader.vue'
 import Modal from '../components/Modal.vue'
 import Pagination from '../components/Pagination.vue'
 import StateBlock from '../components/StateBlock.vue'
@@ -161,29 +163,17 @@ function saved() {
 </script>
 <template>
   <section>
-    <header class="page-heading">
-      <div>
-        <p class="eyebrow">{{ resource.subtitle }}</p>
-        <h1>
-          {{ resource.title }}
-          <el-tag v-if="data" type="info" effect="plain">{{ data.total }}</el-tag>
-        </h1>
-      </div>
-      <div class="heading-actions">
-        <el-button
-          text
-          class="icon-button outlined"
-          aria-label="刷新列表"
-          :disabled="loading"
-          @click="refresh"
-        >
-          <RefreshCw :size="17" :class="{ spin: loading }" />
-        </el-button>
-        <el-button v-if="canCreate" type="primary" :icon="Plus" @click="edit()">
-          {{ resource.key === 'users' ? '新增用户' : resource.key === 'roles' ? '新增角色' : '新增记录' }}
-        </el-button>
-      </div>
-    </header>
+    <PageHeader
+      :title="resource.title"
+      :description="resource.subtitle"
+      category="资源管理"
+      :count="data?.total"
+    >
+      <el-button :icon="RefreshCw" :loading="loading" aria-label="刷新列表" @click="refresh" />
+      <el-button v-if="canCreate" type="primary" :icon="Plus" @click="edit()">
+        {{ resource.key === 'users' ? '新增用户' : resource.key === 'roles' ? '新增角色' : '新增记录' }}
+      </el-button>
+    </PageHeader>
     <el-tabs
       v-if="resource.key === 'emp-details'"
       model-value="details"
@@ -200,21 +190,23 @@ function saved() {
       show-icon
       class="role-notice"
     />
-    <section class="data-card">
-      <div class="table-toolbar">
-        <el-input
-          v-if="!resource.paginated"
-          v-model="search"
-          class="search-control"
-          aria-label="搜索当前列表"
-          placeholder="搜索当前列表…"
-          clearable
-        >
-          <template #prefix><Search :size="17" /></template>
-        </el-input>
-        <span v-else class="table-caption">{{ resource.key === 'users' ? '组织账号' : '员工关联档案' }}</span>
-        <span class="table-caption">{{ canEdit || canCreate ? '全部记录' : '只读记录' }}</span>
-      </div>
+    <DataPanel>
+      <template #toolbar>
+        <div class="table-toolbar">
+          <el-input
+            v-if="!resource.paginated"
+            v-model="search"
+            class="search-control"
+            aria-label="搜索当前列表"
+            placeholder="搜索当前列表…"
+            clearable
+          >
+            <template #prefix><Search :size="17" /></template>
+          </el-input>
+          <span v-else class="table-caption">{{ resource.key === 'users' ? '组织账号' : '员工关联档案' }}</span>
+          <span class="table-caption">{{ canEdit || canCreate ? '全部记录' : '只读记录' }}</span>
+        </div>
+      </template>
       <StateBlock
         :loading="loading"
         :error="error"
@@ -316,16 +308,17 @@ function saved() {
           </template>
         </el-table-column>
       </el-table>
-      <Pagination
-        class="card-pagination"
-        :page="page"
-        :page-size="pageSize"
-        :total="total"
-        :disabled="loading"
-        @update:page="page = $event"
-        @update:page-size="setPageSize"
-      />
-    </section>
+      <template #footer>
+        <Pagination
+          :page="page"
+          :page-size="pageSize"
+          :total="total"
+          :disabled="loading"
+          @update:page="page = $event"
+          @update:page-size="setPageSize"
+        />
+      </template>
+    </DataPanel>
     <RecordDialog
       v-if="open && resource.fields"
       :title="`${editing ? '编辑' : '新增'}${resource.key === 'users' ? '用户' : resource.key === 'roles' ? '角色' : '记录'}`"
@@ -362,61 +355,17 @@ function saved() {
 
 <style scoped>
 /* 本组件样式：颜色只用 styles.css 里的语义 token。 */
-.spin {
-  animation: spin 0.8s linear infinite;
-}
-
-.data-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--card-radius);
-  padding: 24px 26px;
-  min-width: 0;
-}
-
-.data-card .table-toolbar {
-  margin-bottom: 16px;
-}
-
-/* 分页与表格之间用一条分隔线收进同一张卡片。 */
-.card-pagination {
-  border-top: 1px solid var(--border);
-}
-
 .self-label {
   display: inline-flex;
   font-size: 10px;
-  color: var(--green-text-light);
-  background: var(--green-tint);
+  color: var(--accent-text-light);
+  background: var(--accent-tint);
   border-radius: 3px;
   padding: 0 4px;
   margin-left: 7px;
 }
 
-.table-caption {
-  font-size: 11px;
-  color: var(--text-faint);
-}
-
-@media (max-width: 1200px) {
-  .data-card {
-    padding: 20px;
-  }
-}
-
-@media (max-width: 900px) {
-  .table-caption {
-    font-size: 10px;
-  }
-}
-
-@media (max-width: 680px) {
-  .data-card {
-    padding: 18px;
-  }
-}
-
 .role-notice {
-  margin-bottom: 22px;
+  margin-bottom: 20px;
 }
 </style>

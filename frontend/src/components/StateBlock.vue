@@ -45,7 +45,13 @@ defineEmits<{ retry: [] }>()
 }
 
 .empty-icon {
-  color: var(--text-pale);
+  width: 32px;
+  height: 32px;
+  box-sizing: content-box;
+  padding: 9px;
+  border-radius: 10px;
+  background: var(--surface-sunken);
+  color: var(--text-faint);
 }
 
 .state-block .button {

@@ -11,7 +11,7 @@
 - `auth_users`：自增 ID、唯一用户名、加盐密码哈希、角色编码（外键）、启用状态和 Token 版本。
 - `auth_role_permission_profiles`：角色权限配置版本号。
 - `auth_role_permissions`：角色拥有的页面或接口权限编码。
-- `auth_menus`：侧栏页面菜单（页面权限码 `page:<key>` 的来源），含标题、路径、图标、分组、排序、仅 ADMIN 标记、内置标记和启用状态。
+- `auth_menus`：顶部导航与移动抽屉页面菜单（页面权限码 `page:<key>` 的来源），含标题、路径、图标、分组、排序、仅 ADMIN 标记、内置标记和启用状态。
 
 每个用户通过 `auth_users.role_code` 对应一个角色，权限只绑定到角色，不存在用户覆盖权限。
 所有 `ADMIN` 用户均拥有全部已登记权限，该内置角色不可修改或停用。

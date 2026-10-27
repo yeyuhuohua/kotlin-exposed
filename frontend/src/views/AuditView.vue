@@ -5,6 +5,8 @@ import { RefreshCw, Search } from '@lucide/vue'
 import { auditPaths } from '../api/paths'
 import { api, query } from '../lib/api'
 import { useResource } from '../composables/useResource'
+import DataPanel from '../components/DataPanel.vue'
+import PageHeader from '../components/PageHeader.vue'
 import Pagination from '../components/Pagination.vue'
 import StateBlock from '../components/StateBlock.vue'
 import type { ApiCallRecord, LoginRecord, Page } from '../types'
@@ -96,60 +98,52 @@ watch([callPage, callPageSize], () => void calls.refresh())
 </script>
 <template>
   <section>
-    <header class="page-heading">
-      <div>
-        <p class="eyebrow">AUDIT LOG</p>
-        <h1>审计日志</h1>
-        <p class="page-subtitle">登录尝试与接口调用记录 · 仅管理员可见</p>
-      </div>
-      <div class="heading-actions">
-        <el-button
-          text
-          class="icon-button outlined"
-          aria-label="刷新审计日志"
-          title="刷新"
-          :disabled="tab === 'logins' ? logins.loading.value : calls.loading.value"
-          @click="tab === 'logins' ? logins.refresh() : calls.refresh()"
-        >
-          <RefreshCw
-            :size="17"
-            :class="{ spin: tab === 'logins' ? logins.loading.value : calls.loading.value }"
-          />
-        </el-button>
-      </div>
-    </header>
+    <PageHeader
+      title="审计日志"
+      description="登录尝试与接口调用记录 · 仅管理员可见"
+      category="系统管理"
+    >
+      <el-button
+        :icon="RefreshCw"
+        :loading="tab === 'logins' ? logins.loading.value : calls.loading.value"
+        aria-label="刷新审计日志"
+        @click="tab === 'logins' ? logins.refresh() : calls.refresh()"
+      />
+    </PageHeader>
     <el-tabs v-model="tab" class="audit-tabs">
       <el-tab-pane label="登录记录" name="logins" />
       <el-tab-pane label="接口调用记录" name="calls" />
     </el-tabs>
 
-    <section v-show="tab === 'logins'" class="data-card">
-      <div class="table-toolbar">
-        <div class="filters">
-          <el-input
-            v-model="loginUsername"
-            class="filter-input"
-            placeholder="用户名模糊搜索"
-            aria-label="按用户名过滤"
-            clearable
-            @keyup.enter="applyLoginFilters"
-          >
-            <template #prefix><Search :size="16" /></template>
-          </el-input>
-          <el-select
-            v-model="loginSuccess"
-            class="filter-select"
-            placeholder="全部结果"
-            aria-label="按登录结果过滤"
-            @change="applyLoginFilters"
-          >
-            <el-option label="全部结果" value="" />
-            <el-option label="仅成功" value="true" />
-            <el-option label="仅失败" value="false" />
-          </el-select>
-          <el-button class="button secondary" @click="applyLoginFilters">查询</el-button>
+    <DataPanel v-show="tab === 'logins'">
+      <template #toolbar>
+        <div class="table-toolbar">
+          <div class="filters">
+            <el-input
+              v-model="loginUsername"
+              class="filter-input"
+              placeholder="用户名模糊搜索"
+              aria-label="按用户名过滤"
+              clearable
+              @keyup.enter="applyLoginFilters"
+            >
+              <template #prefix><Search :size="16" /></template>
+            </el-input>
+            <el-select
+              v-model="loginSuccess"
+              class="filter-select"
+              placeholder="全部结果"
+              aria-label="按登录结果过滤"
+              @change="applyLoginFilters"
+            >
+              <el-option label="全部结果" value="" />
+              <el-option label="仅成功" value="true" />
+              <el-option label="仅失败" value="false" />
+            </el-select>
+            <el-button class="button secondary" @click="applyLoginFilters">查询</el-button>
+          </div>
         </div>
-      </div>
+      </template>
       <StateBlock :loading="logins.loading.value" :error="logins.error.value" @retry="logins.refresh" />
       <el-table
         v-if="!logins.loading.value && !logins.error.value && logins.data.value"
@@ -173,56 +167,59 @@ watch([callPage, callPageSize], () => void calls.refresh())
           <template #default="{ row }">{{ row.userAgent ?? '—' }}</template>
         </el-table-column>
       </el-table>
-      <Pagination
-        v-if="logins.data.value"
-        class="card-pagination"
-        :page="loginPage"
-        :page-size="loginPageSize"
-        :total="logins.data.value.total"
-        :disabled="logins.loading.value"
-        @update:page="loginPage = $event"
-        @update:page-size="setLoginPageSize"
-      />
-    </section>
+      <template #footer>
+        <Pagination
+          v-if="logins.data.value"
+          :page="loginPage"
+          :page-size="loginPageSize"
+          :total="logins.data.value.total"
+          :disabled="logins.loading.value"
+          @update:page="loginPage = $event"
+          @update:page-size="setLoginPageSize"
+        />
+      </template>
+    </DataPanel>
 
-    <section v-show="tab === 'calls'" class="data-card">
-      <div class="table-toolbar">
-        <div class="filters">
-          <el-input
-            v-model="callUsername"
-            class="filter-input"
-            placeholder="用户名模糊搜索"
-            aria-label="按用户名过滤"
-            clearable
-            @keyup.enter="applyCallFilters"
-          >
-            <template #prefix><Search :size="16" /></template>
-          </el-input>
-          <el-select
-            v-model="callMethod"
-            class="filter-select narrow"
-            placeholder="全部方法"
-            aria-label="按 HTTP 方法过滤"
-            @change="applyCallFilters"
-          >
-            <el-option
-              v-for="option in methodOptions"
-              :key="option"
-              :label="option || '全部方法'"
-              :value="option"
+    <DataPanel v-show="tab === 'calls'">
+      <template #toolbar>
+        <div class="table-toolbar">
+          <div class="filters">
+            <el-input
+              v-model="callUsername"
+              class="filter-input"
+              placeholder="用户名模糊搜索"
+              aria-label="按用户名过滤"
+              clearable
+              @keyup.enter="applyCallFilters"
+            >
+              <template #prefix><Search :size="16" /></template>
+            </el-input>
+            <el-select
+              v-model="callMethod"
+              class="filter-select narrow"
+              placeholder="全部方法"
+              aria-label="按 HTTP 方法过滤"
+              @change="applyCallFilters"
+            >
+              <el-option
+                v-for="option in methodOptions"
+                :key="option"
+                :label="option || '全部方法'"
+                :value="option"
+              />
+            </el-select>
+            <el-input
+              v-model="callPath"
+              class="filter-input"
+              placeholder="按路径前缀过滤，如 /api/employees"
+              aria-label="按路径前缀过滤"
+              clearable
+              @keyup.enter="applyCallFilters"
             />
-          </el-select>
-          <el-input
-            v-model="callPath"
-            class="filter-input"
-            placeholder="按路径前缀过滤，如 /api/employees"
-            aria-label="按路径前缀过滤"
-            clearable
-            @keyup.enter="applyCallFilters"
-          />
-          <el-button class="button secondary" @click="applyCallFilters">查询</el-button>
+            <el-button class="button secondary" @click="applyCallFilters">查询</el-button>
+          </div>
         </div>
-      </div>
+      </template>
       <StateBlock :loading="calls.loading.value" :error="calls.error.value" @retry="calls.refresh" />
       <el-table
         v-if="!calls.loading.value && !calls.error.value && calls.data.value"
@@ -255,39 +252,25 @@ watch([callPage, callPageSize], () => void calls.refresh())
         </el-table-column>
         <el-table-column prop="ip" label="IP" min-width="120" />
       </el-table>
-      <Pagination
-        v-if="calls.data.value"
-        class="card-pagination"
-        :page="callPage"
-        :page-size="callPageSize"
-        :total="calls.data.value.total"
-        :disabled="calls.loading.value"
-        @update:page="callPage = $event"
-        @update:page-size="setCallPageSize"
-      />
-    </section>
+      <template #footer>
+        <Pagination
+          v-if="calls.data.value"
+          :page="callPage"
+          :page-size="callPageSize"
+          :total="calls.data.value.total"
+          :disabled="calls.loading.value"
+          @update:page="callPage = $event"
+          @update:page-size="setCallPageSize"
+        />
+      </template>
+    </DataPanel>
   </section>
 </template>
 
 <style scoped>
 /* 本组件样式：颜色只用 styles.css 里的语义 token。 */
-.spin {
-  animation: spin 0.8s linear infinite;
-}
-
 .audit-tabs {
-  margin-bottom: 22px;
-}
-
-.audit-tabs :deep(.el-tabs__nav-wrap::after) {
-  background: var(--border);
-}
-
-.data-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--card-radius);
-  padding: 22px 26px 10px;
+  margin-bottom: 0;
 }
 
 .filters {
@@ -310,11 +293,6 @@ watch([callPage, callPageSize], () => void calls.refresh())
   width: 120px;
 }
 
-.data-card .card-pagination {
-  border-top: 1px solid var(--border);
-  padding: 16px 0 10px;
-}
-
 @media (max-width: 900px) {
   .filter-input {
     flex: 1;
@@ -323,9 +301,6 @@ watch([callPage, callPageSize], () => void calls.refresh())
 }
 
 @media (max-width: 680px) {
-  .data-card {
-    padding: 18px 18px 8px;
-  }
   .filter-input,
   .filter-select,
   .filter-select.narrow {

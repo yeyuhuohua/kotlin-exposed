@@ -21,38 +21,35 @@ defineEmits<{ 'update:page': [value: number]; 'update:pageSize': [value: number]
 </template>
 
 <style scoped>
-/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
 .pagination {
   display: flex;
-  justify-content: flex-end;
   align-items: center;
+  justify-content: flex-end;
   gap: 16px;
-  margin-top: 10px;
-  padding-top: 18px;
-  border-top: 1px solid var(--border);
+  min-width: 0;
+  color: var(--text-muted);
   font-size: 11px;
-  color: var(--text-faint);
 }
 
 .pagination :deep(.el-pagination) {
+  width: 100%;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
 }
 
-/* 分页按钮与每页条数下拉统一成项目的描边小按钮语言，翡翠只落在选中态上。 */
 .pagination :deep(.el-pagination.is-background .btn-prev),
 .pagination :deep(.el-pagination.is-background .btn-next),
 .pagination :deep(.el-pagination.is-background .el-pager li) {
   min-width: 30px;
   height: 30px;
-  line-height: 28px;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
   background: var(--surface);
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 550;
+  line-height: 28px;
   transition:
     color 0.15s,
     border-color 0.15s,
@@ -62,22 +59,26 @@ defineEmits<{ 'update:page': [value: number]; 'update:pageSize': [value: number]
 .pagination :deep(.el-pagination.is-background .btn-prev:hover:not(:disabled)),
 .pagination :deep(.el-pagination.is-background .btn-next:hover:not(:disabled)),
 .pagination :deep(.el-pagination.is-background .el-pager li:hover) {
-  color: var(--green);
-  border-color: var(--border-green-strong);
-  background: var(--green-soft-hover);
+  border-color: var(--border-accent-strong);
+  background: var(--accent-tint);
+  color: var(--accent-text);
 }
 
 .pagination :deep(.el-pagination.is-background .el-pager li.is-active),
 .pagination :deep(.el-pagination.is-background .el-pager li.is-active:hover) {
-  border-color: var(--green);
-  background: var(--green);
+  border-color: var(--accent);
+  background: var(--accent);
   color: var(--on-accent);
+}
+
+.pagination :deep(.el-pagination__total) {
+  margin-right: auto;
 }
 
 .pagination :deep(.el-pagination__total),
 .pagination :deep(.el-pagination__jump) {
+  color: var(--text-muted);
   font-size: 11px;
-  color: var(--text-faint);
 }
 
 .pagination :deep(.el-pagination__sizes .el-select__wrapper) {
@@ -94,9 +95,11 @@ defineEmits<{ 'update:page': [value: number]; 'update:pageSize': [value: number]
   .pagination {
     gap: 8px;
   }
+
   .pagination :deep(.el-pagination) {
     justify-content: center;
   }
+
   .pagination :deep(.el-pagination__total) {
     display: none;
   }

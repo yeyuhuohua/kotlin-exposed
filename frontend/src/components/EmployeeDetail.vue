@@ -134,8 +134,9 @@ const groups = computed(() => [
   align-items: center;
   gap: 7px;
   padding: 6px 12px;
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
-  background: var(--surface-sunken);
+  background: var(--surface-subtle);
   font-size: 12px;
   color: var(--text-soft);
 }

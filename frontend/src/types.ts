@@ -32,9 +32,9 @@ export interface PageRoute {
   key: string
   title: string
   path: string
-  /** 侧栏图标名（lib/menuIcons.ts 注册表里的 key），为空用默认图标。 */
+  /** 导航图标名（lib/menuIcons.ts 注册表里的 key），为空用默认图标。 */
   icon: string | null
-  /** 侧栏分组名；空串表示固定在侧栏底部。 */
+  /** 导航分组名；空串表示固定在导航末尾。 */
   group: string
   sort: number
   adminOnly?: boolean
