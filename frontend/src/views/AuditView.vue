@@ -76,13 +76,13 @@ function setCallPageSize(value: number) {
 }
 
 const methodOptions = ['', 'GET', 'POST', 'PUT', 'PATCH', 'DELETE']
-function statusType(status: number): 'success' | 'info' | 'warning' | 'danger' {
+function statusClass(status: number): 'success' | 'warning' | 'error' {
   if (status < 300) return 'success'
   if (status < 500) return 'warning'
-  return 'danger'
+  return 'error'
 }
-function loginResultType(success: boolean): 'success' | 'danger' {
-  return success ? 'success' : 'danger'
+function loginResultClass(success: boolean): 'success' | 'error' {
+  return success ? 'success' : 'error'
 }
 
 // 切换标签页时按需首次加载；分页与刷新各自独立。
@@ -98,11 +98,7 @@ watch([callPage, callPageSize], () => void calls.refresh())
 </script>
 <template>
   <section>
-    <PageHeader
-      title="审计日志"
-      description="登录尝试与接口调用记录 · 仅管理员可见"
-      category="系统管理"
-    >
+    <PageHeader title="审计日志" description="登录尝试与接口调用记录 · 仅管理员可见">
       <el-button
         :icon="RefreshCw"
         :loading="tab === 'logins' ? logins.loading.value : calls.loading.value"
@@ -155,9 +151,9 @@ watch([callPage, callPageSize], () => void calls.refresh())
         <el-table-column prop="ip" label="IP" min-width="120" />
         <el-table-column label="结果" width="90" align="center">
           <template #default="{ row }">
-            <el-tag :type="loginResultType(row.success)" size="small" effect="light">
+            <span :class="['badge', loginResultClass(row.success)]">
               {{ row.success ? '成功' : '失败' }}
-            </el-tag>
+            </span>
           </template>
         </el-table-column>
         <el-table-column label="失败原因" min-width="130">
@@ -232,7 +228,7 @@ watch([callPage, callPageSize], () => void calls.refresh())
         </el-table-column>
         <el-table-column label="方法" width="90" align="center">
           <template #default="{ row }">
-            <el-tag size="small" effect="plain" type="info">{{ row.method }}</el-tag>
+            <span class="badge neutral">{{ row.method }}</span>
           </template>
         </el-table-column>
         <el-table-column label="路径" min-width="220" show-overflow-tooltip>
@@ -242,9 +238,9 @@ watch([callPage, callPageSize], () => void calls.refresh())
         </el-table-column>
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
-            <el-tag :type="statusType(row.statusCode)" size="small" effect="light">
+            <span :class="['badge', statusClass(row.statusCode)]">
               {{ row.statusCode }}
-            </el-tag>
+            </span>
           </template>
         </el-table-column>
         <el-table-column label="耗时" width="100" align="right">

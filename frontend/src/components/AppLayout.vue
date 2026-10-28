@@ -61,6 +61,7 @@ async function logout() {
             <AppLogo />
           </RouterLink>
         </div>
+        <TopNav class="topbar-nav" />
         <div class="topbar-actions">
           <RouterLink
             v-if="auth.canPage('system') && systemTo"
@@ -69,18 +70,20 @@ async function logout() {
             :title="health?.status === 'UP' ? '服务运行正常' : '查看服务状态'"
           >
             <span class="status-dot" aria-hidden="true"></span>
-            <span class="status-label">{{ health?.status === 'UP' ? '服务正常' : health ? '服务异常' : '状态未知' }}</span>
+            <span class="status-label">
+              {{ health?.status === 'UP' ? '服务正常' : health ? '服务异常' : '状态未知' }}
+            </span>
           </RouterLink>
-          <span class="action-divider" aria-hidden="true"></span>
           <el-tooltip :content="theme.isDark ? '切换到浅色模式' : '切换到深色模式'">
             <el-button
               text
-              class="icon-button outlined"
+              class="icon-button"
               :icon="theme.isDark ? Sun : Moon"
               :aria-label="theme.isDark ? '切换到浅色模式' : '切换到深色模式'"
               @click="theme.toggle()"
             />
           </el-tooltip>
+          <span class="action-divider" aria-hidden="true"></span>
           <RouterLink to="/account" class="account-trigger" aria-label="我的账号">
             <el-avatar :size="30">{{ initials(auth.user?.username || 'U') }}</el-avatar>
             <span class="account-meta">
@@ -91,7 +94,7 @@ async function logout() {
           <el-tooltip content="退出登录">
             <el-button
               text
-              class="icon-button outlined logout-button"
+              class="icon-button logout-button"
               :icon="LogOut"
               :loading="signingOut"
               aria-label="退出登录"
@@ -100,7 +103,6 @@ async function logout() {
           </el-tooltip>
         </div>
       </div>
-      <div class="navigation-row"><TopNav /></div>
     </header>
     <el-drawer
       v-model="mobileOpen"
@@ -120,9 +122,9 @@ async function logout() {
 
 <style scoped>
 .app-shell {
-  min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  min-height: 100dvh;
   background: var(--bg-page);
 }
 
@@ -138,15 +140,14 @@ async function logout() {
   flex-shrink: 0;
   border-bottom: 1px solid var(--border);
   background: var(--surface-translucent);
-  backdrop-filter: blur(18px);
+  backdrop-filter: blur(14px);
 }
 
 .topbar {
-  height: var(--header-height);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
+  gap: 22px;
+  height: var(--header-height);
   padding: 0 var(--page-gutter);
 }
 
@@ -158,23 +159,23 @@ async function logout() {
 }
 
 .topbar-left {
+  flex-shrink: 0;
   gap: 10px;
 }
 
+.topbar-nav {
+  flex: 1;
+  min-width: 0;
+}
+
 .topbar-actions {
-  gap: 10px;
   flex-shrink: 0;
+  gap: 7px;
 }
 
 .brand-link {
   display: inline-flex;
-  border-radius: 11px;
-}
-
-.navigation-row {
-  height: var(--nav-height);
-  padding: 0 var(--page-gutter);
-  border-top: 1px solid var(--border-soft);
+  border-radius: 5px;
 }
 
 .status-link {
@@ -182,8 +183,8 @@ async function logout() {
   align-items: center;
   gap: 7px;
   min-height: 32px;
-  padding: 0 6px;
-  border-radius: 8px;
+  padding: 0 7px;
+  border-radius: 5px;
   color: var(--text-muted);
   font-size: 12px;
   white-space: nowrap;
@@ -195,22 +196,20 @@ async function logout() {
 }
 
 .status-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--status-up);
-  box-shadow: 0 0 0 3px var(--status-up-soft);
 }
 
 .status-link.down .status-dot {
   background: var(--status-down);
-  box-shadow: none;
 }
 
 .action-divider {
   width: 1px;
-  height: 20px;
-  margin: 0 2px;
+  height: 22px;
+  margin: 0 4px;
   background: var(--border);
 }
 
@@ -218,18 +217,14 @@ async function logout() {
   display: flex;
   align-items: center;
   gap: 9px;
-  height: 42px;
-  padding: 4px 8px 4px 5px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: transparent;
+  min-height: 40px;
+  padding: 4px 6px;
+  border-radius: 6px;
   color: var(--text);
-  text-align: left;
 }
 
 .account-trigger:hover,
 .account-trigger:focus-visible {
-  border-color: var(--border);
   background: var(--surface-hover);
 }
 
@@ -237,13 +232,13 @@ async function logout() {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 .account-meta strong {
-  max-width: 130px;
+  max-width: 112px;
   overflow: hidden;
-  color: var(--text);
+  color: var(--text-strong);
   font-size: 12px;
   font-weight: 600;
   text-overflow: ellipsis;
@@ -251,8 +246,8 @@ async function logout() {
 }
 
 .account-meta small {
-  margin-top: 2px;
-  color: var(--text-faint);
+  margin-top: 3px;
+  color: var(--text-muted);
   font-size: 10px;
 }
 
@@ -262,6 +257,7 @@ async function logout() {
 }
 
 .topbar :deep(.el-avatar) {
+  border: 1px solid var(--border-accent);
   background: var(--accent-soft);
   color: var(--accent-text);
   font-size: 11px;
@@ -272,15 +268,15 @@ async function logout() {
   width: 100%;
   max-width: var(--content-max);
   margin: 0 auto;
-  padding: 32px var(--page-gutter) 48px;
+  padding: 30px var(--page-gutter) 48px;
   flex: 1;
 }
 
 .main-content.fill-height {
   display: flex;
   flex-direction: column;
-  min-height: 0;
   max-width: none;
+  min-height: 0;
   padding: 0;
   overflow: hidden;
 }
@@ -299,64 +295,58 @@ async function logout() {
   background: var(--surface);
 }
 
-@media (min-width: 1500px) {
-  .main-content {
-    padding-top: 40px;
+@media (max-width: 1320px) {
+  .topbar {
+    gap: 14px;
   }
-}
 
-@media (max-width: 1100px) {
-  .status-label {
+  .status-label,
+  .account-meta small {
     display: none;
   }
-
-  .status-link {
-    width: 32px;
-    justify-content: center;
-    padding: 0;
-  }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1180px) {
   .topbar {
-    height: 60px;
-    gap: 10px;
+    justify-content: space-between;
   }
 
-  .navigation-row {
+  .topbar-nav {
     display: none;
   }
 
   .mobile-menu {
     display: inline-flex !important;
   }
-
-  .main-content {
-    padding-top: 24px;
-  }
 }
 
 @media (max-width: 680px) {
+  .topbar {
+    height: 60px;
+    gap: 8px;
+  }
+
   .topbar-actions {
-    gap: 6px;
+    gap: 3px;
   }
 
   .account-meta,
-  .action-divider {
+  .action-divider,
+  .status-link {
     display: none;
   }
 
   .account-trigger {
-    padding-right: 5px;
+    padding: 4px;
   }
 
   .main-content {
-    padding-top: 20px;
+    padding-top: 22px;
     padding-bottom: 32px;
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 440px) {
   .brand-link :deep(.logo-copy small) {
     display: none;
   }

@@ -151,12 +151,7 @@ async function remove() {
 </script>
 <template>
   <section>
-    <PageHeader
-      title="员工管理"
-      description="人事档案与组织成员"
-      category="组织资料"
-      :count="data?.total"
-    >
+    <PageHeader title="员工管理" description="组织成员、岗位与任职信息" :count="data?.total">
       <el-button :icon="RefreshCw" :loading="loading" aria-label="刷新员工" @click="refresh" />
       <el-button
         v-if="auth.canApi('POST', employeesPaths.collection)"

@@ -44,7 +44,13 @@ const treeRows = computed<TreeRow[]>(() => {
       byGroup.set(label, group)
       rows.push(group)
     }
-    group.children!.push({ rowKey: `menu:${item.key}`, kind: 'menu', label: item.title, count: 0, menu: item })
+    group.children!.push({
+      rowKey: `menu:${item.key}`,
+      kind: 'menu',
+      label: item.title,
+      count: 0,
+      menu: item,
+    })
   }
   for (const group of rows) group.count = group.children!.length
   return rows
@@ -200,7 +206,6 @@ async function syncPages() {
     <PageHeader
       title="菜单管理"
       description="顶部导航页面清单的运行时来源 · 仅管理员可见"
-      category="系统管理"
       :count="menus.data.value?.length"
     >
       <el-button type="primary" :icon="Plus" :disabled="menus.loading.value" @click="openCreate">
@@ -215,12 +220,6 @@ async function syncPages() {
     </PageHeader>
 
     <DataPanel>
-      <template v-if="!menus.loading.value && !menus.error.value && menus.data.value" #toolbar>
-        <div class="table-toolbar">
-          <span class="table-caption">导航分组与页面</span>
-          <span class="badge neutral">{{ menus.data.value.length }} 个页面</span>
-        </div>
-      </template>
       <StateBlock :loading="menus.loading.value" :error="menus.error.value" @retry="menus.refresh" />
       <el-table
         v-if="!menus.loading.value && !menus.error.value && menus.data.value"
@@ -261,14 +260,24 @@ async function syncPages() {
         </el-table-column>
         <el-table-column label="可见性" width="110" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.kind === 'menu'" :type="row.menu.adminOnly ? 'warning' : 'info'" size="small" effect="light">
+            <el-tag
+              v-if="row.kind === 'menu'"
+              :type="row.menu.adminOnly ? 'warning' : 'info'"
+              size="small"
+              effect="light"
+            >
               {{ row.menu.adminOnly ? '仅 ADMIN' : '可授权' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.kind === 'menu'" :type="row.menu.enabled ? 'success' : 'info'" size="small" effect="light">
+            <el-tag
+              v-if="row.kind === 'menu'"
+              :type="row.menu.enabled ? 'success' : 'info'"
+              size="small"
+              effect="light"
+            >
               {{ row.menu.enabled ? '启用' : '停用' }}
             </el-tag>
           </template>
@@ -276,7 +285,12 @@ async function syncPages() {
         <el-table-column label="操作" width="150" align="center">
           <template #default="{ row }">
             <template v-if="row.kind === 'menu'">
-                <el-button text class="icon-button" aria-label="编辑菜单" @click="openEdit(row.menu as MenuItem)">
+              <el-button
+                text
+                class="icon-button"
+                aria-label="编辑菜单"
+                @click="openEdit(row.menu as MenuItem)"
+              >
                 <Pencil :size="15" />
               </el-button>
               <el-button

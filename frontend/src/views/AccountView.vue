@@ -10,17 +10,15 @@ import { pagePath } from '../lib/pages'
 import { initials } from '../lib/format'
 const auth = useAuth()
 const usersTo = computed(() => pagePath(auth.pages, 'users'))
-const pageCount = computed(() => auth.user?.permissions?.filter((code) => code.startsWith('page:')).length || 0)
+const pageCount = computed(
+  () => auth.user?.permissions?.filter((code) => code.startsWith('page:')).length || 0,
+)
 const apiCount = computed(() => auth.user?.permissions?.filter((code) => code.startsWith('api:')).length || 0)
 </script>
 
 <template>
   <section>
-    <PageHeader
-      title="我的账号"
-      description="当前登录账号与角色的有效权限摘要"
-      category="个人账户"
-    />
+    <PageHeader title="我的账号" description="登录身份、账号状态与有效权限" />
     <div class="account-layout">
       <DataPanel class="profile-panel">
         <div class="profile-summary">
@@ -30,9 +28,9 @@ const apiCount = computed(() => auth.user?.permissions?.filter((code) => code.st
             <p>账号 #{{ auth.user?.id }}</p>
             <div class="profile-tags">
               <span :class="['badge', auth.isAdmin ? 'admin' : 'neutral']">{{ auth.user?.roleCode }}</span>
-              <el-tag :type="auth.user?.enabled ? 'success' : 'info'" size="small">
+              <span :class="['badge', auth.user?.enabled ? 'success' : 'neutral']">
                 {{ auth.user?.enabled ? '已启用' : '已停用' }}
-              </el-tag>
+              </span>
             </div>
           </div>
         </div>
@@ -47,7 +45,7 @@ const apiCount = computed(() => auth.user?.permissions?.filter((code) => code.st
           </div>
         </div>
       </DataPanel>
-      <DataPanel title="账号详情" subtitle="登录身份与授权范围">
+      <DataPanel title="账号与权限" subtitle="当前登录身份及角色的有效授权">
         <dl class="detail-grid account-details">
           <div>
             <dt>账号编号</dt>
@@ -86,63 +84,57 @@ const apiCount = computed(() => auth.user?.permissions?.filter((code) => code.st
 <style scoped>
 .account-layout {
   display: grid;
-  grid-template-columns: 310px minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
 }
 
 .profile-summary {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 30px 24px 26px;
-  text-align: center;
+  gap: 16px;
+  padding: 26px 22px;
 }
 
 .profile-summary > .avatar.large {
-  width: 68px;
-  height: 68px;
-  border-radius: 17px;
+  width: 56px;
+  height: 56px;
 }
 
 .profile-copy {
   min-width: 0;
-  margin-top: 16px;
 }
 
 .profile-copy h2 {
-  overflow-wrap: anywhere;
   color: var(--text-strong);
   font-size: 20px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
 }
 
 .profile-copy > p {
   margin-top: 4px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 12px;
 }
 
 .profile-tags {
   display: flex;
   align-items: center;
-  justify-content: center;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 7px;
+  margin-top: 11px;
 }
 
 .profile-permissions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   border-top: 1px solid var(--border);
-  background: var(--surface-subtle);
 }
 
 .profile-permissions > div {
-  padding: 18px 12px;
-  text-align: center;
+  padding: 20px 22px;
 }
 
 .profile-permissions > div + div {
@@ -156,71 +148,43 @@ const apiCount = computed(() => auth.user?.permissions?.filter((code) => code.st
 
 .profile-permissions strong {
   color: var(--text-strong);
-  font-size: 22px;
-  font-weight: 650;
+  font-size: 24px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .profile-permissions span {
   margin-top: 4px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 11px;
 }
 
 .account-details {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 22px 24px;
-  padding: 22px;
+  gap: 28px 32px;
+  padding: 28px 24px 30px;
   border-top: 0;
 }
 
-@media (max-width: 1000px) {
-  .account-layout {
-    grid-template-columns: 280px minmax(0, 1fr);
-    gap: 18px;
-  }
-}
-
-@media (max-width: 800px) {
+@media (max-width: 900px) {
   .account-layout {
     grid-template-columns: 1fr;
-  }
-
-  .profile-summary {
-    flex-direction: row;
-    gap: 18px;
-    padding: 22px;
-    text-align: left;
-  }
-
-  .profile-copy {
-    margin-top: 0;
-  }
-
-  .profile-tags {
-    justify-content: flex-start;
   }
 }
 
 @media (max-width: 680px) {
   .account-details {
     grid-template-columns: 1fr;
-    padding: 18px;
+    gap: 22px;
+    padding: 24px 20px;
   }
 
   .profile-summary {
-    gap: 14px;
+    padding: 22px 18px;
+  }
+
+  .profile-permissions > div {
     padding: 18px;
-  }
-
-  .profile-summary > .avatar.large {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-  }
-
-  .profile-copy h2 {
-    font-size: 18px;
   }
 }
 </style>

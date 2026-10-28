@@ -83,10 +83,10 @@ describe('统一页面骨架', () => {
 
   it('页头展示业务信息并渲染操作区', () => {
     const wrapper = mount(PageHeader, {
-      props: { title: '员工管理', description: '组织成员', category: '组织资料', count: 42 },
+      props: { title: '员工管理', description: '组织成员', count: 42 },
       slots: { default: '<button type="button">新增员工</button>' },
     })
-    expect(wrapper.text()).toContain('组织资料')
+    expect(wrapper.text()).toContain('组织成员')
     expect(wrapper.text()).toContain('员工管理')
     expect(wrapper.text()).toContain('42')
     expect(wrapper.find('.page-header-actions button').text()).toBe('新增员工')

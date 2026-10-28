@@ -193,7 +193,7 @@ async function save() {
 }
 </script>
 <template>
-  <Modal :title="title" :busy="busy" @close="emit('close')">
+  <Modal :title="title" wide :busy="busy" @close="emit('close')">
     <el-form ref="formRef" :model="values" :rules="rules" label-position="top" @submit.prevent="save">
       <div class="modal-body">
         <el-alert v-if="lookupError" :title="lookupError" type="error" :closable="false" show-icon>

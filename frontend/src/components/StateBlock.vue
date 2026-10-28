@@ -31,13 +31,11 @@ defineEmits<{ retry: [] }>()
 </template>
 
 <style scoped>
-/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
 .state-block strong {
   display: block;
+  margin-bottom: 5px;
   font-size: 14px;
   font-weight: 600;
-  letter-spacing: -0.01em;
-  margin-bottom: 5px;
 }
 
 .state-block[role='alert'] > svg {
@@ -45,13 +43,7 @@ defineEmits<{ retry: [] }>()
 }
 
 .empty-icon {
-  width: 32px;
-  height: 32px;
-  box-sizing: content-box;
-  padding: 9px;
-  border-radius: 10px;
-  background: var(--surface-sunken);
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .state-block .button {

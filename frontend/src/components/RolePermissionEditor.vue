@@ -93,10 +93,10 @@ onMounted(load)
       <StateBlock :loading="loading" :error="error" @retry="load" />
       <template v-if="current && !loading && !error">
         <div class="permission-summary">
-          <el-tag type="primary" effect="plain" class="role-chip">
+          <span class="badge admin role-chip">
             <ShieldCheck :size="13" />
             {{ current.role.code }}
-          </el-tag>
+          </span>
           <span class="summary-stats">{{ pages }} 个页面 · {{ apis }} 个接口</span>
           <span class="summary-revision">版本 {{ current.revision }}</span>
         </div>
@@ -127,7 +127,7 @@ onMounted(load)
                   <strong>{{ permission.label }}</strong>
                   <code>{{ permission.method ? `${permission.method} ` : '' }}{{ permission.path }}</code>
                 </span>
-                <el-tag v-if="permission.adminOnly" type="info" size="small">仅 ADMIN</el-tag>
+                <span v-if="permission.adminOnly" class="badge neutral">仅 ADMIN</span>
               </el-checkbox>
             </fieldset>
           </el-checkbox-group>
@@ -156,12 +156,10 @@ onMounted(load)
 .permission-summary {
   display: flex;
   align-items: center;
-  gap: 14px;
   flex-wrap: wrap;
-  padding: 14px 16px;
-  border: 1px solid var(--border-accent);
-  border-radius: var(--control-radius);
-  background: var(--accent-tint);
+  gap: 12px 16px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--border);
   color: var(--text-muted);
   font-size: 13px;
 }
@@ -182,7 +180,7 @@ onMounted(load)
 }
 
 .permission-impact {
-  margin: 16px 2px;
+  margin: 15px 0;
   color: var(--text-muted);
   font-size: 12px;
   line-height: 1.7;
@@ -214,7 +212,7 @@ onMounted(load)
   padding: 0 12px;
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--surface);
 }
 
@@ -231,10 +229,9 @@ onMounted(load)
 
 .permission-group legend {
   padding: 12px 2px 6px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.06em;
 }
 
 .permission-item.el-checkbox {
@@ -244,7 +241,7 @@ onMounted(load)
   height: auto;
   margin: 0;
   padding: 10px;
-  border-radius: 8px;
+  border-radius: 5px;
   white-space: normal;
 }
 
@@ -253,7 +250,7 @@ onMounted(load)
 }
 
 .permission-item.el-checkbox.is-checked {
-  background: var(--accent-tint);
+  background: var(--accent-soft-hover);
 }
 
 .permission-item :deep(.el-checkbox__label) {
@@ -284,10 +281,10 @@ onMounted(load)
 .permission-text code {
   display: block;
   margin-top: 4px;
-  overflow-wrap: anywhere;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 11px;
   white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .permission-item.is-disabled .permission-text strong {
@@ -301,13 +298,13 @@ onMounted(load)
 .save-error {
   margin: 16px 0 0;
   padding: 12px 14px;
-  overflow-wrap: anywhere;
   border: 1px solid var(--danger-soft);
   border-radius: var(--control-radius);
   background: var(--danger-tint);
   color: var(--danger);
   font-size: 13px;
   line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
 .save-error .text-button {

@@ -25,7 +25,12 @@ const fillHeightViews = new Set(['chat'])
 
 /** 把后端下发的页面转成 AppLayout 下的子路由；前端没有对应组件的页面跳过并告警。 */
 export function buildRouteRecord(page: PageRoute): RouteRecordRaw | null {
-  const meta = { title: page.title, adminOnly: page.adminOnly, page: page.key, fillHeight: fillHeightViews.has(page.key) }
+  const meta = {
+    title: page.title,
+    adminOnly: page.adminOnly,
+    page: page.key,
+    fillHeight: fillHeightViews.has(page.key),
+  }
   const staticView = Object.hasOwn(staticViews, page.key) ? staticViews[page.key] : undefined
   if (staticView) {
     return {
@@ -134,9 +139,11 @@ router.beforeEach(async (to) => {
   // 后台刷新即可：权限回收由 hr:unauthorized / hr:forbidden 事件兜底，导航不被 /auth/me 阻塞。
   if (auth.user && !to.meta.public) void auth.refreshUser()
   if (!to.meta.public && !auth.user) return { name: 'login', query: { redirect: to.fullPath } }
-  if (auth.user && !to.meta.public) {
+  if (auth.user && (!to.meta.public || to.name === 'login')) {
     try {
-      if (await ensurePageRoutes()) return { path: to.path, query: to.query, hash: to.hash, replace: true }
+      const registered = await ensurePageRoutes()
+      if (registered && !to.meta.public)
+        return { path: to.path, query: to.query, hash: to.hash, replace: true }
     } catch {
       useNotices().show('页面清单加载失败，请刷新重试', true)
       return false

@@ -2,7 +2,6 @@
 defineProps<{
   title: string
   description?: string
-  category?: string
   count?: string | number
 }>()
 </script>
@@ -10,10 +9,6 @@ defineProps<{
 <template>
   <header class="page-header">
     <div class="page-header-copy">
-      <div class="page-header-context">
-        <span class="context-mark" aria-hidden="true"></span>
-        <span>{{ category || '工作空间' }}</span>
-      </div>
       <div class="page-header-title">
         <h1>{{ title }}</h1>
         <span v-if="count !== undefined" class="count-badge">{{ count }}</span>
@@ -30,57 +25,39 @@ defineProps<{
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  min-height: 68px;
+  min-height: 72px;
   margin-bottom: 24px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
 }
 
 .page-header-copy {
   min-width: 0;
 }
 
-.page-header-context {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 550;
-}
-
-.context-mark {
-  width: 6px;
-  height: 6px;
-  border-radius: 2px;
-  background: var(--accent);
-}
-
 .page-header-title {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: baseline;
+  gap: 10px;
   min-width: 0;
 }
 
 .page-header-title h1 {
-  font-size: 26px;
-  font-weight: 650;
-  letter-spacing: -0.035em;
-  line-height: 1.25;
+  color: var(--text-strong);
 }
 
 .count-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 2px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
   color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 550;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
+}
+
+.count-badge::before {
+  content: '(';
+}
+
+.count-badge::after {
+  content: ')';
 }
 
 .page-header-description {
@@ -94,7 +71,7 @@ defineProps<{
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 9px;
   flex-shrink: 0;
 }
 
@@ -102,12 +79,13 @@ defineProps<{
   .page-header {
     align-items: flex-start;
     gap: 14px;
-    min-height: 60px;
+    min-height: 64px;
     margin-bottom: 20px;
+    padding-bottom: 18px;
   }
 
-  .page-header-title h1 {
-    font-size: 22px;
+  .page-header-title {
+    align-items: center;
   }
 
   .page-header-description {
@@ -115,7 +93,7 @@ defineProps<{
   }
 
   .page-header-actions {
-    gap: 8px;
+    gap: 7px;
   }
 }
 </style>

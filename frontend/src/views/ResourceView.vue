@@ -163,12 +163,7 @@ function saved() {
 </script>
 <template>
   <section>
-    <PageHeader
-      :title="resource.title"
-      :description="resource.subtitle"
-      category="资源管理"
-      :count="data?.total"
-    >
+    <PageHeader :title="resource.title" :description="resource.subtitle">
       <el-button :icon="RefreshCw" :loading="loading" aria-label="刷新列表" @click="refresh" />
       <el-button v-if="canCreate" type="primary" :icon="Plus" @click="edit()">
         {{ resource.key === 'users' ? '新增用户' : resource.key === 'roles' ? '新增角色' : '新增记录' }}
@@ -203,8 +198,10 @@ function saved() {
           >
             <template #prefix><Search :size="17" /></template>
           </el-input>
-          <span v-else class="table-caption">{{ resource.key === 'users' ? '组织账号' : '员工关联档案' }}</span>
-          <span class="table-caption">{{ canEdit || canCreate ? '全部记录' : '只读记录' }}</span>
+          <span v-else class="table-caption">
+            {{ resource.key === 'users' ? '组织账号' : '员工关联档案' }}
+          </span>
+          <span class="table-caption">{{ total }} 条记录</span>
         </div>
       </template>
       <StateBlock
@@ -223,19 +220,12 @@ function saved() {
           :align="column.kind === 'money' ? 'right' : 'left'"
         >
           <template #default="{ row }">
-            <el-tag
-              v-if="column.kind === 'status'"
-              :type="row[column.key] ? 'success' : 'info'"
-              effect="light"
-              size="small"
-            >
+            <span v-if="column.kind === 'status'" :class="['badge', row[column.key] ? 'success' : 'neutral']">
               {{ row[column.key] ? '已启用' : '已停用' }}
-            </el-tag>
-            <el-tag
+            </span>
+            <span
               v-else-if="column.kind === 'role'"
-              :type="row[column.key] === 'ADMIN' ? 'primary' : 'info'"
-              effect="plain"
-              size="small"
+              :class="['badge', row[column.key] === 'ADMIN' ? 'admin' : 'neutral']"
             >
               {{
                 row[column.key] === 'ADMIN'
@@ -244,17 +234,15 @@ function saved() {
                     ? '普通用户'
                     : row[column.key]
               }}
-            </el-tag>
+            </span>
             <span v-else-if="column.kind === 'money'">{{ money(row[column.key]) }}</span>
             <span v-else>{{ row[column.key] ?? '—' }}</span>
-            <el-tag
+            <span
               v-if="resource.key === 'users' && column.key === 'username' && row.id === auth.user?.id"
-              type="success"
-              size="small"
               class="self-label"
             >
               我
-            </el-tag>
+            </span>
           </template>
         </el-table-column>
         <el-table-column
@@ -266,7 +254,10 @@ function saved() {
         >
           <template #default="{ row }">
             <div class="row-actions">
-              <RouterLink v-if="canLinkEmployees && employeesTo" :to="{ path: employeesTo, query: { departmentId: row.departmentId } }">
+              <RouterLink
+                v-if="canLinkEmployees && employeesTo"
+                :to="{ path: employeesTo, query: { departmentId: row.departmentId } }"
+              >
                 <el-button link :icon="ArrowUpRight" aria-label="查看部门员工" title="查看部门员工" />
               </RouterLink>
               <el-button

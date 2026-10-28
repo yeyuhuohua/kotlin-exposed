@@ -25,7 +25,7 @@ defineEmits<{ 'update:page': [value: number]; 'update:pageSize': [value: number]
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
   color: var(--text-muted);
   font-size: 11px;
@@ -35,7 +35,7 @@ defineEmits<{ 'update:page': [value: number]; 'update:pageSize': [value: number]
   width: 100%;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 7px;
 }
 
 .pagination :deep(.el-pagination.is-background .btn-prev),
@@ -43,25 +43,20 @@ defineEmits<{ 'update:page': [value: number]; 'update:pageSize': [value: number]
 .pagination :deep(.el-pagination.is-background .el-pager li) {
   min-width: 30px;
   height: 30px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--surface);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 550;
   line-height: 28px;
-  transition:
-    color 0.15s,
-    border-color 0.15s,
-    background 0.15s;
 }
 
 .pagination :deep(.el-pagination.is-background .btn-prev:hover:not(:disabled)),
 .pagination :deep(.el-pagination.is-background .btn-next:hover:not(:disabled)),
 .pagination :deep(.el-pagination.is-background .el-pager li:hover) {
-  border-color: var(--border-accent-strong);
-  background: var(--accent-tint);
-  color: var(--accent-text);
+  background: var(--surface-hover);
+  color: var(--text-strong);
 }
 
 .pagination :deep(.el-pagination.is-background .el-pager li.is-active),

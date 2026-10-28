@@ -114,4 +114,17 @@ describe('动态路由注册', () => {
     expect(router.getRoutes().some((route) => route.path === '/staff')).toBe(true)
     expect(router.getRoutes().some((route) => route.path === '/departments')).toBe(false)
   })
+
+  it('已登录访问登录页时先加载页面清单再返回真实首页', async () => {
+    saveSession('token-r4', 600)
+    mockedApi.mockImplementation((path) => {
+      if (path === '/auth/me') return Promise.resolve(admin)
+      if (path === '/auth/routes') return Promise.resolve(grantedPages)
+      return Promise.reject(new Error(`unexpected request: ${path}`))
+    })
+    const { router } = await import('../src/router')
+    await router.push('/login')
+    expect(router.currentRoute.value.name).toBe('overview')
+    expect(mockedApi.mock.calls.map(([path]) => path)).toEqual(['/auth/me', '/auth/routes'])
+  })
 })

@@ -4,15 +4,7 @@ import { computed, onMounted } from 'vue'
 import { pagePath } from '../lib/pages'
 import { RouterLink } from 'vue-router'
 import { useAuth } from '../stores/auth'
-import {
-  ArrowRight,
-  ArrowUpRight,
-  BriefcaseBusiness,
-  Building2,
-  MapPin,
-  RefreshCw,
-  Users,
-} from '@lucide/vue'
+import { ArrowRight, ArrowUpRight, BriefcaseBusiness, Building2, MapPin, RefreshCw, Users } from '@lucide/vue'
 import { dashboardPaths, employeesPaths } from '../api/paths'
 import { api } from '../lib/api'
 import { fullName, initials, integer, money } from '../lib/format'
@@ -59,7 +51,6 @@ const metrics = computed(() =>
           value: data.value.overview.employeeTotal,
           unit: '人',
           icon: Users,
-          color: 'accent',
           key: 'employees',
           route: pagePath(auth.pages, 'employees'),
           foot: '员工档案',
@@ -69,7 +60,6 @@ const metrics = computed(() =>
           value: data.value.overview.departmentCount,
           unit: '个',
           icon: Building2,
-          color: 'info',
           key: 'departments',
           route: departmentsTo.value,
           foot: '组织架构',
@@ -79,7 +69,6 @@ const metrics = computed(() =>
           value: data.value.overview.jobCount,
           unit: '个',
           icon: BriefcaseBusiness,
-          color: 'amber',
           key: 'jobs',
           route: pagePath(auth.pages, 'jobs'),
           foot: '岗位目录',
@@ -89,7 +78,6 @@ const metrics = computed(() =>
           value: data.value.overview.locationCount,
           unit: '处',
           icon: MapPin,
-          color: 'violet',
           key: 'locations',
           route: pagePath(auth.pages, 'locations'),
           foot: `${data.value.overview.regionCount} 个区域`,
@@ -124,41 +112,43 @@ function departmentName(id: number | null) {
 
 <template>
   <section class="dashboard-page">
-    <PageHeader
-      :title="`${greeting}，${auth.user?.username}`"
-      :description="today"
-      category="组织概览"
-    >
+    <PageHeader title="工作概览" :description="`${greeting}，${auth.user?.username}。${today}`">
       <el-button :icon="RefreshCw" :loading="loading" aria-label="刷新概览" @click="refresh">
         刷新数据
       </el-button>
     </PageHeader>
     <StateBlock :loading="loading" :error="error" @retry="refresh" />
     <template v-if="data && !loading && !error">
-      <div class="metrics-grid">
+      <div class="metrics-strip">
         <component
           :is="auth.canPage(metric.key) && metric.route ? RouterLink : 'div'"
           v-for="metric in metrics"
           :key="metric.label"
           :to="metric.route ?? undefined"
-          class="metric-card"
+          class="metric-item"
         >
-          <div class="metric-top">
-            <span :class="['metric-icon', metric.color]"><component :is="metric.icon" :size="18" /></span>
-            <ArrowUpRight v-if="auth.canPage(metric.key) && metric.route" :size="15" class="metric-link" />
+          <div class="metric-heading">
+            <span>{{ metric.label }}</span>
+            <component :is="metric.icon" :size="17" :stroke-width="1.6" />
           </div>
-          <div class="metric-label">{{ metric.label }}</div>
           <div class="metric-value">
             {{ integer(metric.value) }}
             <span>{{ metric.unit }}</span>
           </div>
-          <div class="metric-foot">{{ metric.foot }}</div>
+          <div class="metric-foot">
+            <span>{{ metric.foot }}</span>
+            <ArrowUpRight v-if="auth.canPage(metric.key) && metric.route" :size="14" />
+          </div>
         </component>
       </div>
       <div v-if="data.hasRoster" class="analytics-grid">
-        <DataPanel title="部门人员分布" subtitle="按部门在岗人数排序">
+        <DataPanel title="部门人员分布" subtitle="在岗人数最多的部门">
           <template #actions>
-            <RouterLink v-if="auth.canPage('departments') && departmentsTo" :to="departmentsTo" class="text-button">
+            <RouterLink
+              v-if="auth.canPage('departments') && departmentsTo"
+              :to="departmentsTo"
+              class="text-button"
+            >
               全部部门
               <ArrowRight :size="14" />
             </RouterLink>
@@ -174,11 +164,18 @@ function departmentName(id: number | null) {
                   <span class="rank">{{ String(index + 1).padStart(2, '0') }}</span>
                   <component
                     :is="auth.canPage('employees') && employeesTo ? RouterLink : 'span'"
-                    :to="department.id === null ? `${employeesTo}?departmentId=none` : `${employeesTo}?departmentId=${department.id}`"
+                    :to="
+                      department.id === null
+                        ? `${employeesTo}?departmentId=none`
+                        : `${employeesTo}?departmentId=${department.id}`
+                    "
                   >
                     {{ department.label }}
                   </component>
-                  <strong>{{ department.count }}<small>人</small></strong>
+                  <strong>
+                    {{ department.count }}
+                    <small>人</small>
+                  </strong>
                 </div>
                 <div class="bar-track">
                   <div :style="{ width: `${(department.count / departments[0]!.count) * 100}%` }"></div>
@@ -207,7 +204,7 @@ function departmentName(id: number | null) {
         <template #actions>
           <RouterLink v-if="auth.canPage('employees') && employeesTo" :to="employeesTo" class="text-button">
             查看全部
-            <ArrowRight :size="15" />
+            <ArrowRight :size="14" />
           </RouterLink>
         </template>
         <el-table :data="data.overview.sampleEmployees" row-key="employeeId" class="data-table">
@@ -233,7 +230,7 @@ function departmentName(id: number | null) {
           </el-table-column>
           <el-table-column label="岗位编码" min-width="130">
             <template #default="{ row }">
-              <el-tag type="info" size="small" effect="plain">{{ row.jobId }}</el-tag>
+              <span class="job-code">{{ row.jobId }}</span>
             </template>
           </el-table-column>
           <el-table-column prop="hireDate" label="入职日期" width="130" />
@@ -242,7 +239,10 @@ function departmentName(id: number | null) {
           </el-table-column>
           <el-table-column v-if="canDetail" width="65" fixed="right" align="right">
             <template #default="{ row }">
-              <RouterLink v-if="employeesTo" :to="{ path: employeesTo, query: { employeeId: row.employeeId } }">
+              <RouterLink
+                v-if="employeesTo"
+                :to="{ path: employeesTo, query: { employeeId: row.employeeId } }"
+              >
                 <el-button link :icon="ArrowRight" aria-label="查看员工" />
               </RouterLink>
             </template>
@@ -254,106 +254,82 @@ function departmentName(id: number | null) {
 </template>
 
 <style scoped>
-.metrics-grid {
+.metrics-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
   margin-bottom: 24px;
-}
-
-.metric-card {
-  min-width: 0;
-  padding: 20px;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--card-radius);
   background: var(--surface);
-  box-shadow: var(--panel-shadow);
-  transition:
-    border-color 0.15s,
-    background 0.15s;
 }
 
-.metric-card:hover {
-  border-color: var(--border-accent-strong);
+.metric-item {
+  min-width: 0;
+  padding: 22px 24px 20px;
+  transition: background 0.15s;
+}
+
+.metric-item + .metric-item {
+  border-left: 1px solid var(--border);
+}
+
+.metric-item:hover {
   background: var(--surface-subtle);
 }
 
-.metric-top {
+.metric-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.metric-icon {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: 9px;
-}
-
-.metric-icon.accent {
-  background: var(--accent-tint);
-  color: var(--accent-text);
-}
-
-.metric-icon.info {
-  background: var(--info-soft);
-  color: var(--info);
-}
-
-.metric-icon.amber {
-  background: var(--amber-soft);
-  color: var(--warn-strong);
-}
-
-.metric-icon.violet {
-  background: var(--violet-soft);
-  color: var(--violet);
-}
-
-.metric-link {
-  color: var(--text-faint);
-}
-
-.metric-label {
-  margin-top: 18px;
+  gap: 12px;
   color: var(--text-muted);
   font-size: 12px;
-  font-weight: 550;
+}
+
+.metric-heading svg {
+  color: var(--text-dim);
 }
 
 .metric-value {
-  margin: 5px 0 8px;
+  margin: 15px 0 12px;
   color: var(--text-strong);
-  font-size: 30px;
-  font-weight: 650;
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.15;
   letter-spacing: -0.035em;
   font-variant-numeric: tabular-nums;
 }
 
 .metric-value > span {
   margin-left: 7px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 400;
   letter-spacing: 0;
 }
 
 .metric-foot {
-  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-muted);
   font-size: 11px;
+}
+
+.metric-foot svg {
+  color: var(--accent-text);
 }
 
 .analytics-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(340px, 1fr);
-  gap: 24px;
+  grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+  gap: 20px;
   margin-bottom: 24px;
 }
 
 .panel-content {
-  padding: 4px 22px 22px;
+  padding: 8px 22px 22px;
 }
 
 .composition-content {
@@ -361,27 +337,26 @@ function departmentName(id: number | null) {
 }
 
 .bar-row + .bar-row {
-  margin-top: 18px;
+  margin-top: 17px;
 }
 
 .bar-label {
   display: flex;
   align-items: center;
   gap: 11px;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
   font-size: 13px;
 }
 
 .rank {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 10px;
-  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .bar-label a {
   overflow: hidden;
-  color: var(--text-nav);
+  color: var(--text-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -392,7 +367,7 @@ function departmentName(id: number | null) {
 
 .bar-label strong {
   margin-left: auto;
-  color: var(--text-soft);
+  color: var(--text-body);
   font-size: 13px;
   font-weight: 550;
   font-variant-numeric: tabular-nums;
@@ -400,31 +375,25 @@ function departmentName(id: number | null) {
 
 .bar-label strong small {
   margin-left: 5px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 11px;
   font-weight: 400;
 }
 
 .bar-track {
-  height: 6px;
-  margin-left: 24px;
+  height: 5px;
+  margin-left: 26px;
   overflow: hidden;
-  border-radius: 99px;
   background: var(--chart-track);
 }
 
 .bar-track > div {
   height: 100%;
-  border-radius: 99px;
-  background: var(--chart-4);
+  background: var(--chart-2);
 }
 
 .bar-row:first-child .bar-track > div {
   background: var(--chart-1);
-}
-
-.bar-row:nth-child(2) .bar-track > div {
-  background: var(--chart-2);
 }
 
 .bar-row:nth-child(3) .bar-track > div {
@@ -435,74 +404,72 @@ function departmentName(id: number | null) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 18px;
-  padding-top: 16px;
+  margin-top: 16px;
+  padding-top: 17px;
   border-top: 1px solid var(--border);
   color: var(--text-muted);
   font-size: 12px;
 }
 
 .salary-summary strong {
-  color: var(--accent-text);
+  color: var(--text-strong);
   font-size: 20px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 
-@media (min-width: 1500px) {
-  .metric-card {
-    padding: 22px;
-  }
-
-  .metric-value {
-    font-size: 34px;
-  }
+.job-code {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 1200px) {
-  .metrics-grid,
-  .analytics-grid {
-    gap: 16px;
+@media (max-width: 1100px) {
+  .metric-item {
+    padding: 20px;
   }
 
   .analytics-grid {
-    grid-template-columns: minmax(0, 1.35fr) minmax(310px, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
-@media (max-width: 1000px) {
-  .analytics-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 900px) {
-  .metrics-grid {
+@media (max-width: 760px) {
+  .metrics-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric-item:nth-child(3) {
+    border-left: 0;
+  }
+
+  .metric-item:nth-child(n + 3) {
+    border-top: 1px solid var(--border);
   }
 }
 
 @media (max-width: 680px) {
-  .metrics-grid {
-    gap: 12px;
+  .metrics-strip {
     margin-bottom: 20px;
   }
 
-  .metric-card {
-    padding: 16px;
-  }
-
-  .metric-label {
-    margin-top: 14px;
+  .metric-item {
+    padding: 17px 16px;
   }
 
   .metric-value {
-    font-size: 26px;
+    margin: 12px 0 9px;
+    font-size: 27px;
+  }
+
+  .analytics-grid {
+    gap: 16px;
+    margin-bottom: 20px;
   }
 
   .panel-content {
-    padding: 4px 16px 18px;
+    padding: 6px 16px 18px;
   }
 }
 </style>

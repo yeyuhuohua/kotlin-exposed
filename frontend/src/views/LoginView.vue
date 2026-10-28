@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowRight, LockKeyhole, Moon, Sun } from '@lucide/vue'
+import { ArrowRight, Moon, Sun } from '@lucide/vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import AppLogo from '../components/AppLogo.vue'
 import { useAuth } from '../stores/auth'
@@ -69,139 +69,141 @@ async function submit() {
 
 <template>
   <div class="login-page">
-    <div class="login-shell">
-      <div class="login-topbar">
-        <AppLogo />
-        <el-tooltip :content="theme.isDark ? '切换到浅色模式' : '切换到深色模式'">
-          <el-button
-            text
-            class="icon-button outlined"
-            :icon="theme.isDark ? Sun : Moon"
-            :aria-label="theme.isDark ? '切换到浅色模式' : '切换到深色模式'"
-            @click="theme.toggle()"
-          />
-        </el-tooltip>
-      </div>
-      <section class="login-card" aria-label="账号登录">
-        <div class="login-panel">
-          <h2>欢迎回来</h2>
-          <p class="login-subtitle">登录人事工作台，继续你的工作</p>
-          <el-form
-            ref="formRef"
-            :model="form"
-            :rules="rules"
-            label-position="top"
-            class="login-form"
-            @submit.prevent="submit"
-          >
-            <el-form-item label="用户名" prop="username">
-              <el-input
-                v-model="form.username"
-                name="username"
-                aria-label="用户名"
-                autocomplete="username"
-                placeholder="输入用户名"
-                maxlength="64"
-                :disabled="busy"
-              />
-            </el-form-item>
-            <el-form-item label="密码" prop="password">
-              <el-input
-                v-model="form.password"
-                name="password"
-                aria-label="密码"
-                type="password"
-                show-password
-                autocomplete="current-password"
-                placeholder="输入密码"
-                maxlength="128"
-                :disabled="busy"
-              />
-            </el-form-item>
-            <div class="login-remember">
-              <el-checkbox v-model="form.remember" :disabled="busy">记住密码</el-checkbox>
-              <p v-if="form.remember" class="remember-hint">
-                密码仅做 Base64 编码保存在此浏览器，公共设备请勿使用
-              </p>
-            </div>
-            <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
-            <el-button native-type="submit" type="primary" class="login-submit" :loading="busy">
-              登录
-              <ArrowRight v-if="!busy" :size="17" />
-            </el-button>
-          </el-form>
-          <div class="login-security">
-            <LockKeyhole :size="14" />
-            <span>组织账号 · 安全访问</span>
-          </div>
+    <header class="login-header">
+      <AppLogo />
+      <el-tooltip :content="theme.isDark ? '切换到浅色模式' : '切换到深色模式'">
+        <el-button
+          text
+          class="icon-button"
+          :icon="theme.isDark ? Sun : Moon"
+          :aria-label="theme.isDark ? '切换到浅色模式' : '切换到深色模式'"
+          @click="theme.toggle()"
+        />
+      </el-tooltip>
+    </header>
+    <main class="login-main">
+      <section class="login-panel" aria-label="账号登录">
+        <div class="login-heading">
+          <h1>登录工作台</h1>
+          <p>使用你的组织账号继续</p>
         </div>
+        <el-form
+          ref="formRef"
+          :model="form"
+          :rules="rules"
+          label-position="top"
+          class="login-form"
+          @submit.prevent="submit"
+        >
+          <el-form-item label="用户名" prop="username">
+            <el-input
+              v-model="form.username"
+              name="username"
+              aria-label="用户名"
+              autocomplete="username"
+              placeholder="请输入用户名"
+              maxlength="64"
+              :disabled="busy"
+            />
+          </el-form-item>
+          <el-form-item label="密码" prop="password">
+            <el-input
+              v-model="form.password"
+              name="password"
+              aria-label="密码"
+              type="password"
+              show-password
+              autocomplete="current-password"
+              placeholder="请输入密码"
+              maxlength="128"
+              :disabled="busy"
+            />
+          </el-form-item>
+          <div class="login-remember">
+            <el-checkbox v-model="form.remember" :disabled="busy">记住密码</el-checkbox>
+            <p v-if="form.remember" class="remember-hint">
+              密码仅做 Base64 编码保存在此浏览器，公共设备请勿使用
+            </p>
+          </div>
+          <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
+          <el-button native-type="submit" type="primary" class="login-submit" :loading="busy">
+            登录
+            <ArrowRight v-if="!busy" :size="16" />
+          </el-button>
+        </el-form>
       </section>
-      <footer class="login-footer">
-        <span>HR / 人事与组织管理</span>
-        <span>HR WORKSPACE</span>
-      </footer>
-    </div>
+    </main>
+    <footer class="login-footer">
+      <span>人事与组织管理</span>
+      <span>内部工作系统</span>
+    </footer>
   </div>
 </template>
 
 <style scoped>
 .login-page {
-  min-height: 100dvh;
   display: flex;
-  padding: 32px;
+  flex-direction: column;
+  min-height: 100dvh;
   background: var(--bg-page);
 }
 
-.login-shell {
-  width: min(460px, 100%);
-  margin: auto;
-}
-
-.login-topbar {
+.login-header,
+.login-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  padding-right: 36px;
+  padding-left: 36px;
 }
 
-.login-card {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
-  box-shadow: var(--panel-shadow);
+.login-header {
+  min-height: 76px;
+  border-bottom: 1px solid var(--border);
+}
+
+.login-main {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  padding: 48px 24px;
 }
 
 .login-panel {
-  padding: 36px 38px;
+  width: min(400px, 100%);
+  margin-top: -32px;
 }
 
-.login-panel h2 {
-  font-size: 27px;
+.login-heading {
+  margin-bottom: 32px;
+  padding-left: 18px;
+  border-left: 2px solid var(--accent);
+}
+
+.login-heading h1 {
+  color: var(--text-strong);
+  font-size: 29px;
   font-weight: 650;
-  letter-spacing: -0.035em;
 }
 
-.login-subtitle {
-  margin-top: 8px;
+.login-heading p {
+  margin-top: 9px;
   color: var(--text-muted);
   font-size: 14px;
 }
 
-.login-form {
-  margin-top: 30px;
-}
-
 .login-form :deep(.el-form-item) {
-  margin-bottom: 20px;
+  margin-bottom: 21px;
 }
 
 .login-form :deep(.el-form-item__label) {
+  color: var(--text-body);
   font-size: 13px;
 }
 
 .login-panel :deep(.el-input__wrapper) {
   min-height: 46px;
-  border-radius: 10px;
+  background: var(--surface);
 }
 
 .login-form :deep(input.el-input__inner) {
@@ -210,7 +212,7 @@ async function submit() {
 }
 
 .login-remember {
-  margin: -5px 0 4px;
+  margin: -3px 0 20px;
 }
 
 .login-remember :deep(.el-checkbox) {
@@ -219,27 +221,24 @@ async function submit() {
 
 .login-remember :deep(.el-checkbox__label) {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .remember-hint {
-  margin: 7px 0 0 24px;
-  color: var(--text-faint);
+  margin: 8px 0 0 24px;
+  color: var(--text-muted);
   font-size: 11px;
   line-height: 1.6;
 }
 
 .login-form :deep(.el-alert) {
-  margin-top: 4px;
-  border-radius: 10px;
+  margin: 0 0 16px;
 }
 
 .login-submit {
   width: 100%;
-  min-height: 46px;
+  min-height: 44px;
   justify-content: center;
-  margin-top: 10px;
-  border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
 }
@@ -249,45 +248,39 @@ async function submit() {
   gap: 8px;
 }
 
-.login-security {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  margin-top: 28px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
-  color: var(--text-faint);
-  font-size: 12px;
-}
-
 .login-footer {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 18px;
-  color: var(--text-faint);
+  padding-top: 20px;
+  padding-bottom: 24px;
+  color: var(--text-muted);
   font-size: 11px;
 }
 
 @media (max-width: 520px) {
-  .login-page {
-    padding: 20px 16px;
+  .login-header {
+    min-height: 68px;
+    padding-right: 20px;
+    padding-left: 20px;
   }
 
-  .login-topbar {
-    margin-bottom: 16px;
+  .login-main {
+    align-items: start;
+    padding: 56px 22px 40px;
   }
 
   .login-panel {
-    padding: 30px 22px;
+    margin-top: 0;
   }
 
-  .login-panel h2 {
-    font-size: 25px;
+  .login-heading {
+    margin-bottom: 28px;
   }
 
-  .login-form {
-    margin-top: 26px;
+  .login-heading h1 {
+    font-size: 26px;
+  }
+
+  .login-footer {
+    padding: 18px 22px;
   }
 
   .login-footer > span:last-child {

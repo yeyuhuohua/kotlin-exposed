@@ -69,9 +69,9 @@ const groups = computed(() => [
           </span>
           <div class="profile-title">
             <h2>{{ fullName(current.employee) }}</h2>
-            <el-tag v-if="current.detail.jobTitle" class="job-chip" type="info" effect="plain">
+            <span v-if="current.detail.jobTitle" class="badge neutral job-chip">
               {{ current.detail.jobTitle }}
-            </el-tag>
+            </span>
           </div>
         </div>
         <div v-if="current.hasDetail" class="profile-tags">
@@ -113,57 +113,50 @@ const groups = computed(() => [
 </template>
 
 <style scoped>
-/* 本组件样式：颜色只用 styles.css 里的语义 token。 */
 .profile-title {
   min-width: 0;
 }
 
 .job-chip {
-  margin-top: 4px;
+  margin-top: 5px;
 }
 
 .profile-tags {
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 22px;
+  gap: 12px 22px;
+  margin-bottom: 24px;
 }
 
 .profile-tags > span {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 6px 12px;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
-  background: var(--surface-subtle);
-  font-size: 12px;
   color: var(--text-soft);
+  font-size: 12px;
 }
 
 .profile-tags svg {
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .profile-group {
+  padding-top: 17px;
   border-top: 1px solid var(--border);
-  padding-top: 16px;
 }
 
 .profile-group + .profile-group {
-  margin-top: 22px;
+  margin-top: 24px;
 }
 
 .group-title {
-  font-size: 11px;
+  color: var(--text-muted);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-faint);
 }
 
 .profile-group .detail-grid {
+  padding: 16px 0 4px;
   border-top: 0;
-  padding: 14px 0 4px;
 }
 </style>

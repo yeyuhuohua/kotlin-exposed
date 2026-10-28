@@ -68,20 +68,15 @@ const bottomPages = computed(() =>
         <span>接口文档</span>
         <ArrowUpRight :size="14" class="push-right" />
       </a>
-      <div class="sidebar-footnote">
-        <span class="footnote-dot"></span>
-        <span>HR Workspace</span>
-        <span>v1.0</span>
-      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
 .sidebar-content {
-  height: 100%;
   display: flex;
   flex-direction: column;
+  height: 100%;
   background: var(--surface);
 }
 
@@ -90,13 +85,14 @@ const bottomPages = computed(() =>
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 18px;
+  min-height: 68px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--border);
 }
 
 .brand-link {
   display: inline-flex;
-  border-radius: 11px;
+  border-radius: 5px;
 }
 
 .drawer-close.el-button {
@@ -108,8 +104,8 @@ const bottomPages = computed(() =>
 
 .main-nav {
   flex: 1;
+  padding: 10px 12px;
   overflow-y: auto;
-  padding: 12px;
   scrollbar-width: thin;
 }
 
@@ -123,12 +119,12 @@ const bottomPages = computed(() =>
 .workspace-menu :deep(.el-menu-item),
 .workspace-menu :deep(.el-sub-menu__title) {
   height: 42px;
-  line-height: 42px;
-  gap: 11px;
   margin: 2px 0;
-  border-radius: 8px;
+  gap: 11px;
+  border-radius: 5px;
   color: var(--text-nav);
   font-size: 13px;
+  line-height: 42px;
 }
 
 .workspace-menu :deep(.el-menu-item:hover),
@@ -137,7 +133,7 @@ const bottomPages = computed(() =>
 }
 
 .workspace-menu :deep(.el-menu-item.is-active) {
-  background: var(--accent-tint);
+  background: var(--accent-soft-hover);
   box-shadow: inset 2px 0 0 var(--accent);
   color: var(--accent-text);
   font-weight: 600;
@@ -145,10 +141,9 @@ const bottomPages = computed(() =>
 
 .workspace-menu :deep(.el-menu-item-group__title) {
   padding: 18px 12px 7px;
-  color: var(--text-faint);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 550;
 }
 
 .workspace-menu :deep(.el-sub-menu .el-menu-item) {
@@ -156,7 +151,7 @@ const bottomPages = computed(() =>
 }
 
 .sidebar-bottom {
-  padding: 12px;
+  padding: 10px 12px 14px;
   border-top: 1px solid var(--border);
 }
 
@@ -167,7 +162,7 @@ const bottomPages = computed(() =>
   min-height: 42px;
   margin-top: 4px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 5px;
   color: var(--text-nav);
   font-size: 13px;
 }
@@ -178,28 +173,6 @@ const bottomPages = computed(() =>
 }
 
 .nav-link svg {
-  color: var(--text-faint);
-}
-
-.sidebar-footnote {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: 12px;
-  padding: 16px 4px 4px;
-  border-top: 1px solid var(--border-soft);
-  color: var(--text-faint);
-  font-size: 10px;
-}
-
-.sidebar-footnote > span:last-child {
-  margin-left: auto;
-}
-
-.footnote-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 2px;
-  background: var(--accent);
+  color: var(--text-muted);
 }
 </style>

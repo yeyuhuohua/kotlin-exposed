@@ -32,23 +32,22 @@ const slots = useSlots()
 .app-dialog.el-dialog {
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 24px 80px var(--shadow-modal);
+  box-shadow: 0 24px 64px var(--shadow-modal);
 }
 
 .app-dialog :deep(.el-dialog__header) {
   margin: 0;
-  padding: 20px 56px 18px 24px;
+  padding: 20px 54px 18px 24px;
   border-bottom: 1px solid var(--border);
 }
 
 .app-dialog :deep(.el-dialog__title) {
-  overflow-wrap: anywhere;
   color: var(--text-strong);
   font-size: 16px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .app-dialog :deep(.el-dialog__headerbtn) {
@@ -56,7 +55,7 @@ const slots = useSlots()
   right: 12px;
   width: 34px;
   height: 34px;
-  border-radius: 8px;
+  border-radius: 5px;
   color: var(--text-muted);
 }
 
@@ -70,7 +69,7 @@ const slots = useSlots()
 }
 
 .app-dialog :deep(.el-dialog__body) {
-  max-height: 70dvh;
+  max-height: 72dvh;
   padding: 0;
   overflow-y: auto;
 }
@@ -81,7 +80,7 @@ const slots = useSlots()
   }
 
   .app-dialog :deep(.el-dialog__body) {
-    max-height: 75dvh;
+    max-height: 76dvh;
   }
 }
 </style>
