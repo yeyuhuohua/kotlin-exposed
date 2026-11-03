@@ -4,6 +4,7 @@ import http from 'node:http'
 import net from 'node:net'
 import { once } from 'node:events'
 import { createAuthProxy } from './auth-proxy.mjs'
+import { migrateProfile } from './migrate-profile.mjs'
 
 function token(id, expiresAt = Date.now() + 60000) {
   return `test.${Buffer.from(JSON.stringify({ sub: id, exp: expiresAt / 1000 })).toString('base64url')}.signature`
@@ -12,11 +13,36 @@ function token(id, expiresAt = Date.now() + 60000) {
 async function fixture(t, options = {}) {
   let active = true
   let calls = 0
+  let nextUserId = 0
+  let mcpAuthorization = ''
+  const userIds = new Map()
   const upstream = http.createServer((req, res) => {
     if (req.url.startsWith('/?token=')) {
       res.writeHead(302, { 'set-cookie': [`dsh-auth-test=session-${++calls}; HttpOnly`] })
       res.end()
-    } else res.end(req.headers.cookie)
+      return
+    }
+    if (req.url === '/mcp') mcpAuthorization = req.headers.authorization || ''
+    if (req.method !== 'POST') {
+      res.end(req.headers.cookie)
+      return
+    }
+    const chunks = []
+    req.on('data', (chunk) => chunks.push(chunk))
+    req.on('end', () => {
+      if (req.url === '/mcp') {
+        res.end('mcp-ok')
+        return
+      }
+      try {
+        const message = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify(message))
+      } catch {
+        res.writeHead(400)
+        res.end()
+      }
+    })
   })
   upstream.on('upgrade', (req, socket) => {
     socket.on('error', () => {})
@@ -27,8 +53,16 @@ async function fixture(t, options = {}) {
   const proxy = createAuthProxy({
     upstreamPort: upstream.address().port,
     launchToken: () => 'test-launch-token',
-    fetchImpl: async () => new Response(JSON.stringify({ data: { roleCode: active ? 'ADMIN' : 'READER' } })),
+    fetchImpl: async (_url, init) => {
+      const authorization = init.headers.Authorization
+      if (!userIds.has(authorization)) userIds.set(authorization, ++nextUserId)
+      return new Response(JSON.stringify({
+        data: { id: userIds.get(authorization), roleCode: 'READER', enabled: active },
+      }))
+    },
     revalidateMs: 20,
+    brokerToken: 'test-broker-token',
+    mcpUpstream: `http://127.0.0.1:${upstream.address().port}/mcp`,
     ...options,
   })
   proxy.listen(0, '127.0.0.1')
@@ -51,6 +85,26 @@ async function fixture(t, options = {}) {
       assert.equal(response.status, 204)
       return response.headers.get('set-cookie').split(';')[0]
     },
+    bindAgent: async (cookie, agentId) => {
+      const response = await fetch(`${base}/api/session/create`, {
+        method: 'POST',
+        headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'rpc-test',
+          method: 'session/create',
+          payload: { args: { request: agentId ? { sessionId: agentId } : {} } },
+        }),
+      })
+      const message = response.status === 200 ? await response.json() : null
+      return { response, agentId: message?.payload?.args?.request?.sessionId }
+    },
+    callMcp: (agentId, secret = 'test-broker-token') => fetch(`${base}/internal/mcp?agent=${encodeURIComponent(agentId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-hr-broker-token': secret },
+      body: '{}',
+    }),
+    mcpAuthorization: () => mcpAuthorization,
   }
 }
 
@@ -60,7 +114,7 @@ test('arbitrary DSH cookies cannot bypass HR authentication', async (t) => {
   assert.equal(response.status, 401)
 })
 
-test('each HR session gets separate upstream cookies and is revoked after demotion', async (t) => {
+test('ordinary active users can use DSH and separate sessions are revoked after disablement', async (t) => {
   const f = await fixture(t)
   const first = await f.exchange(token('first'))
   const second = await f.exchange(token('second'))
@@ -140,4 +194,53 @@ test('untrusted origins cannot create a session', async (t) => {
   assert.equal((await fetch(`${base}/hr-session`, {
     method: 'POST', headers: { Authorization: `Bearer ${token('admin')}`, Origin: 'https://untrusted.example' },
   })).status, 403)
+})
+
+test('MCP proxy injects the current user JWT and requires the internal broker credential', async (t) => {
+  const f = await fixture(t)
+  const jwt = token('reader')
+  const cookie = await f.exchange(jwt)
+  const { response, agentId } = await f.bindAgent(cookie)
+  assert.equal(response.status, 200)
+  assert.match(agentId, /^session-/)
+  assert.equal((await f.callMcp(agentId)).status, 200)
+  assert.equal(f.mcpAuthorization(), `Bearer ${jwt}`)
+  assert.equal((await f.callMcp(agentId, 'wrong-token')).status, 403)
+  assert.equal((await f.callMcp('session-unknown')).status, 401)
+})
+
+test('an active DSH agent cannot be taken over by another HR account', async (t) => {
+  const f = await fixture(t)
+  const firstToken = token('first-user')
+  const first = await f.exchange(firstToken)
+  const second = await f.exchange(token('second-user'))
+  const created = await f.bindAgent(first, 'session-shared')
+  assert.equal(created.response.status, 200)
+  const conflict = await f.bindAgent(second, 'session-shared')
+  assert.equal(conflict.response.status, 403)
+  assert.equal((await f.callMcp('session-shared')).status, 200)
+  assert.equal(f.mcpAuthorization(), `Bearer ${firstToken}`)
+})
+
+test('legacy fixed-token MCP profile migrates once and modified legacy config fails closed', () => {
+  const legacy = `- insert:
+    - id: mcp-hr
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: hr
+        transport: streamable-http
+        url: http://host.docker.internal:8081/mcp
+        headers:
+          Authorization: !!js '\`Bearer \${process.env.HR_MCP_TOKEN}\`'
+        toolCallTimeoutMs: 120000
+        failOnStartupError: false
+`
+  const replacement = `- insert:
+    - id: mcp-hr
+      name: '@hr/mcp'
+`
+  const migrated = migrateProfile(legacy, replacement)
+  assert.equal(migrated, replacement)
+  assert.equal(migrateProfile(migrated, replacement), migrated)
+  assert.throws(() => migrateProfile(legacy.replace('8081', '9090'), replacement), /无法安全迁移/)
 })

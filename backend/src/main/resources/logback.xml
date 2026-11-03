@@ -42,7 +42,7 @@
 
     <logger name="io.ktor.server" level="INFO"/>
     <logger name="com.atguigu.hr" level="INFO"/>
-    <!-- SQL debug output can include authentication password hashes. -->
+    <!-- SQL 调试日志可能包含认证密码哈希。 -->
     <logger name="org.jetbrains.exposed" level="INFO"/>
     <logger name="io.netty" level="WARN"/>
 

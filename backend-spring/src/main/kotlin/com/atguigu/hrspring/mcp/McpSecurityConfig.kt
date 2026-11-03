@@ -4,10 +4,7 @@ import com.atguigu.hrspring.auth.AuthUser
 import com.atguigu.hrspring.auth.AuthUserLoader
 import com.atguigu.hrspring.auth.CurrentUserHolder
 import com.atguigu.hrspring.auth.JwtAuthFilter
-import com.atguigu.hrspring.auth.Roles
 import com.atguigu.hrspring.auth.TokenService
-import com.atguigu.hrspring.config.HrProperties
-import java.security.MessageDigest
 import com.atguigu.hrspring.common.api.ApiResult
 import com.atguigu.hrspring.common.api.ErrorCode
 import com.atguigu.hrspring.common.api.applicationPath
@@ -24,15 +21,14 @@ import org.springframework.http.MediaType
 import org.springframework.web.filter.OncePerRequestFilter
 
 /**
- * MCP 端点只允许 ADMIN 用户的有效 JWT 或服务口令访问。
- * 通过后把用户放进 CurrentUserHolder，工具直接调服务，不再逐接口鉴权。
+ * MCP 端点接受所有有效用户的 JWT，并保留当前用户身份。
+ * 每个工具执行前由 McpToolAuthorizationAspect 按对应接口权限再次校验。
  */
 @Configuration
 @EnableConfigurationProperties(McpServerStreamableHttpProperties::class)
 class McpSecurityConfig(
     private val tokenService: TokenService,
     private val userLoader: AuthUserLoader,
-    private val properties: HrProperties,
     private val objectMapper: ObjectMapper,
     private val mcpProperties: McpServerStreamableHttpProperties,
 ) {
@@ -56,7 +52,7 @@ class McpSecurityConfig(
                     ?.substring(7)
                     ?.trim()
                 val user = resolveUser(token)
-                if (user == null || user.roleCode != Roles.ADMIN) {
+                if (user == null) {
                     response.status = 401
                     response.setHeader("WWW-Authenticate", "Bearer realm=\"hr-api\"")
                     response.contentType = MediaType.APPLICATION_JSON_VALUE
@@ -90,10 +86,6 @@ class McpSecurityConfig(
 
     private fun resolveUser(token: String?): AuthUser? {
         if (token.isNullOrBlank()) return null
-        val serviceToken = properties.mcp.serviceToken
-        if (serviceToken.isNotBlank() && MessageDigest.isEqual(serviceToken.toByteArray(), token.toByteArray())) {
-            return userLoader.loadActiveAdmin()
-        }
         val claims = tokenService.verify(token) ?: return null
         return userLoader.loadActiveUser(claims.first, claims.second)
     }

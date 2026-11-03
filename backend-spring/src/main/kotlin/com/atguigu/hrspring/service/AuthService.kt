@@ -117,16 +117,6 @@ class AuthService(
         return user
     }
 
-    override fun loadActiveAdmin(): AuthUser? = readTx.execute<AuthUser?> {
-        val username = properties.auth.adminUsername.trim().lowercase(Locale.ROOT)
-        if (username.isEmpty()) return@execute null
-        val row = userMapper.selectOne(
-            KtQueryWrapper(UserEntity::class.java).eq(UserEntity::username, username),
-        ) ?: return@execute null
-        val role = roleMapper.selectById(row.roleCode) ?: return@execute null
-        toAuthUser(row, role).takeIf { it.active && it.roleCode == Roles.ADMIN }
-    }
-
     /**
      * 返回给前端的当前用户。ADMIN 补上全部启用菜单的页面码；
      * 其他角色只保留仍启用菜单的页面码。

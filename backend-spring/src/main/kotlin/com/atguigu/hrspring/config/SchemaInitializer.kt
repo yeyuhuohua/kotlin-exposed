@@ -28,10 +28,12 @@ class SchemaInitializer {
         if (adminUsername.isBlank() || adminPassword.isBlank()) {
             error("hr.auth.admin-username and hr.auth.admin-password must be set when schema initialization is enabled")
         }
+        // MySQL DDL 会隐式提交；下面的事务只保护种子数据，不代表建表可以回滚。
         CREATE_TABLES.forEach(jdbcTemplate::execute)
         TransactionTemplate(transactionManager).executeWithoutResult {
             seedRoles(jdbcTemplate)
             seedMenus(jdbcTemplate)
+            jdbcTemplate.update("UPDATE auth_menus SET admin_only = 0 WHERE `key` = 'chat' AND builtin = 1")
             val created = jdbcTemplate.update(
                 "INSERT IGNORE INTO auth_role_permission_profiles (role_code, revision) VALUES ('READER', 0)",
             )
@@ -66,7 +68,7 @@ class SchemaInitializer {
 
     private fun seedReaderGrants(jdbcTemplate: JdbcTemplate) {
         val codes = PermissionCatalog.defaults(Roles.READER).toMutableSet()
-        MENU_SEEDS.filter { it.adminOnly == 0 }.forEach { codes.add("page:${it.key}") }
+        MENU_SEEDS.filter { it.adminOnly == 0 && it.key != "chat" }.forEach { codes.add("page:${it.key}") }
         codes.forEach { code ->
             jdbcTemplate.update(
                 "INSERT IGNORE INTO auth_role_permissions (role_code, permission_code) VALUES ('READER', ?)",
@@ -83,6 +85,7 @@ class SchemaInitializer {
     ) {
         if (username.isBlank() || password.isBlank()) return
         val hash = passwordHasher.hash(password)
+        // 仅替换初始化占位密码；已有管理员的真实密码不能在重启时被覆盖。
         val pending = jdbcTemplate.update(
             "UPDATE auth_users SET password_hash = ? WHERE username = ? AND password_hash = 'PENDING'",
             hash,
@@ -115,7 +118,7 @@ private data class MenuSeed(
 
 private val MENU_SEEDS = listOf(
     MenuSeed("overview", "工作概览", "/", "LayoutDashboard", "工作空间", 10, 0),
-    MenuSeed("chat", "智能助手", "/chat", "Bot", "工作空间", 15, 1),
+    MenuSeed("chat", "智能助手", "/chat", "Bot", "工作空间", 15, 0),
     MenuSeed("employees", "员工管理", "/employees", "Users", "工作空间", 20, 0),
     MenuSeed("departments", "部门管理", "/departments", "Building2", "工作空间", 30, 0),
     MenuSeed("jobs", "岗位管理", "/jobs", "BriefcaseBusiness", "工作空间", 40, 0),

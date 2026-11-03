@@ -110,6 +110,7 @@ function routeFingerprint(): string {
 export function ensurePageRoutes(): Promise<boolean> {
   const fingerprint = routeFingerprint()
   if (fingerprint === registeredFingerprint) return Promise.resolve(false)
+  // 等当前注册结束后按最新指纹重查，不能直接复用可能已过期的注册结果。
   if (registering) return registering.then(() => ensurePageRoutes())
   const sessionToken = readSession()?.token ?? ''
   const pending = (async () => {

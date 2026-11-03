@@ -28,7 +28,6 @@ class RequestPathAuthTest {
     private val loader = object : AuthUserLoader {
         override fun loadActiveUser(userId: Int, tokenVersion: Int): AuthUser? =
             reader.takeIf { it.id == userId && it.tokenVersion == tokenVersion }
-        override fun loadActiveAdmin(): AuthUser? = null
     }
     private val departments = mock(DepartmentService::class.java)
     private val employees = mock(EmployeeService::class.java)

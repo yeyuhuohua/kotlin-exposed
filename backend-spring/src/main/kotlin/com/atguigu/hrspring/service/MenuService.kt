@@ -57,7 +57,7 @@ class MenuService(
         val visible = if (user.roleCode == Roles.ADMIN) {
             enabled
         } else {
-            enabled.filter { menu -> !menu.adminOnly && "page:${menu.key}" in user.rolePermissions }
+            enabled.filter { menu -> !menu.adminOnly && user.hasPermission("page:${menu.key}") }
         }
         return visible.map { menu ->
             PageRoute(
@@ -72,9 +72,9 @@ class MenuService(
         }
     }
 
-    /** 角色权限目录的页面部分。code 形如 page:{key}；空分组显示为「侧栏固定」。 */
+    /** 角色权限目录的页面部分；助手登录即用，不提供可撤销授权项。 */
     @Transactional(readOnly = true)
-    fun pageDefinitions(): List<MenuPermissionDto> = self.list().map { menu ->
+    fun pageDefinitions(): List<MenuPermissionDto> = self.list().filterNot { it.key == "chat" }.map { menu ->
         MenuPermissionDto(
             code = "page:${menu.key}",
             kind = "PAGE",

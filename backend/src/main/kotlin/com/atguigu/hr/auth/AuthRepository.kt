@@ -58,7 +58,7 @@ class AuthRepository(private val database: R2dbcDatabase) : AuthStore {
         }
     }
 
-    // Never overwrite an existing password or promote an existing account on restart.
+    // 重启时绝不能覆盖已有密码，也不能把已有账号提升为管理员。
     suspend fun bootstrapAdmin(username: String, passwordHash: String) = suspendTransaction(db = database) {
         Users.insertIgnore {
             it[Users.username] = username
@@ -168,7 +168,7 @@ class AuthRepository(private val database: R2dbcDatabase) : AuthStore {
         if (code == RoleCode.ADMIN.name) {
             throw AuthException(HttpStatusCode.Forbidden, "ADMIN role is protected", ErrorCode.ROLE_PROTECTED)
         }
-        // Role changes and user assignments take the same role lock.
+        // 角色变更和用户角色分配必须共用同一把角色锁。
         Roles.selectAll().where { Roles.code eq code }.forUpdate().firstOrNull()
             ?: throw AuthException(HttpStatusCode.NotFound, "role not found")
         val profile = checkNotNull(loadRolePermissions(code))

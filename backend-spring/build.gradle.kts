@@ -32,6 +32,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     // @Cacheable / @CacheEvict。
     implementation("org.springframework.boot:spring-boot-starter-cache")
+    // 在 @McpTool 实际执行前统一校验当前用户权限。
+    implementation("org.springframework.boot:spring-boot-starter-aspectj")
     // 缓存的 Redis 实现。键前缀 hrs:，和 Ktor 的 hr: 分开。
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     // MCP Streamable HTTP。工具从 @McpTool 扫描，入口是 /mcp。

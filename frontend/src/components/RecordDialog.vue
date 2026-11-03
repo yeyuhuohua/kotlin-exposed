@@ -133,6 +133,7 @@ async function loadOptions() {
               value: row[source.id] as string | number,
               label: `${row[source.label] ?? row[source.id]} · ${row[source.id]}`,
             }))
+          // 当前值可能来自已停用角色等历史关联；保留选项，避免打开编辑框时误改。
           const current = values[field.key]
           if (
             current !== '' &&

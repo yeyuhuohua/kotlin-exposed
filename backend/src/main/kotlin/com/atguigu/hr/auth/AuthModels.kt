@@ -59,7 +59,7 @@ data class TokenDto(
     val tokenType: String = "Bearer",
 )
 
-// Password hashes and token versions must never be serialized into API responses.
+// 密码哈希和令牌版本绝不能序列化到 API 响应中。
 data class AuthUser(
     val id: Int,
     val username: String,

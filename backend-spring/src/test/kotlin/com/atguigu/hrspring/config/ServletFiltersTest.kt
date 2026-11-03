@@ -52,7 +52,6 @@ class ServletFiltersTest {
                     if (userId == 99) throw IllegalStateException("authentication dependency unavailable")
                     return user.takeIf { it.id == userId && it.tokenVersion == tokenVersion }
                 }
-                override fun loadActiveAdmin(): AuthUser? = null
             }
             val audit = mock(AuditService::class.java)
             val mcpProperties = McpServerStreamableHttpProperties().apply { mcpEndpoint = "/api/mcp" }
@@ -69,7 +68,7 @@ class ServletFiltersTest {
                 web.securityHeadersFilter(),
                 web.corsFilter(),
                 AuditFilterConfig(audit, ClientIp(properties)).auditFilter(),
-                McpSecurityConfig(tokens, loader, properties, jacksonObjectMapper(), mcpProperties).mcpSecurityFilter(),
+                McpSecurityConfig(tokens, loader, jacksonObjectMapper(), mcpProperties).mcpSecurityFilter(),
                 FilterRegistrationBean(JwtAuthFilter(tokens, loader, jacksonObjectMapper())).apply {
                     addUrlPatterns("/*")
                     order = 100

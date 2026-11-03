@@ -13,6 +13,9 @@ data class PermissionDefinition(
 )
 
 object PermissionCatalog {
+    /** 助手对所有有效账号开放，不作为可撤销的角色授权项。 */
+    const val CHAT_PAGE = "page:chat"
+
     private fun api(method: String, path: String, label: String, group: String, adminOnly: Boolean = false) =
         PermissionDefinition("api:$method:/api$path", "API", label, group, "/api$path", method, adminOnly)
 
@@ -98,7 +101,7 @@ object PermissionCatalog {
             if (code.startsWith("page:")) return@filterTo true
             val definition = byCode[code]
             definition != null && (!definition.adminOnly || user.roleCode == Roles.ADMIN)
-        }
+        }.apply { add(CHAT_PAGE) }
     }
 }
 

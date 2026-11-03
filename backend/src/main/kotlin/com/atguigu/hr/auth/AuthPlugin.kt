@@ -65,8 +65,8 @@ val RoleAuthorization = createRouteScopedPlugin("RoleAuthorization", ::RoleAutho
     }
 }
 
-// An empty path reuses its parent in Ktor; use a distinct transparent node so
-// business write restrictions do not leak into /auth/logout or /auth/me.
+// Ktor 中的空路径会复用父节点，因此使用独立的透明节点，
+// 避免业务写权限限制泄漏到 /auth/logout 或 /auth/me。
 fun Route.withBusinessPermissions(build: Route.() -> Unit) {
     val child = createChild(object : RouteSelector() {
         override suspend fun evaluate(context: RoutingResolveContext, segmentIndex: Int) = RouteSelectorEvaluation.Transparent

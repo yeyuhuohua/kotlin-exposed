@@ -32,13 +32,12 @@ cp src/main/resources/application.example.yaml src/main/resources/application.ya
 | `hr.auth.jwt-secret` / `issuer` / `audience` | JWT 签名与校验；双后端共用 Token 时三项都要一致 |
 | `hr.auth.ttl-seconds` | Token 有效期，默认 3600，允许 60-86400 秒 |
 | `hr.auth.initialize-schema` | 是否创建认证、菜单、审计表并执行初始播种 |
-| `hr.auth.admin-username` | 初始管理员、受保护管理员和 MCP 固定口令的执行身份 |
+| `hr.auth.admin-username` | 初始管理员和受保护管理员的用户名 |
 | `hr.auth.admin-password` | 仅在初始化且指定账号不存在时创建管理员，已有密码不覆盖 |
 | `hr.auth.permission-cache-seconds` | 进程内鉴权缓存，默认 3 秒，设为 0 关闭 |
 | `hr.auth.login-rate-limit.*` | 账号/IP 两维度登录失败限流，仅本实例计数 |
 | `hr.security.trusted-proxies` | 用于来源 IP 解析的可信直连代理地址 |
 | `hr.cors.allowed-hosts` | 跨域来源；可写完整 Origin，主机形式会展开成 http/https |
-| `hr.mcp.service-token` | MCP 固定口令，空时只接受管理员 JWT |
 | `spring.ai.mcp.server.streamable-http.mcp-endpoint` | MCP 路径，默认 `/mcp` |
 | `springdoc.swagger-ui.path` / `springdoc.api-docs.path` | 文档入口与 OpenAPI 路径 |
 
@@ -84,27 +83,28 @@ MySQL 和 Redis 都可用时返回 200；任一依赖 DOWN 时返回 503、`depe
 指定管理员已存在时不会覆盖密码、角色或启用状态。
 
 生产初始化完成后可设为 `false`，使用权限较小的运行数据库账号，并移除不再需要的初始密码。
-仍需保留正确的 `hr.auth.admin-username`，因为管理员保护和 MCP 固定口令执行身份会读取它。
+仍需保留正确的 `hr.auth.admin-username`，因为内置管理员保护会读取它。
 内置 `admin` 和配置指定的管理员都不能被删除、停用、降级或由其他管理员重置密码，管理员可以修改自己的密码。
 
 ## MCP 与 DSH
 
-MCP 过滤器保护默认及配置指定的端点，支持以下两种 `Authorization: Bearer ...`：
+MCP 过滤器保护默认及配置指定的端点，接受所有有效用户的 `Authorization: Bearer ...` JWT，
+包括签名、有效期、账号状态、角色状态和 Token 版本检查。Bearer 认证方案忽略大小写，不再接受固定服务口令。
 
-- 有效的 ADMIN JWT：需通过签名、有效期、账号状态、角色状态和 Token 版本检查。
-- 与 `hr.mcp.service-token` 一致的固定口令：每次以 `hr.auth.admin-username` 对应的启用 ADMIN 账号执行工具。
+`McpToolAuthorizationAspect` 在每个 `@McpTool` 实际执行前检查当前用户，工具映射到与 HTTP 接口相同的权限码。
+例如 `list_employees` 需要 `GET /api/employees`，`create_employee` 需要 `POST /api/employees`。
+仅 ADMIN 接口对应的工具仍只允许 ADMIN；未知工具默认拒绝。当前身份、健康检查和文档导出等登录即用工具不额外查接口权限。
+工具列表本身不是授权依据，最终权限以执行点检查为准。
 
-固定口令不代替管理员账号；账号不存在、停用或不再属于启用 ADMIN 角色时同样拒绝访问。
-Bearer 认证方案忽略大小写。普通用户不能访问 MCP，MCP 也不通过前端页面权限提供部分授权。
 工具直接调用业务 Service，共用参数校验和缓存，返回业务 DTO 或工具结果，不套 REST 的 `ApiResult` 信封。
 工具含查询、写入、删除、用户和角色管理，不能当成只读接口。
 
 连接 DSH 时：
 
-1. 设置非空 `hr.mcp.service-token`，并让 `dsh/.env` 的 `HR_MCP_TOKEN` 使用相同值。
-2. 确保 `hr.auth.admin-username` 对应账号仍启用且属于 ADMIN。
-3. DSH 的 HR 登录态校验由 `HR_API_BASE` 指向 Spring；MCP URL 则单独保存在 DSH profile 的 `mcp-hr` 配置。
-4. 改端口或 MCP 路径后，同时调整 DSH 中这两处地址；它们不会互相自动同步。
+1. 给每个账号配置其实际需要的接口权限，不需要额外创建共享管理员或 MCP 服务口令。
+2. `HR_API_BASE` 指向 Spring 的身份校验地址前缀，`HR_MCP_URL` 指向 Spring MCP 完整地址。
+3. DSH 的 `HR_MCP_TOKEN` 只保护容器内部代理；不要把它配置成 Spring 用户令牌。
+4. 改端口、部署前缀或 MCP 路径后，同步调整上述两个 URL。
 
 支持 Streamable HTTP 的 MCP 客户端应完成 `initialize` 与 `tools/list` 协议交互，
 不能把浏览器直接 GET `/mcp` 当成工具连通性验证。可先验证客户端能列出 `get_current_user`、`list_employees` 等工具。
@@ -163,8 +163,8 @@ java -jar build/libs/kotlin-spring-0.0.1.jar \
 | --- | --- |
 | IDEA Debug 找不到配置或 JWT 密钥不合法 | 检查 `ApplicationKt`、模块 classpath、工作目录、本机配置和覆盖参数 |
 | MySQL TLS 或连接失败 | 检查 JDBC URL、账号权限和服务端 TLS，示例 URL 默认要求 SSL |
-| MCP 返回 401/403 | 检查 ADMIN JWT，或固定口令和配置管理员状态；普通用户不能调用 |
-| DSH 登录成功但 HR 工具不可用 | `HR_API_BASE` 与 MCP URL 是两份配置，逐项检查地址、端口和固定口令 |
+| MCP 返回 401/403 | 401 检查用户 JWT 和账号状态；403 检查当前账号是否有对应 HTTP 接口权限 |
+| DSH 登录成功但 HR 工具不可用 | 分别检查 `HR_API_BASE`、`HR_MCP_URL`、DSH 内部代理口令和当前账号权限 |
 | 重启后 READER 没有业务权限 | 已有空权限不会自动重置，需管理员在角色权限页显式授权 |
 | 修改菜单后页面跳转不正确 | 核对数据库路径和前端组件映射，刷新前端或重新登录 |
 | Swagger 跳转路径不正确 | 检查 context/servlet path、配置的 Swagger 路径和网关转发规则 |

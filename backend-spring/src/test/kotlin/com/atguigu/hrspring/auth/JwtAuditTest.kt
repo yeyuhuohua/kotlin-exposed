@@ -21,7 +21,6 @@ class JwtAuditTest {
     private val loader = object : AuthUserLoader {
         override fun loadActiveUser(userId: Int, tokenVersion: Int): AuthUser? =
             user.takeIf { userId == it.id && tokenVersion == it.tokenVersion }
-        override fun loadActiveAdmin(): AuthUser = user
     }
 
     private fun audit(path: String, token: String?, contextPath: String = ""): List<Array<out Any?>> {

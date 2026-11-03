@@ -84,7 +84,7 @@ fun Application.module() {
     if (initializeSchema) {
         runBlocking { MenuRepository.initialize() }
     }
-    // Complete schema/bootstrap work before accepting authenticated requests.
+    // 完成建表和初始化工作后，再接收需要鉴权的请求。
     val authService = runBlocking { createAuthService(environment.config, DatabaseFactory.database, tokens) }
     if (initializeSchema) {
         runBlocking { AuditRepository.initialize() }

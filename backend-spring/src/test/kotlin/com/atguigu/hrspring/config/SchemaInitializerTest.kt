@@ -36,6 +36,11 @@ class SchemaInitializerTest {
         assertTrue(run(1).any { it.startsWith("INSERT IGNORE INTO auth_role_permissions") })
     }
 
+    @Test
+    fun `已有内置助手菜单迁移为所有账号可用`() {
+        assertTrue(run(0).any { it.contains("UPDATE auth_menus SET admin_only = 0") })
+    }
+
     companion object {
         private const val READER_PROFILE =
             "INSERT IGNORE INTO auth_role_permission_profiles (role_code, revision) VALUES ('READER', 0)"

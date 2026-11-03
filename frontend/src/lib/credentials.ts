@@ -30,13 +30,13 @@ export function saveCredentials(username: string, password: string) {
   try {
     localStorage.setItem(KEY, JSON.stringify({ username, password: encode(password) }))
   } catch {
-    /* Storage may be disabled. */
+    /* 存储功能可能被禁用。 */
   }
 }
 export function clearCredentials() {
   try {
     localStorage.removeItem(KEY)
   } catch {
-    /* Storage may be disabled. */
+    /* 存储功能可能被禁用。 */
   }
 }

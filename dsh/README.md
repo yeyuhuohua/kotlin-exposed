@@ -7,25 +7,30 @@
 ## 请求链路与访问条件
 
 ```text
-浏览器 HR 前端 -> 3080 登录态代理 -> 容器内 DSH Web 3081
-                    |                    |-> LM Studio 1234/v1
-                    |                    |-> Spring MCP 8081/mcp
-                    |-> Spring 8081/api/auth/me
+浏览器 HR 前端 -> 3080 登录态/MCP 代理 -> 容器内 DSH Web 3081
+                    |                       |-> LM Studio 1234/v1
+                    |                       └-> 内部 MCP 连接回到代理
+                    ├─ 校验身份 -> Spring 8081/api/auth/me
+                    └─ 注入当前用户 JWT -> Spring 8081/mcp
 ```
 
-前端“对话助手”页先用当前 HR Bearer JWT 调用代理 `/hr-session`，仅 ADMIN 可换取 HttpOnly Cookie，
+前端“对话助手”页先用当前 HR Bearer JWT 调用代理 `/hr-session`，所有有效账号都可换取 HttpOnly Cookie，
 再通过 iframe 打开 DSH。直接访问 3080 而没有该 Cookie 会返回 401，DSH 启动令牌不能绕过 HR 校验。
 浏览器收到的是不透明会话 ID，HR JWT 与 DSH 上游 Cookie 保留在代理内存中。
 
-每个 HR 会话使用独立代理 Cookie 和上游 Cookie；每次 HTTP 请求重新检查管理员身份。
+每个 HR 会话使用独立代理 Cookie 和上游 Cookie；每次 HTTP 请求重新检查账号是否有效。
 WebSocket 默认每 3 秒复核，并在 JWT 到期时关闭。退出登录、停用或降权会使访问被撤销，
 实际感知时间还受 HR 鉴权短 TTL 和请求耗时影响。HR 校验超时为 5 秒，故障时拒绝访问。
 容器重启后代理内存会话失效，需要重新打开 HR 助手页换取 Cookie；已持久化对话不会因此删除。
 同一 HR Token 再次兑换代理会话时，会撤销此前使用该 Token 建立的代理会话及连接。
 
-HR 登录态校验和模型调用工具是两条鉴权链：前者使用浏览器用户 JWT，后者默认使用 MCP 固定口令。
-模型实际执行身份是 Spring `hr.auth.admin-username` 指定的管理员，不是每个浏览器用户。
-HR Cookie 隔离不等于为每个管理员建立独立的 DSH 数据目录；本服务共用 `home/` 挂载卷。
+`@hr/mcp` 插件为每个 DSH Agent 建立独立 MCP 连接。连接先访问容器内代理，代理按 Agent 与 HR 会话的绑定，
+动态附上当前用户的 JWT，再转发到 Spring。`HR_MCP_TOKEN` 只是这个内部入口的代理口令，不是任何 HR 账号的凭据。
+Spring 在每个 `@McpTool` 执行前按当前用户的 `PermissionCatalog` 权限校验，权限码与对应 HTTP 接口一致；
+未知工具默认拒绝，固定管理员口令不再受支持。页面可访问不等于能调用所有工具。
+
+HR Cookie 隔离不等于为每个账号建立独立的 DSH 数据目录；本服务共用 `home/` 挂载卷。
+一个仍绑定其他账号的活跃 Agent 不能被接管，这类请求返回 403。
 
 ## 首次启动
 
@@ -33,8 +38,8 @@ HR Cookie 隔离不等于为每个管理员建立独立的 DSH 数据目录；�
 
 1. 在 LM Studio 加载目标模型并启动兼容 OpenAI 的 API 服务，默认端口 1234。
 2. 确保容器能访问模型服务；仅绑定主机回环地址时，`host.docker.internal` 不一定能连通，需配置合适的监听地址和主机防火墙。
-3. 在 Spring 设置 `hr.mcp.service-token`，确认配置管理员已启用且属于 ADMIN。
-4. 在 `dsh/` 首次准备 `.env`，填写与 Spring 一致的固定口令。
+3. 确认 Spring 中的账号已启用，并按角色配置该账号实际需要使用的接口权限；不再配置 MCP 固定管理员口令。
+4. 在 `dsh/` 首次准备 `.env`，设置容器内部代理口令。
 
 ```sh
 cp .env.example .env
@@ -43,12 +48,12 @@ docker compose ps
 docker compose logs --tail=100 dsh
 ```
 
-已有 `.env` 不要覆盖。示例固定口令仅供本机联调，部署时换成独立生成的强随机值。
+已有 `.env` 不要覆盖。示例代理口令仅供本机联调，部署时换成独立生成的强随机值。
 Compose 默认只向主机回环发布 3080，不发布容器内的 3081。
 代理或 DSH 进程退出都会结束容器，再由 `restart: unless-stopped` 恢复完整服务。
 
 前端开发默认直连 Spring（8081），无需额外配置；保持
-`VITE_DSH_URL=http://127.0.0.1:3080`，用 ADMIN 登录并打开助手。
+`VITE_DSH_URL=http://127.0.0.1:3080`，用任意有效账号登录并打开助手。
 本机浏览器统一使用 `127.0.0.1`，避免 HR 页面用 `localhost`、助手用 `127.0.0.1` 导致 Cookie 站点不一致。
 
 ## 环境变量和模型配置
@@ -56,14 +61,15 @@ Compose 默认只向主机回环发布 3080，不发布容器内的 3081。
 | 设置 | 默认值 | 作用 |
 | --- | --- | --- |
 | `LM_STUDIO_API_KEY` | `lm-studio` | 模型 API 凭据；本机未开启校验时仍需非空值 |
-| `HR_MCP_TOKEN` | `local-dsh-mcp-token` | 注入 MCP 请求的 Bearer 固定口令，与 Spring 保持一致 |
+| `HR_MCP_TOKEN` | `local-dsh-mcp-token` | DSH 插件访问容器内部 MCP 代理的口令，与 Spring 用户权限无关 |
 | `HR_API_BASE` | `http://host.docker.internal:8081` | 代理检查 HR 身份的服务地址，自动追加 `/api/auth/me` |
+| `HR_MCP_URL` | `http://host.docker.internal:8081/mcp` | 内部代理最终访问的 Spring MCP 地址 |
 | `DSH_SECURE_COOKIE` | `false` | 设为 `true` 时代理 Cookie 带 Secure，HTTPS 部署使用 |
 | `DSH_HOME` | 容器内 `/dsh-home` | 运行数据目录，对应主机 `dsh/home/` |
 | `VITE_DSH_URL` | 前端默认 `http://127.0.0.1:3080` | 浏览器访问地址，在前端配置并在构建时注入 |
 
-`HR_API_BASE` 只控制登录态代理，MCP 地址单独位于 Web profile 的 `mcp-hr` 配置中，
-初始值为 `http://host.docker.internal:8081/mcp`。修改 Spring 端口、部署前缀或 MCP 路径后，两处都要修改。
+`HR_API_BASE` 只控制登录态校验，`HR_MCP_URL` 只控制 MCP 上游。Web profile 的 `mcp-hr` 指向容器内部代理，
+不再保存用户 JWT 或固定管理员令牌。修改 Spring 端口、部署前缀或 MCP 路径后，按实际地址调整这两个环境变量。
 修改 Compose 环境变量后重新执行 `docker compose up -d`，不能只依赖 `docker compose restart` 更新环境。
 
 默认模型模板在 [seed/settings.yaml](seed/settings.yaml)：
@@ -83,7 +89,9 @@ Compose 默认只向主机回环发布 3080，不发布容器内的 3081。
 ## 配置播种、迁移与持久化
 
 入口只在相应文件缺失时，将 `seed/settings.yaml` 和 `seed/profiles/web/cordis.patch.yml` 复制到 `home/`。
-`seed/` 是镜像中的初始化模板，不是运行时实时读取的配置；重建镜像不会覆盖已有的 Web profile 补丁。
+随后 `migrate-profile.mjs` 会把旧版 `mcp-hr` 固定管理员口令配置替换为 `@hr/mcp` 会话级代理配置，
+其他已有配置保留。旧配置若被手工修改到无法精确识别，迁移会报错并停止，避免继续以共享管理员身份运行。
+`seed/` 是镜像中的初始化模板，不是运行时实时读取的配置；不要删除有效 profile 中的 `mcp-hr` 项。
 
 DSH `0.2.0-rc.2` 可以将旧式 `settings.yaml` 导入 profile 配置，并将原文件保留为
 `settings.yaml.imported`。运行时可能因此不再有 `home/settings.yaml`。
@@ -123,11 +131,11 @@ Web host 层关闭基础插件后，由每个预设加载自己的压缩插件�
 在仓库根目录运行无真实 HR/模型依赖的代理测试和脚本语法检查：
 
 ```sh
-node --test dsh/auth-proxy.test.mjs
+node --test dsh/auth-proxy.test.mjs dsh/hr-mcp/core.test.mjs
 sh -n dsh/docker-entrypoint.sh
 ```
 
-CI 检查 Cookie 隔离、HR 授权撤销、Bearer 处理、失败/超时和 WebSocket 关闭。
+CI 检查 Cookie 与 Agent 会话隔离、普通账号准入、HR 授权撤销、MCP 用户令牌注入、旧配置迁移、失败/超时和 WebSocket 关闭。
 镜像构建、模型连通、MCP 协议和真正长会话的压缩仍需要运行环境验证。
 
 ## 跨设备和 HTTPS 部署
@@ -150,11 +158,11 @@ CI 检查 Cookie 隔离、HR 授权撤销、Bearer 处理、失败/超时和 Web
 | 现象 | 检查与处理 |
 | --- | --- |
 | Docker 无法连接 daemon | 先启动 Docker Desktop/OrbStack，确认 `docker compose ps` 可用 |
-| 直接访问 3080 返回 401 | 从 HR 前端用 ADMIN 打开助手，先建立 `/hr-session` Cookie |
-| 前端提示需要管理员 | 检查当前账号及角色状态，Token 是否过期或已撤销 |
-| 代理返回 503 | 查看容器日志，检查 Spring 地址、管理员校验、启动令牌及上游 DSH 状态 |
+| 直接访问 3080 返回 401 | 从 HR 前端用有效账号打开助手，先建立 `/hr-session` Cookie |
+| 无法创建助手会话 | 检查当前账号及角色是否启用，Token 是否过期或已撤销 |
+| 代理返回 503 | 查看容器日志，检查 Spring 地址、账号校验、启动令牌及上游 DSH 状态 |
 | 页面加载后 WebSocket 断开 | 检查授权复核、JWT 到期、Origin、trusted host 和网关 Upgrade 转发 |
-| HR 页面在线但 MCP 工具失败 | 检查独立的 MCP URL、固定口令和配置管理员，不能只检查 `HR_API_BASE` |
+| HR 页面在线但 MCP 工具失败 | 检查 `HR_MCP_URL`、内部代理口令及当前账号的接口权限；工具返回 403 表示未获对应接口授权 |
 | 模型无法连接或不存在 | 检查 LM Studio 服务监听、容器访问地址、实际模型 ID 和凭据 |
 | 上下文提前溢出 | 核对真实模型容量与 DSH `contextWindow`，检查预设是否为 Minimal；空闲时尝试 `/compact` |
 | 改 seed 后旧配置没变 | 检查已有 profile 和设置导入状态，按有效配置修改并保留 MCP 项 |

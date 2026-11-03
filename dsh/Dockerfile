@@ -11,7 +11,8 @@ RUN apt-get update \
 COPY --chown=node:node docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY --chown=node:node seed /opt/dsh-seed
 COPY --chown=node:node brand-patch.mjs /opt/dsh-seed/brand-patch.mjs
-COPY --chown=node:node auth-proxy.mjs /opt/dsh-seed/auth-proxy.mjs
+COPY --chown=node:node auth-proxy.mjs agent-bindings.mjs migrate-profile.mjs /opt/dsh-seed/
+COPY --chown=node:node hr-mcp/package.json hr-mcp/index.mjs hr-mcp/core.mjs /opt/dsh-seed/hr-mcp/
 RUN node /opt/dsh-seed/brand-patch.mjs \
     && chmod +x /usr/local/bin/docker-entrypoint.sh
 

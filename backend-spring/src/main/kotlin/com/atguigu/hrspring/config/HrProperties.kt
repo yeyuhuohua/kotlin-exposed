@@ -9,14 +9,8 @@ data class HrProperties(
     val auth: AuthProperties = AuthProperties(),
     val security: SecurityProperties = SecurityProperties(),
     val cors: CorsProperties = CorsProperties(),
-    val mcp: McpProperties = McpProperties(),
     val export: ExportProperties = ExportProperties(),
 ) {
-    data class McpProperties(
-        /** 本地 DSH 调用 /mcp 用的固定口令。为空则只接受管理员 JWT。 */
-        val serviceToken: String = "",
-    )
-
     data class CacheProperties(
         /** Redis 缓存 TTL，秒。键前缀是 hrs:。 */
         val ttlSeconds: Long = 600,
@@ -33,7 +27,7 @@ data class HrProperties(
         val ttlSeconds: Long = 3600,
         /** 启动时补齐缺的表，并在没有管理员时创建下面的账号。 */
         val initializeSchema: Boolean = true,
-        /** 也是 MCP 固定口令对应的执行身份。关闭建表后仍要填对，已有账号不会被重置。 */
+        /** 初始化管理员账号。关闭建表后仍要填对，已有账号不会被重置。 */
         val adminUsername: String = "admin",
         /** 只在库里还没有该用户时使用。 */
         val adminPassword: String = "admin123456",

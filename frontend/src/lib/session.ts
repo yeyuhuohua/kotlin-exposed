@@ -14,7 +14,7 @@ export function readSession(): Session | null {
     )
       return value
   } catch {
-    /* Unavailable storage or an invalid saved session requires a new login. */
+    /* 存储不可用或保存的会话无效时，需要重新登录。 */
   }
   clearSession()
   return null
@@ -26,6 +26,6 @@ export function clearSession() {
   try {
     sessionStorage.removeItem(KEY)
   } catch {
-    /* Storage may be disabled. */
+    /* 存储功能可能被禁用。 */
   }
 }

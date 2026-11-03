@@ -9,6 +9,12 @@ mkdir -p /dsh-home/profiles/web
 if [ ! -f /dsh-home/profiles/web/cordis.patch.yml ]; then
   cp /opt/dsh-seed/profiles/web/cordis.patch.yml /dsh-home/profiles/web/cordis.patch.yml
 fi
+node /opt/dsh-seed/migrate-profile.mjs \
+  /dsh-home/profiles/web/cordis.patch.yml \
+  /opt/dsh-seed/profiles/web/cordis.patch.yml
+mkdir -p /dsh-home/profiles/web/node_modules/@hr/mcp
+cp /opt/dsh-seed/hr-mcp/package.json /opt/dsh-seed/hr-mcp/index.mjs /opt/dsh-seed/hr-mcp/core.mjs \
+  /dsh-home/profiles/web/node_modules/@hr/mcp/
 
 rm -f /dsh-home/launch-token
 fifo=/dsh-home/proxy-output.fifo
@@ -25,6 +31,7 @@ cleanup() {
 node /opt/dsh-seed/auth-proxy.mjs &
 proxy_pid=$!
 
+# 启动令牌只供代理使用；从输出提取后，写回日志前必须脱敏。
 while IFS= read -r line; do
     token=$(printf '%s\n' "$line" | sed -n 's/.*[?&]token=\([^[:space:]]*\).*/\1/p')
     if [ -n "$token" ] && [ ! -f /dsh-home/launch-token ]; then

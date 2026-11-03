@@ -45,6 +45,7 @@ class AuditFilterConfig(
                     failed = true
                     throw e
                 } finally {
+                    // 审计是旁路逻辑，脱敏或入队失败不能覆盖业务响应或原异常。
                     runCatching {
                         val user = request.getAttribute(JwtAuthFilter.AUTHENTICATED_USER) as? AuthUser
                         auditService.recordApiCall(

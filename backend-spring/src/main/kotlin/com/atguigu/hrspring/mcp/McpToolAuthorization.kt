@@ -1,0 +1,94 @@
+package com.atguigu.hrspring.mcp
+
+import com.atguigu.hrspring.auth.CurrentUserHolder
+import com.atguigu.hrspring.common.api.ApiException
+import org.aspectj.lang.ProceedingJoinPoint
+import org.aspectj.lang.annotation.Around
+import org.aspectj.lang.annotation.Aspect
+import org.springframework.ai.mcp.annotation.McpTool
+import org.springframework.stereotype.Component
+
+/** MCP 工具与 HTTP 接口共用权限码；未登记的工具默认拒绝。 */
+object McpToolPermissions {
+    private fun api(method: String, path: String) = "api:$method:/api$path"
+
+    private val loginOnly = setOf(
+        "login",
+        "get_current_user",
+        "logout",
+        "list_page_routes",
+        "get_health",
+        "export_excel",
+        "export_word",
+        "export_pdf",
+    )
+
+    private val required = buildMap {
+        put("get_overview", api("GET", "/overview"))
+        put("list_employees", api("GET", "/employees"))
+        put("create_employee", api("POST", "/employees"))
+        put("get_employee", api("GET", "/employees/{id}"))
+        put("update_employee", api("PUT", "/employees/{id}"))
+        put("patch_employee", api("PATCH", "/employees/{id}"))
+        put("delete_employee", api("DELETE", "/employees/{id}"))
+        put("get_employee_details", api("GET", "/employees/{id}/details"))
+        put("list_emp_details", api("GET", "/emp-details"))
+        put("list_departments", api("GET", "/departments"))
+        put("create_department", api("POST", "/departments"))
+        put("get_department", api("GET", "/departments/{id}"))
+        put("update_department", api("PUT", "/departments/{id}"))
+        put("list_department_employees", api("GET", "/departments/{id}/employees"))
+        put("list_jobs", api("GET", "/jobs"))
+        put("create_job", api("POST", "/jobs"))
+        put("update_job", api("PUT", "/jobs/{id}"))
+        put("list_locations", api("GET", "/locations"))
+        put("create_location", api("POST", "/locations"))
+        put("update_location", api("PUT", "/locations/{id}"))
+        put("list_countries", api("GET", "/countries"))
+        put("list_regions", api("GET", "/regions"))
+        put("list_job_history", api("GET", "/job-history"))
+        put("list_job_grades", api("GET", "/job-grades"))
+        put("list_t_dept", api("GET", "/t-dept"))
+        put("create_t_dept", api("POST", "/t-dept"))
+        put("update_t_dept", api("PUT", "/t-dept/{id}"))
+        put("list_t_emp", api("GET", "/t-emp"))
+        put("create_t_emp", api("POST", "/t-emp"))
+        put("update_t_emp", api("PUT", "/t-emp/{id}"))
+        put("list_orders", api("GET", "/orders"))
+        put("list_users", api("GET", "/auth/users"))
+        put("create_user", api("POST", "/auth/users"))
+        put("update_user", api("PUT", "/auth/users/{id}"))
+        put("delete_user", api("DELETE", "/auth/users/{id}"))
+        put("list_roles", api("GET", "/auth/roles"))
+        put("create_role", api("POST", "/auth/roles"))
+        put("update_role", api("PUT", "/auth/roles/{code}"))
+        put("delete_role", api("DELETE", "/auth/roles/{code}"))
+        put("list_permissions", api("GET", "/auth/permissions"))
+        put("get_role_permissions", api("GET", "/auth/roles/{code}/permissions"))
+        put("update_role_permissions", api("PUT", "/auth/roles/{code}/permissions"))
+        put("list_login_records", api("GET", "/audit/logins"))
+        put("list_api_calls", api("GET", "/audit/api-calls"))
+        put("list_menus", api("GET", "/menus"))
+        put("create_menu", api("POST", "/menus"))
+        put("update_menu", api("PUT", "/menus/{key}"))
+        put("delete_menu", api("DELETE", "/menus/{key}"))
+    }
+
+    fun authorize(toolName: String) {
+        val user = CurrentUserHolder.require()
+        if (toolName in loginOnly) return
+        val permission = required[toolName] ?: throw ApiException.forbidden()
+        if (!user.hasPermission(permission)) throw ApiException.forbidden()
+    }
+}
+
+/** 在工具执行点鉴权，覆盖 MCP 调用，不依赖模型提供的身份信息。 */
+@Aspect
+@Component
+class McpToolAuthorizationAspect {
+    @Around("@annotation(tool)")
+    fun authorize(joinPoint: ProceedingJoinPoint, tool: McpTool): Any? {
+        McpToolPermissions.authorize(tool.name)
+        return joinPoint.proceed()
+    }
+}

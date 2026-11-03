@@ -53,6 +53,7 @@ class AuditService(
             } catch (e: InterruptedException) {
                 if (stopping.get()) break else continue
             } ?: continue
+            // 出队任务必须与停止流程互斥登记，确保在途任务只会完成或丢弃一次。
             val accepted = synchronized(lifecycleLock) {
                 if (stopping.get()) {
                     task.discard()

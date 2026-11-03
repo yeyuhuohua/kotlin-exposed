@@ -119,4 +119,11 @@ class PermissionCatalogTest {
         assertTrue("api:GET:/api/jobs" in effective)
         assertFalse("api:GET:/api/auth/users" in effective)
     }
+
+    @Test
+    fun `所有有效用户都有助手页面权限`() {
+        val reader = AuthUser(1, "reader", Roles.READER, true, true, 0, emptySet())
+        assertTrue(PermissionCatalog.CHAT_PAGE in PermissionCatalog.effective(reader))
+        assertTrue(reader.hasPermission(PermissionCatalog.CHAT_PAGE))
+    }
 }

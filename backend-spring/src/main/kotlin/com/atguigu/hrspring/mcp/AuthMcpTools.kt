@@ -20,7 +20,7 @@ import org.springframework.ai.mcp.annotation.McpTool
 import org.springframework.ai.mcp.annotation.McpToolParam
 import org.springframework.stereotype.Component
 
-/** 认证、用户、角色与权限的 MCP 工具。调用方已由 /mcp 过滤器限制为 ADMIN。 */
+/** 认证、用户、角色与权限的 MCP 工具。每个工具执行前按当前用户权限校验。 */
 @Component
 class AuthMcpTools(
     private val authService: AuthService,

@@ -125,8 +125,10 @@ internal class RecordingCache(
     override fun get(key: Any): Cache.ValueWrapper? {
         CacheLoads.take(name, key)
         val version = currentEpoch()
+        // GET 等待期间可能已发生失效，返回前必须再次核对版本。
         val value = if (version == null) null else delegate.get("$version:$key")
             ?.takeIf { currentEpoch() == version }
+        // 未命中时保留读取版本，回填只能写入同一版本，避免复活旧数据。
         if (version != null && value == null) CacheLoads.remember(name, key, version)
         CacheHitMarker.markFirst(value != null)
         return value

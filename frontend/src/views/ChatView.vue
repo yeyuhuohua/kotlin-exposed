@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** 先用当前 HR 登录态向 DSH 代理换会话，未登录或非管理员不会打开对话。 */
+/** 先用当前 HR 登录态向 DSH 代理换会话；所有有效账号都可使用助手。 */
 import { onMounted, ref } from 'vue'
 import { readSession } from '../lib/session'
 
@@ -21,7 +21,7 @@ onMounted(async () => {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (response.status === 401 || response.status === 403) {
-      error.value = '需要管理员权限才能打开助手'
+      error.value = '当前登录状态不可用，请重新登录后重试'
       return
     }
     if (!response.ok) {

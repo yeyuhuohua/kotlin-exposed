@@ -26,17 +26,13 @@ import kotlin.test.Test
 import kotlin.test.assertNull
 
 class McpSecurityTest {
-    private val properties = HrProperties(
-        auth = HrProperties.AuthProperties(jwtSecret = "a".repeat(32)),
-        mcp = HrProperties.McpProperties(serviceToken = "fixed-service-token"),
-    )
+    private val properties = HrProperties(auth = HrProperties.AuthProperties(jwtSecret = "a".repeat(32)))
     private val tokens = TokenService(properties)
     private val admin = AuthUser(7, "operator", Roles.ADMIN, true, true, 0, emptySet())
     private val reader = admin.copy(id = 8, username = "reader", roleCode = Roles.READER)
     private val loader = object : AuthUserLoader {
         override fun loadActiveUser(userId: Int, tokenVersion: Int): AuthUser? =
             listOf(admin, reader).find { it.id == userId && it.tokenVersion == tokenVersion }
-        override fun loadActiveAdmin(): AuthUser = admin
     }
     private val initialize = """{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}"""
 
@@ -86,50 +82,55 @@ class McpSecurityTest {
     }
 
     @Test
-    fun `自定义MCP端点拒绝无效JWT和普通用户`() = withServer("/tools") { mvc ->
-        for (token in listOf("invalid", tokens.issue(reader.id, reader.tokenVersion))) {
-            mvc.perform(post("/tools").header("Authorization", "Bearer $token")
-                .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM).content(initialize))
-                .andExpect(status().isUnauthorized)
-        }
+    fun `自定义MCP端点拒绝无效JWT并接受普通用户`() = withServer("/tools") { mvc ->
+        mvc.perform(post("/tools").header("Authorization", "Bearer invalid")
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM).content(initialize))
+            .andExpect(status().isUnauthorized)
+        mvc.perform(post("/tools").header("Authorization", "Bearer ${tokens.issue(reader.id, reader.tokenVersion)}")
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM).content(initialize))
+            .andExpect(status().isOk)
     }
 
     @Test
-    fun `自定义MCP端点接受管理员JWT及服务口令`() = withServer("/tools") { mvc ->
-        for (token in listOf(tokens.issue(admin.id, admin.tokenVersion), properties.mcp.serviceToken)) {
-            mvc.perform(post("/hr/tools").contextPath("/hr").header("Authorization", "Bearer $token")
-                .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM).content(initialize))
-                .andExpect(status().isOk)
-        }
+    fun `MCP接受用户JWT并拒绝固定服务口令`() = withServer("/tools") { mvc ->
+        mvc.perform(post("/hr/tools").contextPath("/hr").header("Authorization", "Bearer ${tokens.issue(admin.id, admin.tokenVersion)}")
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM).content(initialize))
+            .andExpect(status().isOk)
+        mvc.perform(post("/hr/tools").contextPath("/hr").header("Authorization", "Bearer fixed-service-token")
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM).content(initialize))
+            .andExpect(status().isUnauthorized)
     }
 
     @Test
     fun `MCP的Bearer方案忽略大小写且仍拒绝其他方案`() = withServer("/api/mcp") { mvc ->
-        for (token in listOf(properties.mcp.serviceToken, tokens.issue(admin.id, admin.tokenVersion))) {
+        for (user in listOf(admin, reader)) {
             for (scheme in listOf("Bearer", "bearer", "bEaReR")) {
-                mvc.perform(post("/api/mcp").header("Authorization", "$scheme $token")
+                mvc.perform(post("/api/mcp").header("Authorization", "$scheme ${tokens.issue(user.id, user.tokenVersion)}")
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM).content(initialize))
                     .andExpect(status().isOk)
             }
-            mvc.perform(post("/api/mcp").header("Authorization", "Basic $token")
-                .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM).content(initialize))
-                .andExpect(status().isUnauthorized)
         }
+        mvc.perform(post("/api/mcp").header("Authorization", "Basic ${tokens.issue(admin.id, admin.tokenVersion)}")
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM).content(initialize))
+            .andExpect(status().isUnauthorized)
     }
 
     @Test
-    fun `API前缀下的MCP仍接受管理员JWT及服务口令`() = withServer("/api/mcp") { mvc ->
-        for (token in listOf(properties.mcp.serviceToken, tokens.issue(admin.id, admin.tokenVersion))) {
-            mvc.perform(post("/hr/api/mcp").contextPath("/hr").header("Authorization", "Bearer $token")
+    fun `API前缀下的MCP接受管理员和普通用户JWT`() = withServer("/api/mcp") { mvc ->
+        for (user in listOf(admin, reader)) {
+            mvc.perform(post("/hr/api/mcp").contextPath("/hr")
+                .header("Authorization", "Bearer ${tokens.issue(user.id, user.tokenVersion)}")
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM).content(initialize))
                 .andExpect(status().isOk)
         }
-        for (token in listOf("invalid", tokens.issue(reader.id, reader.tokenVersion))) {
+        for (token in listOf("invalid", "fixed-service-token")) {
             mvc.perform(post("/hr/api/mcp").contextPath("/hr").header("Authorization", "Bearer $token")
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM).content(initialize))
@@ -152,7 +153,7 @@ class McpSecurityTest {
             }.contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM).content(initialize)
         mvc.perform(request()).andExpect(status().isUnauthorized)
-        mvc.perform(request().header("Authorization", "Bearer ${properties.mcp.serviceToken}"))
+        mvc.perform(request().header("Authorization", "Bearer ${tokens.issue(reader.id, reader.tokenVersion)}"))
             .andExpect(status().isOk)
         mvc.perform(get("/unrelated")).andExpect(status().isNotFound)
     }

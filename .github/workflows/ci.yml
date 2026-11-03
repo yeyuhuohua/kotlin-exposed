@@ -54,7 +54,7 @@ jobs:
           node-version: '22'
       - name: DSH proxy tests
         run: |
-          node --test dsh/auth-proxy.test.mjs
+          node --test dsh/auth-proxy.test.mjs dsh/hr-mcp/core.test.mjs
           sh -n dsh/docker-entrypoint.sh
 
   frontend:

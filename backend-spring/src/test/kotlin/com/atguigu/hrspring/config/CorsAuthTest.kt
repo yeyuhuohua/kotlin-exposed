@@ -44,7 +44,6 @@ class CorsAuthTest {
             override fun loadActiveUser(userId: Int, tokenVersion: Int): AuthUser? =
                 reader.takeIf { it.id == userId && it.tokenVersion == tokenVersion }
 
-            override fun loadActiveAdmin(): AuthUser? = null
         }
         WebApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(JacksonAutoConfiguration::class.java, WebMvcAutoConfiguration::class.java))
