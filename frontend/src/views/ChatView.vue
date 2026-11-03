@@ -1,12 +1,13 @@
 <script setup lang="ts">
 /** 先用当前 HR 登录态向 DSH 代理换会话；所有有效账号都可使用助手。 */
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { readSession } from '../lib/session'
 
 /** DSH 地址走 VITE_DSH_URL（构建期注入），默认同机 3080；跨设备部署改配置或同源代理。 */
 const dshUrl: string = import.meta.env.VITE_DSH_URL || 'http://127.0.0.1:3080'
 const ready = ref(false)
 const error = ref('')
+let controller: AbortController | undefined
 
 onMounted(async () => {
   const token = readSession()?.token
@@ -14,12 +15,15 @@ onMounted(async () => {
     error.value = '请先登录'
     return
   }
+  controller = new AbortController()
   try {
     const response = await fetch(`${dshUrl}/hr-session`, {
       method: 'POST',
       credentials: 'include',
       headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
     })
+    if (readSession()?.token !== token) return
     if (response.status === 401 || response.status === 403) {
       error.value = '当前登录状态不可用，请重新登录后重试'
       return
@@ -30,9 +34,11 @@ onMounted(async () => {
     }
     ready.value = true
   } catch {
-    error.value = '无法连接助手服务'
+    if (!controller.signal.aborted && readSession()?.token === token) error.value = '无法连接助手服务'
   }
 })
+
+onUnmounted(() => controller?.abort())
 </script>
 
 <template>

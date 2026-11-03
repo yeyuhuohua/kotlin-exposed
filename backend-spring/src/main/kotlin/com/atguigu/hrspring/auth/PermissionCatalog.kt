@@ -123,7 +123,7 @@ data class AuthUser(
     val active: Boolean get() = enabled && roleEnabled
 
     fun hasPermission(code: String): Boolean =
-        roleCode == Roles.ADMIN || PermissionCatalog.effective(this).contains(code)
+        active && (roleCode == Roles.ADMIN || PermissionCatalog.effective(this).contains(code))
 }
 
 /** 路径参数段(任意名字,如 {id}、{code})匹配单层非斜杠路径。 */

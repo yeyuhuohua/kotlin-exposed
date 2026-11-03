@@ -5,12 +5,14 @@ import type { FormInstance, FormRules } from 'element-plus'
 import Modal from './Modal.vue'
 import { fillTemplate, itemUrl, rolesPaths, usersPaths } from '../api/paths'
 import { api } from '../lib/api'
-import { formPayload, codePointLength } from '../lib/format'
+import { formPayload } from '../lib/format'
+import { recordRules } from '../lib/recordForm'
+import { useRecordOptions } from '../lib/useRecordOptions'
 import { readSession } from '../lib/session'
 import { lookupSources } from '../config/resources'
 import { useAuth } from '../stores/auth'
 import { useNotices } from '../stores/notices'
-import type { Field, Option, Row } from '../types'
+import type { Field, Row } from '../types'
 const props = defineProps<{
   title: string
   endpoint: string
@@ -28,11 +30,8 @@ const accountCollections: string[] = [usersPaths.collection, rolesPaths.collecti
 const auth = useAuth()
 const notices = useNotices()
 const values = reactive<Row>({})
-const options = reactive<Record<string, Option[]>>({})
 const busy = ref(false)
-const loading = ref(false)
 const error = ref('')
-const lookupError = ref('')
 const formRef = ref<FormInstance>()
 const fields = computed(() =>
   props.fields
@@ -59,95 +58,17 @@ const fields = computed(() =>
       return field
     }),
 )
+const { options, loading, lookupError, loadOptions } = useRecordOptions(fields, values)
 for (const field of fields.value)
   values[field.key] = props.original?.[field.key] ?? field.default ?? (field.type === 'checkbox' ? false : '')
 const self = computed(() => props.endpoint === usersPaths.collection && props.original?.id === auth.user?.id)
 const disabledField = (field: Field) =>
   (self.value || (props.endpoint === usersPaths.collection && props.original?.username === 'admin')) &&
   ['enabled', 'roleCode'].includes(field.key)
-/** 通用字段规则保持与后端约束一致；编辑时空密码表示不重置密码。 */
-const rules = computed<FormRules>(() =>
-  Object.fromEntries(
-    fields.value.map((field) => [
-      field.key,
-      [
-        {
-          trigger: ['blur', 'change'],
-          validator: (_rule: unknown, value: unknown, done: (error?: Error) => void) => {
-            const empty =
-              value === '' ||
-              value === null ||
-              value === undefined ||
-              (typeof value === 'string' && !value.trim())
-            if (empty)
-              return done(
-                field.required || (field.type === 'password' && !props.original)
-                  ? new Error(`请填写${field.label}`)
-                  : undefined,
-              )
-            if (field.type === 'number') {
-              const number = Number(value)
-              if (!Number.isFinite(number)) return done(new Error(`${field.label}必须是有效数字`))
-              if (field.min !== undefined && number < field.min)
-                return done(new Error(`${field.label}不能小于 ${field.min}`))
-              if (field.max !== undefined && number > field.max)
-                return done(new Error(`${field.label}不能大于 ${field.max}`))
-              if ((!field.step || field.step === '1') && !Number.isInteger(number))
-                return done(new Error(`${field.label}必须是整数`))
-            } else if (typeof value === 'string') {
-              // 默认与数据库列一致按 Unicode 码点计数（𠮷 算 1 个）；
-              // 密码等后端按 UTF-16 校验的字段用 lengthUnit: 'utf16' 对齐。
-              const textLength = field.lengthUnit === 'utf16' ? value.length : codePointLength(value)
-              if (field.minLength !== undefined && textLength < field.minLength)
-                return done(new Error(`${field.label}至少 ${field.minLength} 个字符`))
-              if (field.maxLength !== undefined && textLength > field.maxLength)
-                return done(new Error(`${field.label}最多 ${field.maxLength} 个字符`))
-              if (field.pattern && !field.pattern.test(value))
-                return done(new Error(field.patternMessage || `${field.label}格式不正确`))
-            }
-            done()
-          },
-        },
-      ],
-    ]),
-  ),
-)
+const rules = computed<FormRules>(() => recordRules(fields.value, props.original))
 function numericValue(key: string): number | undefined {
   const value = values[key]
   return value === '' || value === null || value === undefined ? undefined : Number(value)
-}
-/** 关联查询未获授权时已切换成编号输入，不会为了填充下拉框越权请求接口。 */
-async function loadOptions() {
-  loading.value = true
-  lookupError.value = ''
-  try {
-    await Promise.all(
-      fields.value
-        .filter((field) => field.lookup)
-        .map(async (field) => {
-          const source = lookupSources[field.lookup!]!
-          const rows = await api<Row[]>(source.endpoint)
-          options[field.key] = rows
-            .filter((row) => field.lookup !== 'roles' || row.enabled)
-            .map((row) => ({
-              value: row[source.id] as string | number,
-              label: `${row[source.label] ?? row[source.id]} · ${row[source.id]}`,
-            }))
-          // 当前值可能来自已停用角色等历史关联；保留选项，避免打开编辑框时误改。
-          const current = values[field.key]
-          if (
-            current !== '' &&
-            current != null &&
-            !options[field.key]!.some((option) => option.value === current)
-          )
-            options[field.key]!.push({ value: current as string | number, label: String(current) })
-        }),
-    )
-  } catch (cause) {
-    lookupError.value = cause instanceof Error ? cause.message : '关联数据加载失败'
-  } finally {
-    loading.value = false
-  }
 }
 onMounted(loadOptions)
 async function save() {

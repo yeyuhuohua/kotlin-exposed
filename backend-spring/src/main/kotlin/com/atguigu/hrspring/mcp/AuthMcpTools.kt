@@ -4,9 +4,7 @@ import com.atguigu.hrspring.auth.CurrentUserHolder
 import com.atguigu.hrspring.auth.PermissionDefinition
 import com.atguigu.hrspring.auth.RoleDto
 import com.atguigu.hrspring.auth.RolePermissionsDto
-import com.atguigu.hrspring.auth.TokenDto
 import com.atguigu.hrspring.auth.UserDto
-import com.atguigu.hrspring.dto.LoginRequest
 import com.atguigu.hrspring.dto.RoleCreateRequest
 import com.atguigu.hrspring.dto.RolePermissionsRequest
 import com.atguigu.hrspring.dto.RoleUpdateRequest
@@ -25,20 +23,8 @@ import org.springframework.stereotype.Component
 class AuthMcpTools(
     private val authService: AuthService,
 ) {
-    @McpTool(name = "login", description = "使用用户名和密码登录并签发访问 Token。用户名会去掉首尾空白并转为小写。")
-    fun login(
-        @McpToolParam(description = "用户名", required = true) username: String,
-        @McpToolParam(description = "密码，1 到 128 个字符", required = true) password: String,
-    ): TokenDto = authService.login(LoginRequest(username, password))
-
     @McpTool(name = "get_current_user", description = "查询当前登录用户、角色和有效权限，包含仍启用的页面权限码。")
     fun getCurrentUser(): CurrentUserDto = authService.currentUser(CurrentUserHolder.require())
-
-    @McpTool(name = "logout", description = "退出登录，并撤销当前账号在所有设备上的 Token。")
-    fun logout(): String {
-        authService.logout(CurrentUserHolder.require().id)
-        return "logged out on all devices"
-    }
 
     @McpTool(name = "list_page_routes", description = "查询当前用户可访问的页面清单，供前端注册路由和菜单。")
     fun listPageRoutes(): List<PageRoute> = authService.pageRoutes(CurrentUserHolder.require())

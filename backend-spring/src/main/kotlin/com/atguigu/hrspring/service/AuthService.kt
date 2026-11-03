@@ -22,7 +22,6 @@ import com.atguigu.hrspring.dto.UserCreateRequest
 import com.atguigu.hrspring.dto.UserUpdateRequest
 import com.atguigu.hrspring.entity.RoleEntity
 import com.atguigu.hrspring.entity.RolePermissionEntity
-import com.atguigu.hrspring.entity.RolePermissionProfileEntity
 import com.atguigu.hrspring.entity.UserEntity
 import com.atguigu.hrspring.mapper.RoleMapper
 import com.atguigu.hrspring.mapper.RolePermissionMapper
@@ -42,7 +41,6 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.Cacheable
-import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpHeaders
 import org.springframework.stereotype.Service
 import org.springframework.validation.annotation.Validated
@@ -74,6 +72,15 @@ class AuthService(
 ) : AuthUserLoader {
     private val tx = TransactionTemplate(transactionManager)
     private val readTx = TransactionTemplate(transactionManager).apply { isReadOnly = true }
+    private val rolePermissionService = RolePermissionService(
+        transactionManager,
+        userMapper,
+        roleMapper,
+        rolePermissionMapper,
+        profileMapper,
+        userCache,
+        menuService,
+    )
 
     /** 用户不存在时拿来做等长校验，避免用响应时间判断账号是否存在。 */
     private val dummyHash: String = passwordHasher.hash("hr-spring-dummy-password")
@@ -107,12 +114,13 @@ class AuthService(
 
     override fun loadActiveUser(userId: Int, tokenVersion: Int): AuthUser? {
         userCache.get(userId, tokenVersion)?.let { return it }
+        val loadedAt = System.currentTimeMillis()
         val loadGeneration = userCache.generation()
         val user = readTx.execute<AuthUser?> {
             loadUser(userId)?.takeIf { it.active && it.tokenVersion == tokenVersion }
         }
         if (user != null) {
-            userCache.put(userId, tokenVersion, user, loadGeneration)
+            userCache.put(userId, tokenVersion, user, loadGeneration, loadedAt)
         }
         return user
     }
@@ -175,9 +183,7 @@ class AuthService(
     }
 
     @Cacheable(cacheNames = [CacheNames.ROLES], key = "'all'")
-    fun listRoles(): List<RoleDto> =
-        roleMapper.selectList(KtQueryWrapper(RoleEntity::class.java).orderByAsc(RoleEntity::code))
-            .map { it.toDto() }
+    fun listRoles(): List<RoleDto> = rolePermissionService.listRoles()
 
     @CacheEvict(cacheNames = [CacheNames.USERS], allEntries = true)
     fun createUser(@Valid body: UserCreateRequest): UserDto {
@@ -273,120 +279,23 @@ class AuthService(
     }
 
     @CacheEvict(cacheNames = [CacheNames.ROLES], allEntries = true)
-    fun createRole(@Valid body: RoleCreateRequest): RoleDto {
-        val code = body.code.trim().uppercase(Locale.ROOT)
-        val name = body.name.trim()
-        val created = try {
-            tx.execute<RoleDto> {
-                roleMapper.insert(
-                    RoleEntity().apply {
-                        this.code = code
-                        this.name = name
-                        enabled = true
-                    },
-                )
-                profileMapper.insert(
-                    RolePermissionProfileEntity().apply {
-                        roleCode = code
-                        revision = 0
-                    },
-                )
-                RoleDto(code, name, true)
-            }
-        } catch (ex: RuntimeException) {
-            if (ex.isConstraintConflict()) throw ApiException(409, "role already exists")
-            throw ex
-        } ?: throw ApiException(409, "role already exists")
-        return created
-    }
+    fun createRole(@Valid body: RoleCreateRequest): RoleDto = rolePermissionService.createRole(body)
 
     @CacheEvict(cacheNames = [CacheNames.ROLES], allEntries = true)
-    fun updateRole(@RoleCode rawCode: String, @Valid body: RoleUpdateRequest): RoleDto {
-        val code = rawCode.trim().uppercase(Locale.ROOT)
-        val name = body.name?.trim()
-        try {
-            return tx.execute<RoleDto?> {
-                if (code == Roles.ADMIN) {
-                    throw ApiException(403, "ADMIN role is protected", ErrorCode.ROLE_PROTECTED)
-                }
-                val row = roleMapper.selectOne(
-                    KtQueryWrapper(RoleEntity::class.java).eq(RoleEntity::code, code).last("FOR UPDATE"),
-                )
-                if (row == null) {
-                    null
-                } else {
-                    val enabledChanged = body.enabled != null && body.enabled != row.enabled
-                    roleMapper.update(
-                        null,
-                        KtUpdateWrapper(RoleEntity::class.java)
-                            .eq(RoleEntity::code, code)
-                            .set(name != null, RoleEntity::name, name)
-                            .set(body.enabled != null, RoleEntity::enabled, body.enabled),
-                    )
-                    if (enabledChanged) revokeRoleTokens(code)
-                    RoleDto(code, name ?: row.name, body.enabled ?: row.enabled)
-                }
-            } ?: throw ApiException.notFound("role not found")
-        } finally {
-            userCache.invalidateAll()
-        }
-    }
+    fun updateRole(@RoleCode rawCode: String, @Valid body: RoleUpdateRequest): RoleDto =
+        rolePermissionService.updateRole(rawCode, body)
 
     @CacheEvict(cacheNames = [CacheNames.ROLES], allEntries = true, condition = "#result == true")
-    fun deleteRole(@RoleCode rawCode: String): Boolean {
-        val code = rawCode.trim().uppercase(Locale.ROOT)
-        if (code == Roles.ADMIN) {
-            throw ApiException(403, "ADMIN role is protected", ErrorCode.ROLE_PROTECTED)
-        }
-        val removed = tx.execute<Boolean> {
-            val row = roleMapper.selectOne(
-                KtQueryWrapper(RoleEntity::class.java).eq(RoleEntity::code, code).last("FOR UPDATE"),
-            )
-            if (row == null) {
-                false
-            } else {
-                val members = userMapper.selectCount(
-                    KtQueryWrapper(UserEntity::class.java).eq(UserEntity::roleCode, code),
-                )
-                if (members > 0) {
-                    throw ApiException(409, "role still has $members user(s)", ErrorCode.ROLE_IN_USE)
-                }
-                rolePermissionMapper.delete(
-                    KtQueryWrapper(RolePermissionEntity::class.java).eq(RolePermissionEntity::roleCode, code),
-                )
-                profileMapper.delete(
-                    KtQueryWrapper(RolePermissionProfileEntity::class.java).eq(RolePermissionProfileEntity::roleCode, code),
-                )
-                roleMapper.delete(KtQueryWrapper(RoleEntity::class.java).eq(RoleEntity::code, code)) > 0
-            }
-        } ?: false
-        if (removed) {
-            userCache.invalidateAll()
-        }
-        return removed
-    }
+    fun deleteRole(@RoleCode rawCode: String): Boolean = rolePermissionService.deleteRole(rawCode)
 
-    fun getRolePermissions(actor: AuthUser, @RoleCode rawCode: String): RolePermissionsDto {
-        val code = rawCode.trim().uppercase(Locale.ROOT)
-        requirePermissionAdmin(actor, "GET")
-        return readTx.execute<RolePermissionsDto?> { loadRolePermissions(code) }
-            ?: throw ApiException.notFound("role not found")
-    }
+    fun getRolePermissions(actor: AuthUser, @RoleCode rawCode: String): RolePermissionsDto =
+        rolePermissionService.getRolePermissions(actor, rawCode)
 
     fun updateRolePermissions(
         actor: AuthUser,
         @RoleCode rawCode: String,
         @Valid body: RolePermissionsRequest,
-    ): RolePermissionsDto {
-        val code = rawCode.trim().uppercase(Locale.ROOT)
-        requirePermissionAdmin(actor, "PUT")
-        try {
-            return tx.execute<RolePermissionsDto> { replaceRolePermissions(code, body) }
-                ?: throw ApiException.notFound("role not found")
-        } finally {
-            userCache.invalidateAll()
-        }
-    }
+    ): RolePermissionsDto = rolePermissionService.updateRolePermissions(actor, rawCode, body)
 
     private fun issueLogin(body: LoginRequest): TokenDto {
         val username = body.username.trim().lowercase(Locale.ROOT)
@@ -436,90 +345,6 @@ class AuthService(
             .filterTo(linkedSetOf()) { grantable(it) }
     }
 
-    private fun loadRolePermissions(code: String): RolePermissionsDto? {
-        val role = roleMapper.selectById(code) ?: return null
-        val profile = profileMapper.selectOne(
-            KtQueryWrapper(RolePermissionProfileEntity::class.java).eq(RolePermissionProfileEntity::roleCode, code),
-        )
-        return RolePermissionsDto(
-            role = role.toDto(),
-            revision = profile?.revision ?: 0,
-            permissions = roleGrants(code),
-            protectedRole = code == Roles.ADMIN,
-        )
-    }
-
-    private fun replaceRolePermissions(code: String, request: RolePermissionsRequest): RolePermissionsDto {
-        if (code == Roles.ADMIN) {
-            throw ApiException(403, "ADMIN role is protected", ErrorCode.ROLE_PROTECTED)
-        }
-        roleMapper.selectOne(KtQueryWrapper(RoleEntity::class.java).eq(RoleEntity::code, code).last("FOR UPDATE"))
-            ?: throw ApiException.notFound("role not found")
-        val profile = profileMapper.selectOne(
-            KtQueryWrapper(RolePermissionProfileEntity::class.java)
-                .eq(RolePermissionProfileEntity::roleCode, code)
-                .last("FOR UPDATE"),
-        )
-        val revision = profile?.revision ?: 0
-        if (request.revision != revision) {
-            throw ApiException(
-                409,
-                "permissions changed; reload before saving",
-                ErrorCode.REVISION_CONFLICT,
-            )
-        }
-        val menuAdminOnly = menuAdminOnlyByKey()
-        if (request.permissions.any { grantError(it, menuAdminOnly) == ErrorCode.UNKNOWN_PERMISSION }) {
-            throw ApiException(400, "unknown permission code", ErrorCode.UNKNOWN_PERMISSION)
-        }
-        if (request.permissions.any { grantError(it, menuAdminOnly) == ErrorCode.ADMIN_ONLY }) {
-            throw ApiException(400, "management permissions require ADMIN role", ErrorCode.ADMIN_ONLY)
-        }
-        if (profile == null) {
-            profileMapper.insert(
-                RolePermissionProfileEntity().apply {
-                    roleCode = code
-                    this.revision = 0
-                },
-            )
-        }
-        profileMapper.update(
-            null,
-            KtUpdateWrapper(RolePermissionProfileEntity::class.java)
-                .eq(RolePermissionProfileEntity::roleCode, code)
-                .set(RolePermissionProfileEntity::revision, revision + 1),
-        )
-        rolePermissionMapper.delete(
-            KtQueryWrapper(RolePermissionEntity::class.java).eq(RolePermissionEntity::roleCode, code),
-        )
-        for (permission in request.permissions) {
-            rolePermissionMapper.insert(
-                RolePermissionEntity().apply {
-                    roleCode = code
-                    permissionCode = permission
-                },
-            )
-        }
-        revokeRoleTokens(code)
-        return loadRolePermissions(code) ?: throw ApiException.notFound("role not found")
-    }
-
-    private fun menuAdminOnlyByKey(): Map<String, Boolean> =
-        menuService.pageDefinitions().associate { dto ->
-            val raw = dto.code
-            val key = if (raw.startsWith("page:")) raw.removePrefix("page:") else raw
-            key to dto.adminOnly
-        }
-
-    private fun revokeRoleTokens(code: String) {
-        userMapper.update(
-            null,
-            KtUpdateWrapper(UserEntity::class.java)
-                .eq(UserEntity::roleCode, code)
-                .setSql("token_version = token_version + 1"),
-        )
-    }
-
     private fun requireEnabledRole(code: String) {
         val role = roleMapper.selectOne(
             KtQueryWrapper(RoleEntity::class.java).eq(RoleEntity::code, code).last("FOR UPDATE"),
@@ -530,13 +355,6 @@ class AuthService(
     private fun validateRole(code: String) {
         val role = roleMapper.selectById(code)
         if (role == null || !role.enabled) badRequest("role must exist and be enabled")
-    }
-
-    private fun requirePermissionAdmin(actor: AuthUser, method: String) {
-        val code = "api:$method:/api/auth/roles/{code}/permissions"
-        if (actor.roleCode != Roles.ADMIN || !actor.hasPermission(code)) {
-            throw ApiException(403, "only ADMIN can manage permissions", ErrorCode.ADMIN_ONLY)
-        }
     }
 
     private fun normalizeUsername(value: String): String {
@@ -577,18 +395,6 @@ class AuthService(
             ErrorCode.INVALID_CREDENTIALS,
         )
 
-        private fun grantable(code: String): Boolean =
-            code.startsWith("page:") || PermissionCatalog.byCode[code]?.adminOnly == false
-
-        private fun grantError(code: String, menuAdminOnlyByKey: Map<String, Boolean>): String? {
-            val definition = PermissionCatalog.byCode[code]
-            if (definition != null) return if (definition.adminOnly) ErrorCode.ADMIN_ONLY else null
-            if (code.startsWith("page:")) {
-                val adminOnly = menuAdminOnlyByKey[code.removePrefix("page:")] ?: return ErrorCode.UNKNOWN_PERMISSION
-                return if (adminOnly) ErrorCode.ADMIN_ONLY else null
-            }
-            return ErrorCode.UNKNOWN_PERMISSION
-        }
     }
 }
 
@@ -607,15 +413,3 @@ private fun MenuPermissionDto.toPermissionDefinition(): PermissionDefinition {
 }
 
 private fun UserEntity.toDto(): UserDto = UserDto(checkNotNull(id), username, roleCode, enabled)
-
-private fun RoleEntity.toDto(): RoleDto = RoleDto(code, name, enabled)
-
-private fun Throwable.isConstraintConflict(): Boolean {
-    var current: Throwable? = this
-    while (current != null) {
-        if (current is DataIntegrityViolationException) return true
-        if ("Duplicate entry" in current.message.orEmpty()) return true
-        current = current.cause
-    }
-    return false
-}

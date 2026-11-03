@@ -41,12 +41,13 @@ class AuthUserCache(
     /** 返回当前代次,供 load 前后比对。 */
     fun generation(): Long = generation.get()
 
-    fun put(userId: Int, tokenVersion: Int, user: AuthUser, loadGeneration: Long) {
+    fun put(userId: Int, tokenVersion: Int, user: AuthUser, loadGeneration: Long, loadedAt: Long = System.currentTimeMillis()) {
         if (!enabled) return
         synchronized(lock) {
             if (loadGeneration != generation.get()) return
+            if (loadedAt <= System.currentTimeMillis() - ttlMillis) return
             if (entries.size >= MAX_SIZE) entries.clear()
-            entries["$userId:$tokenVersion"] = Entry(user, System.currentTimeMillis())
+            entries["$userId:$tokenVersion"] = Entry(user, loadedAt)
         }
     }
 

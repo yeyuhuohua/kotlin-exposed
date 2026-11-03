@@ -15,12 +15,14 @@ const legacy = `- insert:
 `
 
 export function migrateProfile(source, replacement) {
-  if (source.includes("name: '@hr/mcp'")) return source
-  if (source.includes(legacy)) return source.replace(legacy, replacement)
-  if (source.includes('id: mcp-hr')) {
+  const migrated = source.includes(legacy)
+    ? source.replace(legacy, source.includes("name: '@hr/mcp'") ? '' : replacement)
+    : source
+  if (migrated.includes('id: mcp-hr') && migrated.includes("name: '@deepseek-ai/dsh-mcp-client'")) {
     throw new Error('mcp-hr 配置已被修改，无法安全迁移；请移除旧的固定口令配置后重试')
   }
-  return `${source.trimEnd()}\n${replacement}`
+  if (migrated.includes("name: '@hr/mcp'")) return migrated
+  return `${migrated.trimEnd()}\n${replacement}`
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

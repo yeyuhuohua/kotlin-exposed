@@ -1,12 +1,11 @@
 import http from 'node:http'
-import https from 'node:https'
 import fs from 'node:fs'
 import net from 'node:net'
-import { randomUUID, timingSafeEqual } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { bindRpcRequest, createAgentBindings } from './agent-bindings.mjs'
-
-const sessionCookie = 'hr-dsh-session'
+import { createSessionStore, sessionId } from './session-store.mjs'
+import { createMcpForwarder } from './mcp-forwarder.mjs'
 
 function allowOrigin(origin) {
   if (!origin) return true
@@ -17,22 +16,6 @@ function allowOrigin(origin) {
   } catch {
     return false
   }
-}
-
-function sessionId(req) {
-  return (req.headers.cookie || '').split(';').map((part) => part.trim())
-    .find((part) => part.startsWith(`${sessionCookie}=`))?.slice(sessionCookie.length + 1)
-}
-
-function matchesSecret(actual, expected) {
-  if (!expected || typeof actual !== 'string') return false
-  const left = Buffer.from(actual)
-  const right = Buffer.from(expected)
-  return left.length === right.length && timingSafeEqual(left, right)
-}
-
-function isLoopback(address) {
-  return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1'
 }
 
 /** HR 令牌只保存在代理端；浏览器只收到不透明的 HttpOnly 会话标识。 */
@@ -46,43 +29,10 @@ export function createAuthProxy({
   brokerToken = process.env.HR_MCP_TOKEN || '',
   mcpUpstream = process.env.HR_MCP_URL || `${hrApi.replace(/\/+$/, '')}/mcp`,
 } = {}) {
-  const sessions = new Map()
   const agentBindings = createAgentBindings()
-
-  function revoke(id) {
-    const session = sessions.get(id)
-    sessions.delete(id)
-    if (!session) return
-    agentBindings.revoke(session)
-    for (const socket of session.sockets || []) socket.destroy()
-  }
-
-  async function activeUser(authorization) {
-    if (!authorization) return null
-    const response = await fetchImpl(`${hrApi}/api/auth/me`, {
-      headers: { Authorization: authorization, Accept: 'application/json' },
-      signal: AbortSignal.timeout(timeoutMs),
-    })
-    if (!response.ok) {
-      if (response.status >= 500) throw new Error('HR unavailable')
-      return null
-    }
-    const body = await response.json()
-    const user = body?.data
-    return Number.isInteger(user?.id) && user.enabled !== false ? user : null
-  }
-
-  async function authorizedSession(req) {
-    const id = sessionId(req)
-    const session = sessions.get(id)
-    if (!session) return null
-    if (session.expiresAt <= Date.now() || !(await activeUser(session.authorization))) {
-      revoke(id)
-      return null
-    }
-    // 等待 /auth/me 返回期间会话可能已被撤销；只能返回仍然有效的原会话。
-    return sessions.get(id) === session ? session : null
-  }
+  const { sessions, activeUser, authorizedSession, revoke } = createSessionStore({
+    hrApi, fetchImpl, timeoutMs, agentBindings,
+  })
 
   function upstreamCookies(host) {
     return new Promise((resolve, reject) => {
@@ -120,40 +70,7 @@ export function createAuthProxy({
     res.end(messages[status] || 'service unavailable')
   }
 
-  async function handleMcp(req, res) {
-    // 该入口返回的是代理后的用户权限，只允许同容器插件使用内部口令访问。
-    if (!isLoopback(req.socket.remoteAddress) ||
-      !matchesSecret(req.headers['x-hr-broker-token'], brokerToken)) {
-      return fail(res, 403)
-    }
-    const agentId = new URL(req.url || '/', 'http://127.0.0.1:3080').searchParams.get('agent')
-    const bound = agentBindings.resolve(agentId)
-    const session = bound && sessions.get(bound.id) === bound ? bound : null
-    if (!session || session.expiresAt <= Date.now()) return fail(res, 401)
-
-    const target = new URL(mcpUpstream)
-    if (!['http:', 'https:'].includes(target.protocol)) return fail(res, 503)
-    const client = target.protocol === 'https:' ? https : http
-    const headers = {
-      ...req.headers,
-      host: target.host,
-      authorization: session.authorization,
-    }
-    delete headers.cookie
-    delete headers['x-hr-broker-token']
-    const upstream = client.request(target, {
-      method: req.method,
-      headers,
-    }, (response) => {
-      res.writeHead(response.statusCode || 502, response.headers)
-      response.on('error', () => res.destroy())
-      response.pipe(res)
-    })
-    upstream.on('error', () => fail(res, 502))
-    res.on('close', () => upstream.destroy())
-    req.pipe(upstream)
-  }
-
+  const handleMcp = createMcpForwarder({ sessions, agentBindings, brokerToken, mcpUpstream, fail })
   const server = http.createServer((req, res) => {
     handle(req, res).catch((error) => fail(res, error.status || 503))
   })
@@ -205,7 +122,7 @@ export function createAuthProxy({
       })
       const secure = process.env.DSH_SECURE_COOKIE === 'true' ? '; Secure' : ''
       res.writeHead(204, {
-        'set-cookie': `${sessionCookie}=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor((expiresAt - Date.now()) / 1000)}${secure}`,
+        'set-cookie': `hr-dsh-session=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor((expiresAt - Date.now()) / 1000)}${secure}`,
         'cache-control': 'no-store',
       })
       res.end()

@@ -10,8 +10,9 @@ import java.util.UUID
 class CacheEpoch(redis: StringRedisTemplate) {
     private val state = EpochState(
         read = {
-            val data = redis.opsForValue().get(DATA_KEY).orEmpty()
-            val auth = redis.opsForValue().get(AUTH_KEY).orEmpty()
+            val values = redis.opsForValue().multiGet(listOf(DATA_KEY, AUTH_KEY)).orEmpty()
+            val data = values.getOrNull(0).orEmpty()
+            val auth = values.getOrNull(1).orEmpty()
             "$data:$auth"
         },
         rotate = { redis.opsForValue().set(DATA_KEY, UUID.randomUUID().toString()) },

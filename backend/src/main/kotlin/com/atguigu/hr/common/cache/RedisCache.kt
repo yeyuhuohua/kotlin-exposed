@@ -1,9 +1,6 @@
 package com.atguigu.hr.common.cache
 
 import com.atguigu.hr.config.RedisFactory
-import io.lettuce.core.KeyScanCursor
-import io.lettuce.core.ScanArgs
-import io.lettuce.core.ScanCursor
 import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.SetArgs
 import kotlinx.coroutines.CancellationException
@@ -39,7 +36,6 @@ import java.util.concurrent.atomic.AtomicReference
 object RedisCache {
     private const val OPERATION_TIMEOUT_MS = 2_000L
     private const val RECOVER_BACKOFF_MS = 5_000L
-    private const val SCAN_BATCH = 256L
     private const val DELETE_BATCH = 256
 
     /** 原子回填：共享版本令牌未变才写入；返回 1 写入、0 丢弃（其它实例已失效该分组）。 */
@@ -218,10 +214,8 @@ return 1
         if (System.nanoTime() < group.failNotBefore.get()) return null
         if (group.version.get().dirty && System.nanoTime() < group.recoverNotBefore.get()) return null
         val outcome = cacheOutcome("version ${group.name}") {
-            val own = RedisFactory.async.get(versionKey(group)).await().orEmpty()
-            val shared = RedisFactory.async.get(SHARED_EPOCH_KEY).await().orEmpty()
-            val auth = RedisFactory.async.get(AUTH_EPOCH_KEY).await().orEmpty()
-            "$own:$shared:$auth"
+            val values = RedisFactory.async.mget(versionKey(group), SHARED_EPOCH_KEY, AUTH_EPOCH_KEY).await()
+            values.joinToString(":") { it.value.orEmpty() }
         }
         if (outcome == null) {
             group.backoffOnFailure()
@@ -331,19 +325,7 @@ return 1
         }
     }
 
-    /** 用 SCAN 游标遍历，KEYS 会阻塞 Redis 单线程，不能在请求路径上调用。 */
-    private suspend fun scanKeys(pattern: String): List<String> {
-        val keys = mutableListOf<String>()
-        var cursor: ScanCursor = ScanCursor.INITIAL
-        do {
-            val result: KeyScanCursor<String> = RedisFactory.async
-                .scan(cursor, ScanArgs.Builder.matches(pattern).limit(SCAN_BATCH))
-                .await()
-            keys += result.keys
-            cursor = result
-        } while (!result.isFinished)
-        return keys
-    }
+    private suspend fun scanKeys(pattern: String): List<String> = RedisScanner.scan(pattern)
 
     suspend fun sharedEpoch(): String? {
         if (System.nanoTime() < sharedEpochRetryAt.get()) return null

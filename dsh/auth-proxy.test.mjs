@@ -146,6 +146,20 @@ test('Bearer authentication schemes are case insensitive and other schemes are r
   })).status, 401)
 })
 
+test('concurrent session validations share one upstream request', async (t) => {
+  let validations = 0
+  const f = await fixture(t, {
+    fetchImpl: async () => {
+      validations++
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      return new Response(JSON.stringify({ data: { id: 1, enabled: true } }))
+    },
+  })
+  const cookie = await f.exchange()
+  await Promise.all(Array.from({ length: 6 }, () => fetch(f.base, { headers: { Cookie: cookie } })))
+  assert.equal(validations, 2)
+})
+
 test('HR network and malformed JSON errors return 503 without killing the proxy', async (t) => {
   let failure = 'network'
   const { base } = await fixture(t, {
@@ -243,4 +257,7 @@ test('legacy fixed-token MCP profile migrates once and modified legacy config fa
   assert.equal(migrated, replacement)
   assert.equal(migrateProfile(migrated, replacement), migrated)
   assert.throws(() => migrateProfile(legacy.replace('8081', '9090'), replacement), /无法安全迁移/)
+  const combined = migrateProfile(`${legacy}\n${replacement}`, replacement)
+  assert.doesNotMatch(combined, /@deepseek-ai\/dsh-mcp-client/)
+  assert.match(combined, /@hr\/mcp/)
 })

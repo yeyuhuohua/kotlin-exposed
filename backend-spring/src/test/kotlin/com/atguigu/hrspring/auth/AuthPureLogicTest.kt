@@ -125,5 +125,7 @@ class PermissionCatalogTest {
         val reader = AuthUser(1, "reader", Roles.READER, true, true, 0, emptySet())
         assertTrue(PermissionCatalog.CHAT_PAGE in PermissionCatalog.effective(reader))
         assertTrue(reader.hasPermission(PermissionCatalog.CHAT_PAGE))
+        assertFalse(reader.copy(enabled = false).hasPermission(PermissionCatalog.CHAT_PAGE))
+        assertFalse(reader.copy(roleEnabled = false).hasPermission(PermissionCatalog.CHAT_PAGE))
     }
 }

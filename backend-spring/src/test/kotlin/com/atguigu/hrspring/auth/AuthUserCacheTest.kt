@@ -61,6 +61,13 @@ class AuthUserCacheTest {
     }
 
     @Test
+    fun `超过 TTL 的迟到数据不会回填`() {
+        val c = cache()
+        c.put(1, 0, user(1), c.generation(), System.currentTimeMillis() - 4_000)
+        assertNull(c.get(1, 0))
+    }
+
+    @Test
     fun `同代次回填后可正常命中`() {
         val c = cache()
         assertTrue(c.enabled)

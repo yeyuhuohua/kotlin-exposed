@@ -6,6 +6,8 @@ import tools.jackson.databind.ObjectMapper
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper
 import io.modelcontextprotocol.server.McpServer
+import io.modelcontextprotocol.server.McpServerFeatures
+import io.modelcontextprotocol.spec.McpSchema
 import jakarta.servlet.http.MappingMatch
 import org.springframework.ai.mcp.server.common.autoconfigure.properties.McpServerStreamableHttpProperties
 import org.springframework.ai.mcp.server.webmvc.transport.WebMvcStreamableServerTransportProvider
@@ -17,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import org.springframework.test.web.servlet.setup.RouterFunctionMockMvcBuilder
@@ -29,16 +32,23 @@ class McpSecurityTest {
     private val properties = HrProperties(auth = HrProperties.AuthProperties(jwtSecret = "a".repeat(32)))
     private val tokens = TokenService(properties)
     private val admin = AuthUser(7, "operator", Roles.ADMIN, true, true, 0, emptySet())
-    private val reader = admin.copy(id = 8, username = "reader", roleCode = Roles.READER)
+    private val reader = admin.copy(
+        id = 8, username = "reader", roleCode = Roles.READER,
+        rolePermissions = setOf("api:GET:/api/employees"),
+    )
     private val loader = object : AuthUserLoader {
         override fun loadActiveUser(userId: Int, tokenVersion: Int): AuthUser? =
             listOf(admin, reader).find { it.id == userId && it.tokenVersion == tokenVersion }
     }
     private val initialize = """{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}"""
 
-    private fun withServer(endpoint: String, check: (MockMvc) -> Unit) {
+    private fun withServer(
+        endpoint: String,
+        tools: List<McpServerFeatures.SyncToolSpecification> = emptyList(),
+        check: (MockMvc) -> Unit,
+    ) {
         ApplicationContextRunner()
-            .withUserConfiguration(McpSecurityConfig::class.java)
+            .withUserConfiguration(McpSecurityConfig::class.java, com.atguigu.hrspring.mcp.McpToolListHandler::class.java)
             .withPropertyValues("spring.ai.mcp.server.streamable-http.mcp-endpoint=$endpoint")
             .withBean(HrProperties::class.java, Supplier { properties })
             .withBean(TokenService::class.java, Supplier { tokens })
@@ -51,7 +61,10 @@ class McpSecurityTest {
                     .jsonMapper(JacksonMcpJsonMapper(JsonMapper.builder().build()))
                     .mcpEndpoint(configured.mcpEndpoint)
                     .build()
-                val server = McpServer.sync(provider).serverInfo("test", "1").build()
+                val builder = McpServer.sync(provider).serverInfo("test", "1")
+                if (tools.isNotEmpty()) builder.tools(tools)
+                val server = builder.build()
+                context.beanFactory.registerSingleton("mcpSyncServer", server)
                 try {
                     val registration = context.getBean("mcpSecurityFilter", FilterRegistrationBean::class.java)
                     val mvc = MockMvcBuilders.routerFunctions(provider.routerFunction)
@@ -157,4 +170,27 @@ class McpSecurityTest {
             .andExpect(status().isOk)
         mvc.perform(get("/unrelated")).andExpect(status().isNotFound)
     }
+
+    @Test
+    fun `工具列表按当前用户权限过滤`() = withServer(
+        "/mcp",
+        listOf(tool("list_employees"), tool("create_employee")),
+    ) { mvc ->
+        val body = """{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"""
+        mvc.perform(post("/mcp").header("Authorization", "Bearer ${tokens.issue(reader.id, reader.tokenVersion)}")
+            .contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("result.tools.length()").value(1))
+            .andExpect(jsonPath("result.tools[0].name").value("list_employees"))
+        mvc.perform(post("/mcp").header("Authorization", "Bearer ${tokens.issue(admin.id, admin.tokenVersion)}")
+            .contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("result.tools.length()").value(2))
+    }
+
+    private fun tool(name: String): McpServerFeatures.SyncToolSpecification =
+        McpServerFeatures.SyncToolSpecification.builder()
+            .tool(McpSchema.Tool.builder(name).build())
+            .callHandler { _, _ -> McpSchema.CallToolResult.builder().content(emptyList()).build() }
+            .build()
 }

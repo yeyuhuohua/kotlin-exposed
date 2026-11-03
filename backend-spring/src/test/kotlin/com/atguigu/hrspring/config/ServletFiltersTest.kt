@@ -68,7 +68,18 @@ class ServletFiltersTest {
                 web.securityHeadersFilter(),
                 web.corsFilter(),
                 AuditFilterConfig(audit, ClientIp(properties)).auditFilter(),
-                McpSecurityConfig(tokens, loader, jacksonObjectMapper(), mcpProperties).mcpSecurityFilter(),
+                McpSecurityConfig(
+                    tokens, loader, jacksonObjectMapper(), mcpProperties,
+                    com.atguigu.hrspring.mcp.McpToolListHandler(
+                        jacksonObjectMapper(),
+                        object : org.springframework.beans.factory.ObjectProvider<io.modelcontextprotocol.server.McpSyncServer> {
+                            override fun getObject(): io.modelcontextprotocol.server.McpSyncServer =
+                                throw IllegalStateException("No MCP server in this test")
+
+                            override fun getIfAvailable(): io.modelcontextprotocol.server.McpSyncServer? = null
+                        },
+                    ),
+                ).mcpSecurityFilter(),
                 FilterRegistrationBean(JwtAuthFilter(tokens, loader, jacksonObjectMapper())).apply {
                     addUrlPatterns("/*")
                     order = 100

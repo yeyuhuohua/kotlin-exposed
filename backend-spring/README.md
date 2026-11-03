@@ -94,7 +94,8 @@ MCP 过滤器保护默认及配置指定的端点，接受所有有效用户的 
 `McpToolAuthorizationAspect` 在每个 `@McpTool` 实际执行前检查当前用户，工具映射到与 HTTP 接口相同的权限码。
 例如 `list_employees` 需要 `GET /api/employees`，`create_employee` 需要 `POST /api/employees`。
 仅 ADMIN 接口对应的工具仍只允许 ADMIN；未知工具默认拒绝。当前身份、健康检查和文档导出等登录即用工具不额外查接口权限。
-工具列表本身不是授权依据，最终权限以执行点检查为准。
+`tools/list` 也按当前用户过滤，未授权工具不会出现在列表中；执行点检查仍作为最终防线。
+登录和退出不作为 MCP 工具开放，避免访问令牌进入模型上下文或被模型撤销。
 
 工具直接调用业务 Service，共用参数校验和缓存，返回业务 DTO 或工具结果，不套 REST 的 `ApiResult` 信封。
 工具含查询、写入、删除、用户和角色管理，不能当成只读接口。

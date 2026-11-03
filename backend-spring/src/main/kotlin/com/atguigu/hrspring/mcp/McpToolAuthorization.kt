@@ -1,6 +1,8 @@
 package com.atguigu.hrspring.mcp
 
+import com.atguigu.hrspring.auth.AuthUser
 import com.atguigu.hrspring.auth.CurrentUserHolder
+import com.atguigu.hrspring.auth.PermissionCatalog
 import com.atguigu.hrspring.common.api.ApiException
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around
@@ -10,12 +12,12 @@ import org.springframework.stereotype.Component
 
 /** MCP 工具与 HTTP 接口共用权限码；未登记的工具默认拒绝。 */
 object McpToolPermissions {
-    private fun api(method: String, path: String) = "api:$method:/api$path"
+    private data class ApiGrant(val method: String, val path: String)
+
+    private fun api(method: String, path: String) = ApiGrant(method, path)
 
     private val loginOnly = setOf(
-        "login",
         "get_current_user",
-        "logout",
         "list_page_routes",
         "get_health",
         "export_excel",
@@ -74,11 +76,20 @@ object McpToolPermissions {
         put("delete_menu", api("DELETE", "/menus/{key}"))
     }
 
+    fun isAllowed(toolName: String, user: AuthUser): Boolean {
+        if (!user.active) return false
+        if (toolName in loginOnly) return true
+        val permission = permissionCode(toolName) ?: return false
+        return user.hasPermission(permission)
+    }
+
+    internal fun permissionCode(toolName: String): String? = required[toolName]?.let { grant ->
+        PermissionCatalog.requiredApi(grant.method, "/api${grant.path}")?.code
+    }
+
     fun authorize(toolName: String) {
         val user = CurrentUserHolder.require()
-        if (toolName in loginOnly) return
-        val permission = required[toolName] ?: throw ApiException.forbidden()
-        if (!user.hasPermission(permission)) throw ApiException.forbidden()
+        if (!isAllowed(toolName, user)) throw ApiException.forbidden()
     }
 }
 

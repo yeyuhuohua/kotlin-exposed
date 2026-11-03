@@ -89,8 +89,9 @@ Compose 默认只向主机回环发布 3080，不发布容器内的 3081。
 ## 配置播种、迁移与持久化
 
 入口只在相应文件缺失时，将 `seed/settings.yaml` 和 `seed/profiles/web/cordis.patch.yml` 复制到 `home/`。
-随后 `migrate-profile.mjs` 会把旧版 `mcp-hr` 固定管理员口令配置替换为 `@hr/mcp` 会话级代理配置，
-其他已有配置保留。旧配置若被手工修改到无法精确识别，迁移会报错并停止，避免继续以共享管理员身份运行。
+随后 `migrate-profile.mjs` 会把旧版 `mcp-hr` 固定管理员口令配置替换为 `@hr/mcp` 会话级代理配置；
+即使新配置已经存在，也会先清除旧管理员项，其他已有配置保留。
+旧配置若被手工修改到无法精确识别，迁移会报错并停止，避免继续以共享管理员身份运行。
 `seed/` 是镜像中的初始化模板，不是运行时实时读取的配置；不要删除有效 profile 中的 `mcp-hr` 项。
 
 DSH `0.2.0-rc.2` 可以将旧式 `settings.yaml` 导入 profile 配置，并将原文件保留为
@@ -133,10 +134,12 @@ Web host 层关闭基础插件后，由每个预设加载自己的压缩插件�
 ```sh
 node --test dsh/auth-proxy.test.mjs dsh/hr-mcp/core.test.mjs
 sh -n dsh/docker-entrypoint.sh
+docker build --tag hr-dsh-test dsh
+DSH_TEST_IMAGE=hr-dsh-test node dsh/container-smoke.mjs
 ```
 
-CI 检查 Cookie 与 Agent 会话隔离、普通账号准入、HR 授权撤销、MCP 用户令牌注入、旧配置迁移、失败/超时和 WebSocket 关闭。
-镜像构建、模型连通、MCP 协议和真正长会话的压缩仍需要运行环境验证。
+CI 检查 Cookie 与 Agent 会话隔离、普通账号准入、HR 授权撤销、MCP 用户令牌注入、旧配置迁移、失败/超时和 WebSocket 关闭，
+并构建镜像执行真实容器冒烟。模型连通和真正长会话的压缩仍需要目标环境验证。
 
 ## 跨设备和 HTTPS 部署
 

@@ -22,7 +22,7 @@ import org.springframework.web.filter.OncePerRequestFilter
 
 /**
  * MCP 端点接受所有有效用户的 JWT，并保留当前用户身份。
- * 每个工具执行前由 McpToolAuthorizationAspect 按对应接口权限再次校验。
+ * 工具列表按用户过滤，工具执行前再由 McpToolAuthorizationAspect 校验。
  */
 @Configuration
 @EnableConfigurationProperties(McpServerStreamableHttpProperties::class)
@@ -31,6 +31,7 @@ class McpSecurityConfig(
     private val userLoader: AuthUserLoader,
     private val objectMapper: ObjectMapper,
     private val mcpProperties: McpServerStreamableHttpProperties,
+    private val toolListHandler: McpToolListHandler,
 ) {
 
     @Bean
@@ -70,7 +71,8 @@ class McpSecurityConfig(
                     if (request.applicationPath() == endpoint) {
                         request.setAttribute(AUTHENTICATED_REQUEST, true)
                     }
-                    chain.doFilter(request, response)
+                    val downstream = toolListHandler.handle(request, response, user) ?: return
+                    chain.doFilter(downstream, response)
                 } finally {
                     request.removeAttribute(AUTHENTICATED_REQUEST)
                     CurrentUserHolder.clear()
