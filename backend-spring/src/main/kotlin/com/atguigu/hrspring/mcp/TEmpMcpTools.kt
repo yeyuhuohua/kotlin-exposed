@@ -5,6 +5,7 @@ import com.atguigu.hrspring.dto.TEmpUpdateRequest
 import com.atguigu.hrspring.service.TEmpService
 import org.springframework.ai.mcp.annotation.McpTool
 import org.springframework.ai.mcp.annotation.McpToolParam
+import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext
 import org.springframework.stereotype.Component
 
 @Component
@@ -12,7 +13,7 @@ class TEmpMcpTools(
     private val tEmpService: TEmpService,
 ) {
     @McpTool(name = "list_t_emp", description = "查询 t_emp 人物示例表，返回全部人物。")
-    fun listTEmp(): List<TEmpDto> = tEmpService.list()
+    fun listTEmp(context: McpSyncRequestContext): List<TEmpDto> = tEmpService.list()
 
     @McpTool(name = "create_t_emp", description = "新增人物。id 自增，empno 必填；年龄可以省略或为 0，不能为负。")
     fun createTEmp(
@@ -20,6 +21,7 @@ class TEmpMcpTools(
         @McpToolParam(description = "姓名，最长 20 个字符", required = false) name: String?,
         @McpToolParam(description = "年龄，省略或 0 合法，不能为负", required = false) age: Int?,
         @McpToolParam(description = "所属门派 t_dept.id", required = false) deptId: Int?,
+        context: McpSyncRequestContext,
     ): TEmpDto = tEmpService.create(
         TEmpCreateRequest(
             name = name,
@@ -36,6 +38,7 @@ class TEmpMcpTools(
         @McpToolParam(description = "年龄，不传则不改，不能为负", required = false) age: Int?,
         @McpToolParam(description = "所属门派 t_dept.id，不传则不改", required = false) deptId: Int?,
         @McpToolParam(description = "工号 empno，不传则不改", required = false) empno: Int?,
+        context: McpSyncRequestContext,
     ): TEmpDto = tEmpService.update(
         id,
         TEmpUpdateRequest(

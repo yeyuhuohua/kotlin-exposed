@@ -23,6 +23,8 @@ data class UserDto(
     val username: String,
     val roleCode: String,
     val enabled: Boolean,
+    /** 内置或配置指定的管理员；仅用于界面禁用受保护操作。 */
+    val protected: Boolean = false,
 )
 
 data class RoleDto(
@@ -38,7 +40,7 @@ data class RolePermissionsDto(
     val protectedRole: Boolean,
 )
 
-/** 请求线程上的当前用户,由鉴权过滤器写入。 */
+/** HTTP 请求或 MCP 工具回调当前线程上的用户；MCP 身份由切面从协议上下文恢复并在执行后清理。 */
 object CurrentUserHolder {
     private val holder = ThreadLocal<AuthUser?>()
 

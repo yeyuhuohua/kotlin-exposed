@@ -4,7 +4,7 @@ import com.atguigu.hr.menu.PageRoute
 
 /** 仅供 OpenAPI 文档展示的认证与角色权限样例，不参与数据库初始化或业务计算。 */
 
-internal val sampleUser = UserDto(1, "admin", "ADMIN", true)
+internal val sampleUser = UserDto(1, "admin", "ADMIN", true, true)
 internal val sampleLogin = LoginRequest("admin", "replace-with-your-password")
 internal val sampleUserCreate = UserCreateRequest("reader", "replace-with-a-strong-password", "READER")
 internal val sampleUserUpdate = UserUpdateRequest(enabled = false)

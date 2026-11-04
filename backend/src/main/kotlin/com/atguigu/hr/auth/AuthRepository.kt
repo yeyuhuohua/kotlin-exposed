@@ -38,7 +38,14 @@ internal fun grantError(code: String, menuAdminOnlyByKey: Map<String, Boolean>):
     return ErrorCode.UNKNOWN_PERMISSION
 }
 
-class AuthRepository(private val database: R2dbcDatabase) : AuthStore {
+internal fun protectedUsername(username: String, configuredAdmin: String): Boolean =
+    username.equals(AuthService.PROTECTED_USERNAME, ignoreCase = true) ||
+        username.equals(configuredAdmin, ignoreCase = true)
+
+class AuthRepository(
+    private val database: R2dbcDatabase,
+    private val adminUsername: String = AuthService.PROTECTED_USERNAME,
+) : AuthStore {
     suspend fun initialize() = suspendTransaction(db = database) {
         SchemaUtils.create(Roles, Users, RolePermissionProfiles, RolePermissions)
         RoleCode.entries.forEach { role ->
@@ -76,11 +83,21 @@ class AuthRepository(private val database: R2dbcDatabase) : AuthStore {
         loadUser(id)
     }
 
+    private fun isProtectedUsername(username: String): Boolean = protectedUsername(username, adminUsername)
+
     override suspend fun listUsers(limit: Int, offset: Long): ApiList<UserDto> =
         suspendTransaction(db = database, readOnly = true) {
             val total = Users.selectAll().count()
             val items = Users.selectAll().orderBy(Users.id to SortOrder.ASC).limit(limit).offset(offset)
-                .map { UserDto(it[Users.id], it[Users.username], it[Users.roleCode], it[Users.enabled]) }.toList()
+                .map {
+                    UserDto(
+                        it[Users.id],
+                        it[Users.username],
+                        it[Users.roleCode],
+                        it[Users.enabled],
+                        isProtectedUsername(it[Users.username]),
+                    )
+                }.toList()
             ApiList(total, items)
         }
 

@@ -5,6 +5,7 @@ import com.atguigu.hrspring.dto.MenuUpdateRequest
 import com.atguigu.hrspring.service.MenuService
 import org.springframework.ai.mcp.annotation.McpTool
 import org.springframework.ai.mcp.annotation.McpToolParam
+import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext
 import org.springframework.stereotype.Component
 
 @Component
@@ -12,7 +13,7 @@ class MenuMcpTools(
     private val menuService: MenuService,
 ) {
     @McpTool(name = "list_menus", description = "查询全部菜单，包含已停用的菜单。")
-    fun listMenus(): List<MenuDto> = menuService.list()
+    fun listMenus(context: McpSyncRequestContext): List<MenuDto> = menuService.list()
 
     @McpTool(name = "create_menu", description = "新增菜单。key 与路径全局唯一，adminOnly 创建后不可再改。")
     fun createMenu(
@@ -24,6 +25,7 @@ class MenuMcpTools(
         @McpToolParam(description = "排序，0 到 9999，默认 100", required = false) sort: Int?,
         @McpToolParam(description = "是否仅 ADMIN 可见，创建后不可改，默认 false", required = false) adminOnly: Boolean?,
         @McpToolParam(description = "是否启用，默认 true", required = false) enabled: Boolean?,
+        context: McpSyncRequestContext,
     ): MenuDto = menuService.create(
         MenuCreateRequest(
             key = key,
@@ -46,6 +48,7 @@ class MenuMcpTools(
         @McpToolParam(description = "侧栏分组，不传则回到工作空间；空串表示固定在底部", required = false) group: String?,
         @McpToolParam(description = "排序，0 到 9999，不传则 100", required = false) sort: Int?,
         @McpToolParam(description = "是否启用，不传则 true。菜单管理、用户管理、角色权限不可停用", required = false) enabled: Boolean?,
+        context: McpSyncRequestContext,
     ): MenuDto = menuService.update(
         key,
         MenuUpdateRequest(
@@ -61,6 +64,7 @@ class MenuMcpTools(
     @McpTool(name = "delete_menu", description = "删除菜单，并清理各角色持有的 page:key 授权。内置菜单不可删除。")
     fun deleteMenu(
         @McpToolParam(description = "菜单 key", required = true) key: String,
+        context: McpSyncRequestContext,
     ): String {
         menuService.delete(key)
         return "deleted"

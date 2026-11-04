@@ -51,14 +51,18 @@ class McpToolAuthorizationTest {
     fun `所有已注册MCP工具都有权限映射`() {
         val resources = PathMatchingResourcePatternResolver()
             .getResources("classpath*:com/atguigu/hrspring/mcp/*McpTools.class")
-        val names = resources.flatMap { resource ->
+        val methods = resources.flatMap { resource ->
             val simpleName = resource.filename!!.removeSuffix(".class")
-            Class.forName("com.atguigu.hrspring.mcp.$simpleName").methods.mapNotNull { method ->
-                method.getAnnotation(McpTool::class.java)?.name
+            Class.forName("com.atguigu.hrspring.mcp.$simpleName").methods.filter { method ->
+                method.getAnnotation(McpTool::class.java) != null
             }
         }
+        val names = methods.map { it.getAnnotation(McpTool::class.java).name }
         assertTrue(names.isNotEmpty())
         assertEquals(names.size, names.distinct().size)
+        assertTrue(methods.all {
+            org.springframework.ai.mcp.annotation.context.McpSyncRequestContext::class.java in it.parameterTypes
+        })
         CurrentUserHolder.set(admin)
         names.forEach(McpToolPermissions::authorize)
     }

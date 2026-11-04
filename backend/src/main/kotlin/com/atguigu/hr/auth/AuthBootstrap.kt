@@ -8,7 +8,6 @@ import java.util.UUID
 /** 完成认证表和初始管理员的幂等初始化，并准备登录校验需要的服务依赖。 */
 
 suspend fun createAuthService(config: ApplicationConfig, database: R2dbcDatabase, tokens: TokenService): AuthService {
-    val repository = AuthRepository(database)
     val username = config.propertyOrNull("auth.adminUsername")?.getString()?.takeIf { it.isNotBlank() }
     val password = config.propertyOrNull("auth.adminPassword")?.getString()?.takeIf { it.isNotBlank() }
     require((username == null) == (password == null)) {
@@ -16,6 +15,7 @@ suspend fun createAuthService(config: ApplicationConfig, database: R2dbcDatabase
     }
     val normalizedUsername = username?.let(AuthService::normalizeUsername)
     password?.let(AuthService::validatePassword)
+    val repository = AuthRepository(database, normalizedUsername ?: AuthService.PROTECTED_USERNAME)
     if (config.propertyOrNull("auth.initializeSchema")?.getString()?.toBooleanStrict() != false) {
         repository.initialize()
     }

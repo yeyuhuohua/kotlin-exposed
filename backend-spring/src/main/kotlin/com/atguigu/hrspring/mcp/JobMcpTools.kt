@@ -5,6 +5,7 @@ import com.atguigu.hrspring.dto.JobUpdateRequest
 import com.atguigu.hrspring.service.JobService
 import org.springframework.ai.mcp.annotation.McpTool
 import org.springframework.ai.mcp.annotation.McpToolParam
+import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext
 import org.springframework.stereotype.Component
 
 @Component
@@ -12,7 +13,7 @@ class JobMcpTools(
     private val jobService: JobService,
 ) {
     @McpTool(name = "list_jobs", description = "查询全部岗位，按 jobId 升序返回。无参数。")
-    fun listJobs(): List<JobDto> = jobService.list()
+    fun listJobs(context: McpSyncRequestContext): List<JobDto> = jobService.list()
 
     @McpTool(
         name = "create_job",
@@ -20,6 +21,7 @@ class JobMcpTools(
     )
     fun createJob(
         @McpToolParam(description = "新岗位。jobId、jobTitle 必填；minSalary、maxSalary 可选") request: JobCreateRequest,
+        context: McpSyncRequestContext,
     ): JobDto = jobService.create(request)
 
     @McpTool(
@@ -29,5 +31,6 @@ class JobMcpTools(
     fun updateJob(
         @McpToolParam(description = "岗位编码 job_id，例如 AD_PRES") jobId: String,
         @McpToolParam(description = "要修改的字段，至少一项；未出现的字段不改") request: JobUpdateRequest,
+        context: McpSyncRequestContext,
     ): JobDto = jobService.update(jobId, request)
 }

@@ -19,8 +19,6 @@ class McpToolListHandler(
     /** 返回 null 表示已直接响应工具列表，否则返回可继续读取请求体的请求。 */
     fun handle(request: HttpServletRequest, response: HttpServletResponse, user: AuthUser): HttpServletRequest? {
         if (request.method != "POST") return request
-        val size = request.contentLengthLong
-        if (size < 0 || size > MAX_TOOL_LIST_BODY_BYTES) return request
         val body = request.inputStream.readBytes()
         val downstream = CachedBodyRequest(request, body)
         val node = runCatching { objectMapper.readTree(body) }.getOrNull() ?: return downstream
@@ -39,9 +37,5 @@ class McpToolListHandler(
             ),
         )
         return null
-    }
-
-    private companion object {
-        const val MAX_TOOL_LIST_BODY_BYTES = 65_536L
     }
 }

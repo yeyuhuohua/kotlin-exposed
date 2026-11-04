@@ -5,6 +5,7 @@ import com.atguigu.hrspring.dto.TDeptUpdateRequest
 import com.atguigu.hrspring.service.TDeptService
 import org.springframework.ai.mcp.annotation.McpTool
 import org.springframework.ai.mcp.annotation.McpToolParam
+import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext
 import org.springframework.stereotype.Component
 
 @Component
@@ -12,12 +13,13 @@ class TDeptMcpTools(
     private val tDeptService: TDeptService,
 ) {
     @McpTool(name = "list_t_dept", description = "查询 t_dept 门派示例表，返回全部门派。")
-    fun listTDept(): List<TDeptDto> = tDeptService.list()
+    fun listTDept(context: McpSyncRequestContext): List<TDeptDto> = tDeptService.list()
 
     @McpTool(name = "create_t_dept", description = "新增门派。id 自增，至少填写 deptName 或 address。")
     fun createTDept(
         @McpToolParam(description = "门派名，最长 30 个字符", required = false) deptName: String?,
         @McpToolParam(description = "所在地，最长 30 个字符", required = false) address: String?,
+        context: McpSyncRequestContext,
     ): TDeptDto = tDeptService.create(
         TDeptCreateRequest(
             deptName = deptName,
@@ -30,6 +32,7 @@ class TDeptMcpTools(
         @McpToolParam(description = "门派主键", required = true) id: Int,
         @McpToolParam(description = "门派名，不传则不改", required = false) deptName: String?,
         @McpToolParam(description = "所在地，不传则不改", required = false) address: String?,
+        context: McpSyncRequestContext,
     ): TDeptDto = tDeptService.update(
         id,
         TDeptUpdateRequest(

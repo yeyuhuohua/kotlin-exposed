@@ -130,6 +130,7 @@ function validate(): string {
 /** 界面上的「导航末尾」对应后端空分组。 */
 const storedGroup = (label: string) => (label === TAIL_GROUP_LABEL ? '' : label.trim())
 async function save() {
+  if (saving.value) return
   const message = validate()
   if (message) {
     formError.value = message

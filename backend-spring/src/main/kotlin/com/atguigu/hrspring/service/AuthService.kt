@@ -178,7 +178,7 @@ class AuthService(
             KtQueryWrapper(UserEntity::class.java)
                 .orderByAsc(UserEntity::id)
                 .last("LIMIT $size OFFSET $skip"),
-        ).map { it.toDto() }
+        ).map { it.toUserDto() }
         return ApiList(total, items)
     }
 
@@ -380,7 +380,10 @@ class AuthService(
 
     private fun AuthUser.isProtectedAccount(): Boolean = isProtectedUsername(username)
 
-    private fun AuthUser.toUserDto(): UserDto = UserDto(id, username, roleCode, enabled)
+    private fun AuthUser.toUserDto(): UserDto = UserDto(id, username, roleCode, enabled, isProtectedAccount())
+
+    private fun UserEntity.toUserDto(): UserDto =
+        UserDto(checkNotNull(id), username, roleCode, enabled, isProtectedUsername(username))
 
     companion object {
         const val PROTECTED_USERNAME = "admin"
@@ -411,5 +414,3 @@ private fun MenuPermissionDto.toPermissionDefinition(): PermissionDefinition {
         adminOnly = adminOnly,
     )
 }
-
-private fun UserEntity.toDto(): UserDto = UserDto(checkNotNull(id), username, roleCode, enabled)

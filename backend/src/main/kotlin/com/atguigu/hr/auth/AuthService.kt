@@ -125,7 +125,7 @@ class AuthService(
         validateRole(body.roleCode)
         val hash = PasswordHasher.hash(body.password)
         return try {
-            store.createUser(username, hash, body.roleCode).toDto()
+            store.createUser(username, hash, body.roleCode).let { it.toDto(it.isProtectedAccount()) }
         } catch (cause: Exception) {
             if (cause.isConstraintConflict()) {
                 throw AuthException(
@@ -163,7 +163,7 @@ class AuthService(
         body.password?.let { validatePassword(it) }
         val hash = body.password?.let { PasswordHasher.hash(it) }
         return try {
-            store.updateUser(id, body.roleCode, body.enabled, hash)?.toDto()
+            store.updateUser(id, body.roleCode, body.enabled, hash)?.let { it.toDto(it.isProtectedAccount()) }
                 ?: throw AuthException(HttpStatusCode.NotFound, "user not found")
         } finally {
             userCache.invalidateUser(id)

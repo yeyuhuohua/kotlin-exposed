@@ -7,6 +7,7 @@ import com.atguigu.hrspring.dto.EmployeeDto
 import com.atguigu.hrspring.service.EmployeeService
 import org.springframework.ai.mcp.annotation.McpTool
 import org.springframework.ai.mcp.annotation.McpToolParam
+import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext
 import org.springframework.stereotype.Component
 
 @Component
@@ -15,11 +16,12 @@ class DepartmentMcpTools(
     private val employeeService: EmployeeService,
 ) {
     @McpTool(name = "list_departments", description = "查询全部部门，按 departmentId 升序返回。无参数。")
-    fun listDepartments(): List<DepartmentDto> = departmentService.list()
+    fun listDepartments(context: McpSyncRequestContext): List<DepartmentDto> = departmentService.list()
 
     @McpTool(name = "get_department", description = "按 departmentId 查询单个部门。部门不存在时报 department not found。")
     fun getDepartment(
         @McpToolParam(description = "部门主键 department_id，例如 90") departmentId: Int,
+        context: McpSyncRequestContext,
     ): DepartmentDto = departmentService.find(departmentId)
 
     @McpTool(
@@ -29,6 +31,7 @@ class DepartmentMcpTools(
     fun createDepartment(
         @McpToolParam(description = "新部门。departmentId、departmentName 必填；managerId、locationId 可选")
         request: DepartmentCreateRequest,
+        context: McpSyncRequestContext,
     ): DepartmentDto = departmentService.create(request)
 
     @McpTool(
@@ -38,6 +41,7 @@ class DepartmentMcpTools(
     fun updateDepartment(
         @McpToolParam(description = "部门主键 department_id") departmentId: Int,
         @McpToolParam(description = "要修改的字段，至少一项；未出现的字段不改") request: DepartmentUpdateRequest,
+        context: McpSyncRequestContext,
     ): DepartmentDto = departmentService.update(departmentId, request)
 
     @McpTool(
@@ -46,5 +50,6 @@ class DepartmentMcpTools(
     )
     fun listDepartmentEmployees(
         @McpToolParam(description = "部门主键 department_id") departmentId: Int,
+        context: McpSyncRequestContext,
     ): List<EmployeeDto> = employeeService.listByDepartment(departmentId)
 }

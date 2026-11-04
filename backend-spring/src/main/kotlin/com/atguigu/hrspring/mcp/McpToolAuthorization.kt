@@ -4,11 +4,17 @@ import com.atguigu.hrspring.auth.AuthUser
 import com.atguigu.hrspring.auth.CurrentUserHolder
 import com.atguigu.hrspring.auth.PermissionCatalog
 import com.atguigu.hrspring.common.api.ApiException
+import io.modelcontextprotocol.spec.McpError
+import jakarta.validation.ConstraintViolationException
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around
 import org.aspectj.lang.annotation.Aspect
+import org.slf4j.LoggerFactory
 import org.springframework.ai.mcp.annotation.McpTool
+import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext
 import org.springframework.stereotype.Component
+import org.springframework.validation.method.MethodValidationException
+import java.util.concurrent.CancellationException
 
 /** MCP 工具与 HTTP 接口共用权限码；未登记的工具默认拒绝。 */
 object McpToolPermissions {
@@ -93,13 +99,44 @@ object McpToolPermissions {
     }
 }
 
-/** 在工具执行点鉴权，覆盖 MCP 调用，不依赖模型提供的身份信息。 */
+/** MCP 回调可能运行在其他线程；身份随 McpTransportContext 传递，只在工具执行期间写入本线程。 */
 @Aspect
 @Component
 class McpToolAuthorizationAspect {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     @Around("@annotation(tool)")
     fun authorize(joinPoint: ProceedingJoinPoint, tool: McpTool): Any? {
+        val context = joinPoint.args.filterIsInstance<McpSyncRequestContext>().firstOrNull()
+        if (context == null) return invoke(joinPoint, tool)
+        val user = context.exchange().transportContext().get(McpSecurityConfig.MCP_AUTHENTICATED_USER) as? AuthUser
+        CurrentUserHolder.set(user)
+        return try {
+            invoke(joinPoint, tool)
+        } finally {
+            CurrentUserHolder.clear()
+        }
+    }
+
+    private fun invoke(joinPoint: ProceedingJoinPoint, tool: McpTool): Any? {
         McpToolPermissions.authorize(tool.name)
-        return joinPoint.proceed()
+        return try {
+            joinPoint.proceed()
+        } catch (error: McpError) {
+            throw error
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: ApiException) {
+            throw error
+        } catch (error: ConstraintViolationException) {
+            throw error
+        } catch (error: MethodValidationException) {
+            throw error
+        } catch (error: IllegalArgumentException) {
+            throw error
+        } catch (error: Exception) {
+            log.error("MCP tool {} execution failed", tool.name, error)
+            throw ApiException(500, "internal error")
+        }
     }
 }

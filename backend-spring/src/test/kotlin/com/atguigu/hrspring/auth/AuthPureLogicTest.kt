@@ -72,6 +72,14 @@ class LoginThrottleTest {
     }
 
     @Test
+    fun `超长非法用户名使用固定长度的限流键`() {
+        val t = throttle()
+        val key = t.accountKey("x".repeat(4096))
+        assertEquals("account:".length + 64, key.length)
+        assertEquals(key, t.accountKey("x".repeat(4096) + "another-user"))
+    }
+
+    @Test
     fun `IP 维度独立计数且成功只清账号`() {
         val t = throttle(maxAccount = 2, maxAddress = 2)
         val address = t.addressKey("10.0.0.2")

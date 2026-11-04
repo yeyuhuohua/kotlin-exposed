@@ -4,8 +4,11 @@ import com.atguigu.hrspring.config.HrProperties
 import com.atguigu.hrspring.mcp.McpSecurityConfig
 import tools.jackson.databind.ObjectMapper
 import tools.jackson.module.kotlin.jacksonObjectMapper
-import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper
 import io.modelcontextprotocol.server.McpServer
+import org.springframework.ai.mcp.annotation.McpTool
+import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext
+import org.springframework.ai.mcp.annotation.spring.SyncMcpAnnotationProviders
+import org.springframework.aop.aspectj.annotation.AspectJProxyFactory
 import io.modelcontextprotocol.server.McpServerFeatures
 import io.modelcontextprotocol.spec.McpSchema
 import jakarta.servlet.http.MappingMatch
@@ -26,7 +29,10 @@ import org.springframework.test.web.servlet.setup.RouterFunctionMockMvcBuilder
 import tools.jackson.databind.json.JsonMapper
 import java.util.function.Supplier
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class McpSecurityTest {
     private val properties = HrProperties(auth = HrProperties.AuthProperties(jwtSecret = "a".repeat(32)))
@@ -54,13 +60,10 @@ class McpSecurityTest {
             .withBean(TokenService::class.java, Supplier { tokens })
             .withBean(AuthUserLoader::class.java, Supplier { loader })
             .withBean(ObjectMapper::class.java, Supplier { jacksonObjectMapper() })
+            .withBean("mcpServerJsonMapper", JsonMapper::class.java, Supplier { JsonMapper.builder().build() })
             .run { context ->
                 assertNull(context.startupFailure)
-                val configured = context.getBean(McpServerStreamableHttpProperties::class.java)
-                val provider = WebMvcStreamableServerTransportProvider.builder()
-                    .jsonMapper(JacksonMcpJsonMapper(JsonMapper.builder().build()))
-                    .mcpEndpoint(configured.mcpEndpoint)
-                    .build()
+                val provider = context.getBean(WebMvcStreamableServerTransportProvider::class.java)
                 val builder = McpServer.sync(provider).serverInfo("test", "1")
                 if (tools.isNotEmpty()) builder.tools(tools)
                 val server = builder.build()
@@ -188,9 +191,72 @@ class McpSecurityTest {
             .andExpect(jsonPath("result.tools.length()").value(2))
     }
 
+    @Test
+    fun `工具列表过滤不依赖ContentLength`() = withServer(
+        "/mcp",
+        listOf(tool("list_employees"), tool("create_employee")),
+    ) { mvc ->
+        for (unknownLength in listOf(true, false)) {
+            val padding = if (unknownLength) "" else "x".repeat(70_000)
+            val body = """{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{},"padding":"$padding"}"""
+            val request = post("/mcp")
+                .header("Authorization", "Bearer ${tokens.issue(reader.id, reader.tokenVersion)}")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+            if (unknownLength) request.with { original ->
+                org.mockito.Mockito.spy(original).also {
+                    org.mockito.Mockito.doReturn(-1L).`when`(it).contentLengthLong
+                }
+            }
+            mvc.perform(request)
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("result.tools.length()").value(1))
+                .andExpect(jsonPath("result.tools[0].name").value("list_employees"))
+        }
+    }
+
+    @Test
+    fun `真实工具调用在回调线程恢复原用户`() {
+        val target = DummyHealthTools()
+        val proxy = AspectJProxyFactory(target).apply {
+            addAspect(com.atguigu.hrspring.mcp.McpToolAuthorizationAspect())
+        }.getProxy() as DummyHealthTools
+        val tools = SyncMcpAnnotationProviders.toolSpecifications(listOf(proxy))
+        withServer("/mcp", tools) { mvc ->
+            val authorization = "Bearer ${tokens.issue(reader.id, reader.tokenVersion)}"
+            val session = mvc.perform(
+                post("/mcp").header("Authorization", authorization)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM)
+                    .content(initialize),
+            ).andExpect(status().isOk)
+                .andReturn().response.getHeader("Mcp-Session-Id").let(::requireNotNull)
+            val call = """{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_health","arguments":{}}}"""
+            val response = mvc.perform(
+                post("/mcp").header("Authorization", authorization).header("Mcp-Session-Id", session)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM)
+                    .content(call),
+            ).andExpect(status().isOk).andReturn().response.contentAsString
+            assertEquals(1, target.calls, response)
+            assertTrue("\"text\":\"reader\"" in response, response)
+            assertFalse("\"isError\":true" in response, response)
+        }
+    }
+
     private fun tool(name: String): McpServerFeatures.SyncToolSpecification =
         McpServerFeatures.SyncToolSpecification.builder()
             .tool(McpSchema.Tool.builder(name).build())
             .callHandler { _, _ -> McpSchema.CallToolResult.builder().content(emptyList()).build() }
             .build()
+}
+
+open class DummyHealthTools {
+    var calls = 0
+
+    @McpTool(name = "get_health", description = "测试跨线程身份")
+    open fun getHealth(context: McpSyncRequestContext): String {
+        calls++
+        return CurrentUserHolder.require().username
+    }
 }

@@ -102,6 +102,48 @@ describe('Element Plus components', () => {
     expect(wrapper.emitted('saved')).toHaveLength(1)
   })
 
+  it('prevents duplicate writes while form validation is pending', async () => {
+    const wrapper = mount(RecordDialog, {
+      ...options,
+      props: {
+        title: '新建角色',
+        endpoint: '/auth/roles',
+        idKey: 'code',
+        fields: [
+          { key: 'code', label: '角色编码', required: true },
+          { key: 'name', label: '角色名称', required: true },
+        ],
+      },
+    })
+    mounted.push(wrapper)
+    await flushPromises()
+    const inputs = wrapper.findAllComponents(ElInput)
+    await inputs[0]!.find('input').setValue('HR_VIEWER')
+    await inputs[1]!.find('input').setValue('人事查询员')
+    const form = wrapper.findComponent(ElForm)
+    let releaseValidation: (() => void) | undefined
+    const validate = vi.fn(() => new Promise<boolean>((resolve) => {
+      releaseValidation = () => resolve(true)
+    }))
+    Object.defineProperty(form.vm, 'validate', {
+      configurable: true,
+      value: validate,
+    })
+    Object.defineProperty(form.vm.$.exposed!, 'validate', {
+      configurable: true,
+      value: validate,
+    })
+    await form.trigger('submit')
+    await form.trigger('submit')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(validate).toHaveBeenCalledTimes(1)
+    expect(mocks.api).not.toHaveBeenCalled()
+    releaseValidation?.()
+    await flushPromises()
+    expect(mocks.api).toHaveBeenCalledTimes(1)
+    expect(wrapper.emitted('saved')).toHaveLength(1)
+  })
+
   it('preserves numeric partial updates through the number input', async () => {
     const wrapper = mount(RecordDialog, {
       ...options,
@@ -334,6 +376,80 @@ describe('Element Plus components', () => {
         .props('disabled'),
     ).toBe(true)
     expect(mocks.api.mock.calls.every((call) => !call[1]?.method)).toBe(true)
+  })
+
+  it('uses the backend protected flag to disable protected account controls', async () => {
+    const wrapper = mount(RecordDialog, {
+      ...options,
+      props: {
+        title: '编辑用户',
+        endpoint: '/auth/users',
+        idKey: 'id',
+        original: { id: 7, username: 'operator', roleCode: 'ADMIN', enabled: true, protected: true },
+        fields: [
+          { key: 'password', label: '密码', type: 'password', minLength: 8 },
+          {
+            key: 'roleCode',
+            label: '角色',
+            type: 'select',
+            options: [{ value: 'ADMIN', label: '管理员' }],
+          },
+          { key: 'enabled', label: '启用账号', type: 'checkbox' },
+        ],
+      },
+    })
+    mounted.push(wrapper)
+    await flushPromises()
+    expect(wrapper.findAllComponents(ElInput).every((input) => input.props('type') !== 'password')).toBe(true)
+    expect(wrapper.getComponent({ name: 'ElSelect' }).props('disabled')).toBe(true)
+    expect(wrapper.getComponent({ name: 'ElSwitch' }).props('disabled')).toBe(true)
+  })
+
+  it('prevents duplicate menu writes while saving', async () => {
+    let resolveSave: ((value: object) => void) | undefined
+    mocks.api.mockImplementation((_path, options) => options?.method
+      ? new Promise<object>((resolve) => { resolveSave = resolve })
+      : Promise.resolve([]))
+    const wrapper = mount(MenusView, options)
+    mounted.push(wrapper)
+    await flushPromises()
+    await wrapper.findAllComponents(ElButton).find((button) => button.text() === '新增菜单')!.trigger('click')
+    const inputs = wrapper.findAllComponents(ElInput)
+    await inputs[0]!.find('input').setValue('review-menu')
+    await inputs[1]!.find('input').setValue('复查菜单')
+    await inputs[2]!.find('input').setValue('/review-menu')
+    const form = document.body.querySelector('form.menu-form')!
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await wrapper.vm.$nextTick()
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await wrapper.vm.$nextTick()
+    expect(mocks.api.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(1)
+    resolveSave?.({})
+    await flushPromises()
+  })
+
+  it('prevents duplicate login requests while validation is pending', async () => {
+    const wrapper = mount(LoginView, options)
+    mounted.push(wrapper)
+    await flushPromises()
+    const inputs = wrapper.findAllComponents(ElInput)
+    await inputs[0]!.find('input').setValue('reader')
+    await inputs[1]!.find('input').setValue('test-password')
+    const form = wrapper.findComponent(ElForm)
+    const releases: (() => void)[] = []
+    const validate = vi.fn(() => new Promise<boolean>((resolve) => {
+      releases.push(() => resolve(true))
+    }))
+    Object.defineProperty(form.vm, 'validate', { configurable: true, value: validate })
+    Object.defineProperty(form.vm.$.exposed!, 'validate', { configurable: true, value: validate })
+    await form.trigger('submit')
+    await form.trigger('submit')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(validate).toHaveBeenCalledTimes(1)
+    expect(mocks.login).not.toHaveBeenCalled()
+    releases.forEach((release) => release())
+    await flushPromises()
+    expect(mocks.login).toHaveBeenCalledTimes(1)
   })
 
   it('validates login and returns to an authorized page', async () => {

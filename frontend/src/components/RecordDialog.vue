@@ -41,7 +41,7 @@ const fields = computed(() =>
         !(accountCollections.includes(props.endpoint) && !props.original && field.key === 'enabled') &&
         !(
           props.endpoint === usersPaths.collection &&
-          props.original?.username === 'admin' &&
+          (props.original?.protected === true || props.original?.username === 'admin') &&
           props.original.id !== auth.user?.id &&
           field.type === 'password'
         ),
@@ -63,7 +63,7 @@ for (const field of fields.value)
   values[field.key] = props.original?.[field.key] ?? field.default ?? (field.type === 'checkbox' ? false : '')
 const self = computed(() => props.endpoint === usersPaths.collection && props.original?.id === auth.user?.id)
 const disabledField = (field: Field) =>
-  (self.value || (props.endpoint === usersPaths.collection && props.original?.username === 'admin')) &&
+  (self.value || (props.endpoint === usersPaths.collection && (props.original?.protected === true || props.original?.username === 'admin'))) &&
   ['enabled', 'roleCode'].includes(field.key)
 const rules = computed<FormRules>(() => recordRules(fields.value, props.original))
 function numericValue(key: string): number | undefined {
@@ -73,10 +73,11 @@ function numericValue(key: string): number | undefined {
 onMounted(loadOptions)
 async function save() {
   if (busy.value || loading.value || lookupError.value) return
-  if (!(await formRef.value?.validate().catch(() => false))) return
-  error.value = ''
+  // 异步校验期间也要锁定，避免连续提交产生重复写入。
   busy.value = true
   try {
+    if (!(await formRef.value?.validate().catch(() => false))) return
+    error.value = ''
     const payload = formPayload(fields.value, values, props.original, { allowClear: props.allowClear })
     // 与原值合并后再校验：只改最低或最高一端时，另一端要取数据库里的现值。
     const merged = { ...props.original, ...payload }

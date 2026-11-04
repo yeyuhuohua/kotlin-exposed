@@ -9,10 +9,15 @@ import com.atguigu.hrspring.common.api.ApiResult
 import com.atguigu.hrspring.common.api.ErrorCode
 import com.atguigu.hrspring.common.api.applicationPath
 import tools.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
+import io.modelcontextprotocol.common.McpTransportContext
+import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.ai.mcp.server.common.autoconfigure.properties.McpServerStreamableHttpProperties
+import org.springframework.ai.mcp.server.webmvc.transport.WebMvcStreamableServerTransportProvider
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
@@ -33,6 +38,21 @@ class McpSecurityConfig(
     private val mcpProperties: McpServerStreamableHttpProperties,
     private val toolListHandler: McpToolListHandler,
 ) {
+
+    @Bean
+    fun webMvcStreamableServerTransportProvider(
+        @Qualifier("mcpServerJsonMapper") jsonMapper: JsonMapper,
+    ): WebMvcStreamableServerTransportProvider = WebMvcStreamableServerTransportProvider.builder()
+        .jsonMapper(JacksonMcpJsonMapper(jsonMapper))
+        .mcpEndpoint(mcpProperties.mcpEndpoint)
+        .keepAliveInterval(mcpProperties.keepAliveInterval)
+        .disallowDelete(mcpProperties.isDisallowDelete)
+        .contextExtractor { request ->
+            val user = request.servletRequest().getAttribute(JwtAuthFilter.AUTHENTICATED_USER) as? AuthUser
+            if (user == null) McpTransportContext.EMPTY
+            else McpTransportContext.create(mapOf(MCP_AUTHENTICATED_USER to user))
+        }
+        .build()
 
     @Bean
     fun mcpSecurityFilter(): FilterRegistrationBean<OncePerRequestFilter> {
@@ -94,5 +114,6 @@ class McpSecurityConfig(
 
     companion object {
         const val AUTHENTICATED_REQUEST = "hrs.mcpAuthenticated"
+        const val MCP_AUTHENTICATED_USER = "hrs.mcp.user"
     }
 }

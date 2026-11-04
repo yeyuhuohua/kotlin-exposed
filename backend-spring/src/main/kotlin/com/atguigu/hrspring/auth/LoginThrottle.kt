@@ -22,7 +22,8 @@ class LoginThrottle(
 
     val enabled: Boolean get() = config.enabled
 
-    fun accountKey(username: String) = "account:$username"
+    /** 登录服务已做大小写归一化；非法超长用户名只占固定长度的限流键。 */
+    fun accountKey(username: String) = "account:${username.take(64)}"
 
     fun addressKey(ip: String) = "address:$ip"
 

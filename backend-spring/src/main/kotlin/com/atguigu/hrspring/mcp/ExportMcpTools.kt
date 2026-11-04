@@ -4,6 +4,7 @@ import com.atguigu.hrspring.service.DocumentExportService
 import com.atguigu.hrspring.service.ExportResult
 import org.springframework.ai.mcp.annotation.McpTool
 import org.springframework.ai.mcp.annotation.McpToolParam
+import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext
 import org.springframework.stereotype.Component
 
 /** 把已经查到的表格或正文写成 Excel、Word 或 PDF。调用方把 downloadUrl 原样交给用户。 */
@@ -18,6 +19,7 @@ class ExportMcpTools(
     fun exportExcel(
         @McpToolParam(description = "工作表 JSON 数组", required = true) sheets: String,
         @McpToolParam(description = "下载文件名，可不带扩展名", required = false) filename: String?,
+        context: McpSyncRequestContext,
     ): ExportResult = documentExportService.exportExcel(filename, sheets)
 
     @McpTool(
@@ -28,6 +30,7 @@ class ExportMcpTools(
         @McpToolParam(description = "文档标题", required = true) title: String,
         @McpToolParam(description = "正文块 JSON 数组", required = true) blocks: String,
         @McpToolParam(description = "下载文件名，可不带扩展名", required = false) filename: String?,
+        context: McpSyncRequestContext,
     ): ExportResult = documentExportService.exportWord(filename, title, blocks)
 
     @McpTool(
@@ -38,5 +41,6 @@ class ExportMcpTools(
         @McpToolParam(description = "文档标题", required = true) title: String,
         @McpToolParam(description = "正文块 JSON 数组", required = true) blocks: String,
         @McpToolParam(description = "下载文件名，可不带扩展名", required = false) filename: String?,
+        context: McpSyncRequestContext,
     ): ExportResult = documentExportService.exportPdf(filename, title, blocks)
 }

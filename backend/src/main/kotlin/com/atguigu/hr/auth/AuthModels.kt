@@ -29,7 +29,14 @@ data class RoleCreateRequest(val code: String, val name: String)
 data class RoleUpdateRequest(val name: String? = null, val enabled: Boolean? = null)
 
 @Serializable
-data class UserDto(val id: Int, val username: String, val roleCode: String, val enabled: Boolean)
+data class UserDto(
+    val id: Int,
+    val username: String,
+    val roleCode: String,
+    val enabled: Boolean,
+    /** 内置或配置指定的管理员；仅用于界面禁用受保护操作。 */
+    val protected: Boolean = false,
+)
 
 @Serializable
 data class CurrentUserDto(
@@ -72,7 +79,7 @@ data class AuthUser(
 ) {
     val active: Boolean get() = enabled && roleEnabled
     val protectedAccount: Boolean get() = username.equals(AuthService.PROTECTED_USERNAME, ignoreCase = true)
-    fun toDto() = UserDto(id, username, roleCode, enabled)
+    fun toDto(protected: Boolean = protectedAccount) = UserDto(id, username, roleCode, enabled, protected)
     fun effectivePermissions() = PermissionCatalog.effective(this)
     fun hasPermission(code: String) = active && code in effectivePermissions()
     fun toCurrentUser() = CurrentUserDto(id, username, roleCode, enabled, effectivePermissions())

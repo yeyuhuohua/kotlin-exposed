@@ -37,9 +37,12 @@ export function isProtectedRole(code: unknown): boolean {
   return String(code).toUpperCase() === 'ADMIN'
 }
 
-/** 内置 admin 账号与当前登录账号不允许删除（与后端保护规则一致）。 */
-export function isProtectedUser(row: { id?: unknown; username?: unknown }, currentUserId?: number): boolean {
-  return String(row.username ?? '').toLowerCase() === 'admin' || row.id === currentUserId
+/** 后端标记的受保护账号、内置 admin 与当前登录账号不允许删除。 */
+export function isProtectedUser(
+  row: { id?: unknown; username?: unknown; protected?: unknown },
+  currentUserId?: number,
+): boolean {
+  return row.protected === true || String(row.username ?? '').toLowerCase() === 'admin' || row.id === currentUserId
 }
 
 /** 落地页：在后端下发的页面清单中找第一个有权限的，没有任何页面权限时退到「我的账号」。 */

@@ -85,6 +85,8 @@ describe('page and API permissions', () => {
     expect(isProtectedUser({ id: 1, username: 'Admin' }, 2)).toBe(true)
     expect(isProtectedUser({ id: 2, username: 'operator' }, 2)).toBe(true)
     expect(isProtectedUser({ id: 3, username: 'operator' }, 2)).toBe(false)
+    expect(isProtectedUser({ id: 3, username: 'operator', protected: true }, 2)).toBe(true)
+    expect(isProtectedUser({ id: 3, username: 'operator', protected: false }, 2)).toBe(false)
   })
   it('落地页取后端清单中第一个有权限的页面', () => {
     expect(homePath({ ...reader, permissions: ['page:overview', 'page:employees'] }, pages)).toBe('/')

@@ -10,6 +10,7 @@ import com.atguigu.hrspring.service.EmployeeService
 import tools.jackson.databind.JsonNode
 import org.springframework.ai.mcp.annotation.McpTool
 import org.springframework.ai.mcp.annotation.McpToolParam
+import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext
 import org.springframework.stereotype.Component
 
 @Component
@@ -28,6 +29,7 @@ class EmployeeMcpTools(
         @McpToolParam(description = "姓名或邮箱模糊搜索", required = false) q: String?,
         @McpToolParam(description = "为 true 时只查未分配部门的员工，对应 HTTP 的 departmentId=none", required = false)
         unassignedOnly: Boolean?,
+        context: McpSyncRequestContext,
     ): ApiList<EmployeeDto> = employeeService.list(
         pageParams(limit, offset),
         departmentId,
@@ -39,6 +41,7 @@ class EmployeeMcpTools(
     @McpTool(name = "get_employee", description = "按主键查询员工。")
     fun getEmployee(
         @McpToolParam(description = "员工主键 employee_id", required = true) id: Int,
+        context: McpSyncRequestContext,
     ): EmployeeDto = employeeService.get(id)
 
     @McpTool(
@@ -57,6 +60,7 @@ class EmployeeMcpTools(
         @McpToolParam(description = "提成比例，0 到 1", required = false) commissionPct: Double?,
         @McpToolParam(description = "直属经理 employee_id", required = false) managerId: Int?,
         @McpToolParam(description = "所属部门 ID", required = false) departmentId: Int?,
+        context: McpSyncRequestContext,
     ): EmployeeDto = employeeService.create(
         EmployeeCreateRequest().apply {
             this.employeeId = employeeId
@@ -80,6 +84,7 @@ class EmployeeMcpTools(
         @McpToolParam(description = "所属部门 ID；不传则不改", required = false) departmentId: Int?,
         @McpToolParam(description = "岗位编码；不传则不改", required = false) jobId: String?,
         @McpToolParam(description = "电话；不传则不改", required = false) phoneNumber: String?,
+        context: McpSyncRequestContext,
     ): EmployeeDto = employeeService.update(
         id,
         EmployeeUpdateRequest().apply {
@@ -100,11 +105,13 @@ class EmployeeMcpTools(
             description = "要修改的字段对象。显式 null 清空可空列，缺省字段不改",
             required = true,
         ) patch: JsonNode,
+        context: McpSyncRequestContext,
     ): EmployeeDto = employeeService.patch(id, EmployeePatch.parse(patch))
 
     @McpTool(name = "delete_employee", description = "删除员工并清除相关缓存。被任职历史等外键引用时会失败。")
     fun deleteEmployee(
         @McpToolParam(description = "员工主键 employee_id", required = true) id: Int,
+        context: McpSyncRequestContext,
     ): String {
         employeeService.delete(id)
         return "deleted"
@@ -113,11 +120,13 @@ class EmployeeMcpTools(
     @McpTool(name = "get_employee_details", description = "查询员工详情，包含岗位、部门、地点、国家和区域。")
     fun getEmployeeDetails(
         @McpToolParam(description = "员工主键 employee_id", required = true) id: Int,
+        context: McpSyncRequestContext,
     ): EmployeeDetailDto = employeeService.getDetail(id)
 
     @McpTool(name = "list_emp_details", description = "分页查询员工详情视图 emp_details_view。视图没有邮箱、电话和入职日期。")
     fun listEmpDetails(
         @McpToolParam(description = "每页条数，默认 50，最大 200", required = false) limit: Int?,
         @McpToolParam(description = "跳过条数，默认 0", required = false) offset: Long?,
+        context: McpSyncRequestContext,
     ): ApiList<EmployeeDetailDto> = employeeService.listDetails(pageParams(limit, offset))
 }

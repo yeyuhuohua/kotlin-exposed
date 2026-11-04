@@ -41,10 +41,11 @@ function hasUnsafePathCharacters(value: string) {
   })
 }
 async function submit() {
-  if (busy.value || !(await formRef.value?.validate().catch(() => false))) return
+  if (busy.value) return
   busy.value = true
-  error.value = ''
   try {
+    if (!(await formRef.value?.validate().catch(() => false))) return
+    error.value = ''
     await auth.login(form.username.trim(), form.password)
     if (form.remember) saveCredentials(form.username.trim(), form.password)
     else clearCredentials()

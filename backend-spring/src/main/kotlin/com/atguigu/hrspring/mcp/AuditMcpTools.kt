@@ -5,6 +5,7 @@ import com.atguigu.hrspring.service.AuditQueryService
 import com.atguigu.hrspring.common.api.ApiList
 import org.springframework.ai.mcp.annotation.McpTool
 import org.springframework.ai.mcp.annotation.McpToolParam
+import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext
 import org.springframework.stereotype.Component
 
 @Component
@@ -17,6 +18,7 @@ class AuditMcpTools(
         @McpToolParam(description = "跳过条数，默认 0", required = false) offset: Long?,
         @McpToolParam(description = "按用户名包含匹配", required = false) username: String?,
         @McpToolParam(description = "true 仅成功，false 仅失败，不传则不过滤", required = false) success: Boolean?,
+        context: McpSyncRequestContext,
     ): ApiList<LoginRecordDto> = auditQueryService.listLogins(
         limit = limit,
         offset = offset,
@@ -31,6 +33,7 @@ class AuditMcpTools(
         @McpToolParam(description = "按用户名包含匹配", required = false) username: String?,
         @McpToolParam(description = "HTTP 方法，例如 GET", required = false) method: String?,
         @McpToolParam(description = "路径前缀，例如 /api/employees", required = false) path: String?,
+        context: McpSyncRequestContext,
     ): ApiList<ApiCallRecordDto> = auditQueryService.listApiCalls(
         limit = limit,
         offset = offset,
