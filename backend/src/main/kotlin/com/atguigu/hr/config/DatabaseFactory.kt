@@ -14,6 +14,7 @@ object DatabaseFactory {
     lateinit var database: R2dbcDatabase
         private set
 
+    /** 建立连接并初始化后续操作所需的客户端。 */
     fun connect(config: ApplicationConfig) {
         val host = config.property("database.host").getString()
         val port = config.property("database.port").getString()

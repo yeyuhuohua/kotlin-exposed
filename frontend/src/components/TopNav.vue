@@ -31,6 +31,7 @@ const tailPages = computed(() =>
 
 const DOCS_INDEX = '__docs__'
 
+/** 根据顶部导航选择项跳转到对应页面。 */
 function onSelect(index: string) {
   if (index === DOCS_INDEX) {
     window.open(docsHref(docsPaths.swagger), '_blank', 'noopener')

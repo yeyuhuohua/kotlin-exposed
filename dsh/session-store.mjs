@@ -1,14 +1,17 @@
 const sessionCookie = 'hr-dsh-session'
 
+/** 从请求 Cookie 中提取不透明 HR 会话 ID。 */
 export function sessionId(req) {
   return (req.headers.cookie || '').split(';').map((part) => part.trim())
     .find((part) => part.startsWith(`${sessionCookie}=`))?.slice(sessionCookie.length + 1)
 }
 
+/** 创建带身份复核和撤销能力的内存会话存储。 */
 export function createSessionStore({ hrApi, fetchImpl, timeoutMs, agentBindings }) {
   const sessions = new Map()
   const validations = new Map()
 
+  /** 撤销指定会话及其全部 Agent 绑定。 */
   function revoke(id) {
     const session = sessions.get(id)
     sessions.delete(id)
@@ -17,6 +20,7 @@ export function createSessionStore({ hrApi, fetchImpl, timeoutMs, agentBindings 
     for (const socket of session.sockets || []) socket.destroy()
   }
 
+  /** 使用当前 JWT 向 Spring 复核账号是否仍然有效。 */
   async function activeUser(authorization) {
     if (!authorization) return null
     const existing = validations.get(authorization)
@@ -43,6 +47,7 @@ export function createSessionStore({ hrApi, fetchImpl, timeoutMs, agentBindings 
     }
   }
 
+  /** 返回未过期且身份复核通过的原会话。 */
   async function authorizedSession(req) {
     const id = sessionId(req)
     const session = sessions.get(id)

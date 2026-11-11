@@ -25,11 +25,13 @@ class TDeptService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /** 查询示例部门列表。 */
     @Cacheable(cacheNames = [CacheNames.T_DEPT], key = "'all'")
     @Transactional(readOnly = true)
     fun list(): List<TDeptDto> =
         tDeptMapper.selectList(KtQueryWrapper(TDeptEntity::class.java).orderByAsc(TDeptEntity::id)).map { it.toDto() }
 
+    /** 新增示例部门并返回保存后的记录。 */
     @CacheEvict(cacheNames = [CacheNames.T_DEPT, CacheNames.OVERVIEW], allEntries = true)
     @Transactional
     fun create(@Valid body: TDeptCreateRequest): TDeptDto {
@@ -47,6 +49,7 @@ class TDeptService(
             ?: error("t_dept insert missing row")
     }
 
+    /** 更新指定示例部门。 */
     @CacheEvict(cacheNames = [CacheNames.T_DEPT, CacheNames.OVERVIEW], allEntries = true)
     @Transactional
     fun update(id: Int, @Valid patch: TDeptUpdateRequest): TDeptDto {
@@ -69,8 +72,10 @@ class TDeptService(
             KtQueryWrapper(TDeptEntity::class.java).eq(TDeptEntity::id, id).last("FOR UPDATE"),
         ).firstOrNull()
 
+    /** 重新加载示例部门，绕过已有缓存。 */
     private fun reload(id: Int): TDeptDto? = tDeptMapper.selectById(id)?.toDto()
 
+    /** 将示例部门数据转换为对外传输对象。 */
     private fun TDeptEntity.toDto() = TDeptDto(
         id = checkNotNull(id),
         deptName = deptName,

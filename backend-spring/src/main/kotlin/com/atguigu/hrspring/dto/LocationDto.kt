@@ -43,6 +43,7 @@ data class LocationUpdateRequest(
     @field:CodePointSize(max = 2, message = "countryId must be at most 2 characters")
     val countryId: String? = null,
 ) {
+    /** 判断请求是否至少包含一个可更新字段。 */
     @JsonIgnore
     @AssertTrue(message = "no fields to update")
     fun hasUpdates(): Boolean =

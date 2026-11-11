@@ -27,6 +27,7 @@ class AuthUserCache(
 
     val enabled: Boolean get() = ttlMillis > 0
 
+    /** 按用户 ID 和 Token 版本读取有效的鉴权缓存。 */
     fun get(userId: Int, tokenVersion: Int): AuthUser? {
         if (shared?.advanced() == true) clearLocal()
         if (!enabled) return null
@@ -41,6 +42,7 @@ class AuthUserCache(
     /** 返回当前代次,供 load 前后比对。 */
     fun generation(): Long = generation.get()
 
+    /** 写入鉴权缓存，并拒绝已过期或失效代次产生的旧数据。 */
     fun put(userId: Int, tokenVersion: Int, user: AuthUser, loadGeneration: Long, loadedAt: Long = System.currentTimeMillis()) {
         if (!enabled) return
         synchronized(lock) {
@@ -51,6 +53,7 @@ class AuthUserCache(
         }
     }
 
+    /** 推进指定用户的失效时间，防止旧鉴权缓存重新生效。 */
     fun invalidateUser(userId: Int) {
         synchronized(lock) {
             entries.keys.removeIf { it.startsWith("$userId:") }
@@ -65,6 +68,7 @@ class AuthUserCache(
         shared?.broadcast()
     }
 
+    /** 清理当前进程内的鉴权缓存。 */
     private fun clearLocal() {
         synchronized(lock) {
             entries.clear()

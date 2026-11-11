@@ -102,6 +102,7 @@ const distribution = computed(() => [
 ])
 const averageSalary = computed(() => data.value?.overview.salarySummary.averageSalary ?? null)
 const employeeTotal = computed(() => data.value?.overview.employeeTotal ?? 0)
+/** 取得部门显示名称，未分配部门使用统一文案。 */
 function departmentName(id: number | null) {
   return (
     data.value?.overview.departments.find((department) => department.departmentId === id)?.departmentName ||

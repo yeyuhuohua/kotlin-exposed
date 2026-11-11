@@ -15,6 +15,7 @@ import org.jetbrains.exposed.v1.r2dbc.update
 /** 示例部门持久层：使用 R2DBC 挂起事务，并在事务结束前收集查询结果。 */
 
 object TDeptRepository {
+    /** 查询示例部门列表。 */
     suspend fun listTDept(): List<TDeptDto> = dbQuery {
         TDept.selectAll()
             .orderBy(TDept.id to SortOrder.ASC)
@@ -22,6 +23,7 @@ object TDeptRepository {
             .toList()
     }
 
+    /** 查询示例部门。 */
     suspend fun findTDept(id: Int): TDeptDto? = dbQuery {
         TDept.selectAll()
             .where { TDept.id eq id }
@@ -29,6 +31,7 @@ object TDeptRepository {
             .firstOrNull()
     }
 
+    /** 更新示例部门。 */
     suspend fun updateTDept(id: Int, patch: TDeptUpdateRequest): TDeptDto? = dbUpdate {
         val rows = TDept.update({ TDept.id eq id }) {
             patch.deptName?.let { value -> it[deptName] = value }
@@ -37,6 +40,7 @@ object TDeptRepository {
         if (rows == 0) null else loadTDept(id)
     }
 
+    /** 新增示例部门。 */
     suspend fun createTDept(body: TDeptCreateRequest): TDeptDto = dbUpdate {
         val stmt = TDept.insert {
             it[deptName] = body.deptName
@@ -45,6 +49,7 @@ object TDeptRepository {
         loadTDept(stmt[TDept.id]) ?: error("t_dept insert missing row")
     }
 
+    /** 加载示例部门。 */
     private suspend fun loadTDept(id: Int): TDeptDto? =
         TDept.selectAll()
             .where { TDept.id eq id }
@@ -52,6 +57,7 @@ object TDeptRepository {
             .firstOrNull()
 }
 
+/** 将持久层数据转换为示例部门传输对象。 */
 private fun ResultRow.toTDept() = TDeptDto(
     id = this[TDept.id],
     deptName = this[TDept.deptName],

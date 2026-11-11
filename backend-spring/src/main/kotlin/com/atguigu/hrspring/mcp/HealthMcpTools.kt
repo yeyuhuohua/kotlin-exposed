@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component
 class HealthMcpTools(
     private val healthService: HealthService,
 ) {
+    /** 检查 MySQL 与 Redis 是否可用。status 为 UP 或 DOWN。 */
     @McpTool(name = "get_health", description = "检查 MySQL 与 Redis 是否可用。status 为 UP 或 DOWN。")
     fun getHealth(context: McpSyncRequestContext): HealthDto = healthService.check().first
 }

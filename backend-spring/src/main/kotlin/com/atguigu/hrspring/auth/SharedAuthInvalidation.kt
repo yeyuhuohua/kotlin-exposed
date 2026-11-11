@@ -11,6 +11,7 @@ class SharedAuthInvalidation(private val redis: StringRedisTemplate) {
     private var pending = false
     private var retryAt = 0L
 
+    /** 合并两个失效时间，确保失效版本只能向前推进。 */
     @Synchronized
     fun advanced(): Boolean {
         if (System.nanoTime() < retryAt) return false
@@ -29,6 +30,7 @@ class SharedAuthInvalidation(private val redis: StringRedisTemplate) {
         }
     }
 
+    /** 向另一个后端广播鉴权失效时间。 */
     @Synchronized
     fun broadcast() {
         pending = true

@@ -7,6 +7,7 @@ import com.atguigu.hr.common.cache.RedisCache
 object TDeptCache {
     const val T_DEPT = "hr:t-dept"
 
+    /** 清除全部示例部门列表缓存。 */
     suspend fun evictList() {
         RedisCache.evict(T_DEPT)
     }

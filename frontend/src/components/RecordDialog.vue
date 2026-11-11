@@ -62,15 +62,18 @@ const { options, loading, lookupError, loadOptions } = useRecordOptions(fields, 
 for (const field of fields.value)
   values[field.key] = props.original?.[field.key] ?? field.default ?? (field.type === 'checkbox' ? false : '')
 const self = computed(() => props.endpoint === usersPaths.collection && props.original?.id === auth.user?.id)
+/** 判断指定字段在当前记录和权限下是否禁止编辑。 */
 const disabledField = (field: Field) =>
   (self.value || (props.endpoint === usersPaths.collection && (props.original?.protected === true || props.original?.username === 'admin'))) &&
   ['enabled', 'roleCode'].includes(field.key)
 const rules = computed<FormRules>(() => recordRules(fields.value, props.original))
+/** 将表单值转换为数值；空值按字段约定返回 null。 */
 function numericValue(key: string): number | undefined {
   const value = values[key]
   return value === '' || value === null || value === undefined ? undefined : Number(value)
 }
 onMounted(loadOptions)
+/** 校验并保存当前编辑内容。 */
 async function save() {
   if (busy.value || loading.value || lookupError.value) return
   // 异步校验期间也要锁定，避免连续提交产生重复写入。

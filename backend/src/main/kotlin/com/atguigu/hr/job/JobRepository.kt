@@ -15,6 +15,7 @@ import org.jetbrains.exposed.v1.r2dbc.update
 /** 岗位持久层：使用 R2DBC 挂起事务，并在事务结束前收集查询结果。 */
 
 object JobRepository {
+    /** 查询岗位列表。 */
     suspend fun listJobs(): List<JobDto> = dbQuery {
         Jobs.selectAll()
             .orderBy(Jobs.jobId to SortOrder.ASC)
@@ -22,6 +23,7 @@ object JobRepository {
             .toList()
     }
 
+    /** 查询岗位。 */
     suspend fun findJob(jobId: String): JobDto? = dbQuery {
         Jobs.selectAll()
             .where { Jobs.jobId eq jobId }
@@ -48,6 +50,7 @@ object JobRepository {
         loadJob(jobId)
     }
 
+    /** 新增岗位。 */
     suspend fun createJob(body: JobCreateRequest): JobDto = dbUpdate {
         Jobs.insert {
             it[jobId] = body.jobId
@@ -58,6 +61,7 @@ object JobRepository {
         loadJob(body.jobId) ?: error("job insert missing row")
     }
 
+    /** 加载岗位。 */
     private suspend fun loadJob(jobId: String): JobDto? =
         Jobs.selectAll()
             .where { Jobs.jobId eq jobId }
@@ -65,6 +69,7 @@ object JobRepository {
             .firstOrNull()
 }
 
+/** 将持久层数据转换为岗位传输对象。 */
 private fun ResultRow.toJob() = JobDto(
     jobId = this[Jobs.jobId],
     jobTitle = this[Jobs.jobTitle],

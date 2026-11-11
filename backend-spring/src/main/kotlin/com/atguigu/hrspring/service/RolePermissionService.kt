@@ -42,10 +42,12 @@ internal class RolePermissionService(
     private val tx = TransactionTemplate(transactionManager)
     private val readTx = TransactionTemplate(transactionManager).apply { isReadOnly = true }
 
+    /** 查询角色列表。 */
     fun listRoles(): List<RoleDto> =
         roleMapper.selectList(KtQueryWrapper(RoleEntity::class.java).orderByAsc(RoleEntity::code))
             .map { it.toDto() }
 
+    /** 新增角色。 */
     fun createRole(@Valid body: RoleCreateRequest): RoleDto {
         val code = body.code.trim().uppercase(Locale.ROOT)
         val name = body.name.trim()
@@ -73,6 +75,7 @@ internal class RolePermissionService(
         return created
     }
 
+    /** 更新角色。 */
     fun updateRole(@RoleCode rawCode: String, @Valid body: RoleUpdateRequest): RoleDto {
         val code = rawCode.trim().uppercase(Locale.ROOT)
         val name = body.name?.trim()
@@ -104,6 +107,7 @@ internal class RolePermissionService(
         }
     }
 
+    /** 删除角色。 */
     fun deleteRole(@RoleCode rawCode: String): Boolean {
         val code = rawCode.trim().uppercase(Locale.ROOT)
         if (code == Roles.ADMIN) {
@@ -137,6 +141,7 @@ internal class RolePermissionService(
         return removed
     }
 
+    /** 查询角色权限。 */
     fun getRolePermissions(actor: AuthUser, @RoleCode rawCode: String): RolePermissionsDto {
         val code = rawCode.trim().uppercase(Locale.ROOT)
         requirePermissionAdmin(actor, "GET")
@@ -144,6 +149,7 @@ internal class RolePermissionService(
             ?: throw ApiException.notFound("role not found")
     }
 
+    /** 更新角色权限。 */
     fun updateRolePermissions(
         actor: AuthUser,
         @RoleCode rawCode: String,
@@ -159,6 +165,7 @@ internal class RolePermissionService(
         }
     }
 
+    /** 加载角色权限。 */
     private fun loadRolePermissions(code: String): RolePermissionsDto? {
         val role = roleMapper.selectById(code) ?: return null
         val profile = profileMapper.selectOne(
@@ -172,6 +179,7 @@ internal class RolePermissionService(
         )
     }
 
+    /** 读取指定角色的权限码集合。 */
     private fun roleGrants(code: String): Set<String> {
         if (code == Roles.ADMIN) return PermissionCatalog.defaults(code)
         return rolePermissionMapper.selectList(
@@ -181,6 +189,7 @@ internal class RolePermissionService(
             .filterTo(linkedSetOf()) { grantable(it) }
     }
 
+    /** 整体替换角色权限，并处理关联的鉴权缓存失效。 */
     private fun replaceRolePermissions(code: String, request: RolePermissionsRequest): RolePermissionsDto {
         if (code == Roles.ADMIN) {
             throw ApiException(403, "ADMIN role is protected", ErrorCode.ROLE_PROTECTED)
@@ -236,6 +245,7 @@ internal class RolePermissionService(
         return loadRolePermissions(code) ?: throw ApiException.notFound("role not found")
     }
 
+    /** 查询菜单是否要求管理员访问。 */
     private fun menuAdminOnlyByKey(): Map<String, Boolean> =
         menuService.pageDefinitions().associate { dto ->
             val raw = dto.code
@@ -243,6 +253,7 @@ internal class RolePermissionService(
             key to dto.adminOnly
         }
 
+    /** 提升角色下所有用户的 Token 版本，撤销旧会话。 */
     private fun revokeRoleTokens(code: String) {
         userMapper.update(
             null,
@@ -252,6 +263,7 @@ internal class RolePermissionService(
         )
     }
 
+    /** 要求当前用户是拥有指定权限的管理员。 */
     private fun requirePermissionAdmin(actor: AuthUser, method: String) {
         val code = "api:$method:/api/auth/roles/{code}/permissions"
         if (actor.roleCode != Roles.ADMIN || !actor.hasPermission(code)) {

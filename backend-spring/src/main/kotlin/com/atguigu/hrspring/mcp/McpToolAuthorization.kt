@@ -20,6 +20,7 @@ import java.util.concurrent.CancellationException
 object McpToolPermissions {
     private data class ApiGrant(val method: String, val path: String)
 
+    /** 登记工具对应的 HTTP 方法和路径，用于复用接口权限码。 */
     private fun api(method: String, path: String) = ApiGrant(method, path)
 
     private val loginOnly = setOf(
@@ -82,6 +83,7 @@ object McpToolPermissions {
         put("delete_menu", api("DELETE", "/menus/{key}"))
     }
 
+    /** 判断用户是否启用，以及是否拥有指定工具对应的接口权限。 */
     fun isAllowed(toolName: String, user: AuthUser): Boolean {
         if (!user.active) return false
         if (toolName in loginOnly) return true
@@ -89,10 +91,12 @@ object McpToolPermissions {
         return user.hasPermission(permission)
     }
 
+    /** 把 MCP 工具名映射为 HTTP 接口权限码；未登记的工具返回 null。 */
     internal fun permissionCode(toolName: String): String? = required[toolName]?.let { grant ->
         PermissionCatalog.requiredApi(grant.method, "/api${grant.path}")?.code
     }
 
+    /** 要求当前线程存在已认证用户，并在无工具权限时抛出 403。 */
     fun authorize(toolName: String) {
         val user = CurrentUserHolder.require()
         if (!isAllowed(toolName, user)) throw ApiException.forbidden()
@@ -105,6 +109,7 @@ object McpToolPermissions {
 class McpToolAuthorizationAspect {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /** 从 MCP 上下文恢复用户，在工具调用期间完成鉴权，并在结束后清理线程身份。 */
     @Around("@annotation(tool)")
     fun authorize(joinPoint: ProceedingJoinPoint, tool: McpTool): Any? {
         val context = joinPoint.args.filterIsInstance<McpSyncRequestContext>().firstOrNull()
@@ -118,6 +123,7 @@ class McpToolAuthorizationAspect {
         }
     }
 
+    /** 先校验工具权限，再执行业务方法并统一处理工具异常。 */
     private fun invoke(joinPoint: ProceedingJoinPoint, tool: McpTool): Any? {
         McpToolPermissions.authorize(tool.name)
         return try {

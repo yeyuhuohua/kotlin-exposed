@@ -23,17 +23,20 @@ import org.springframework.web.bind.annotation.RestController
 class MenuController(
     private val menuService: MenuService,
 ) {
+    /** 查询菜单列表。 */
     @Operation(summary = "查询全部菜单（含停用，仅 ADMIN）；当前用户可见菜单用 GET /api/auth/routes")
     @GetMapping("/api/menus")
     fun list(): ResponseEntity<ApiResult<List<MenuDto>>> {
         return cachedOk(menuService.list())
     }
 
+    /** 新增菜单并返回保存后的记录。 */
     @Operation(summary = "新增菜单（仅 ADMIN）；key 与路径全局唯一，adminOnly 创建后不可再改")
     @PostMapping("/api/menus")
     fun create(@RequestBody request: MenuCreateRequest): ResponseEntity<ApiResult<MenuDto>> =
         body(menuService.create(request), "created")
 
+    /** 更新指定菜单。 */
     @Operation(summary = "整体替换菜单的标题、路径、图标、分组、排序与状态（仅 ADMIN）")
     @PutMapping("/api/menus/{key}")
     fun update(
@@ -41,6 +44,7 @@ class MenuController(
         @RequestBody request: MenuUpdateRequest,
     ): ResponseEntity<ApiResult<MenuDto>> = body(menuService.update(key, request), "updated")
 
+    /** 删除指定菜单。 */
     @Operation(summary = "删除菜单并清理各角色持有的页面授权（仅 ADMIN）；内置菜单不可删除")
     @DeleteMapping("/api/menus/{key}")
     fun delete(@PathVariable key: String): ResponseEntity<ApiResult<String>> {

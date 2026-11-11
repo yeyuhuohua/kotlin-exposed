@@ -20,6 +20,7 @@ object OverviewService {
     suspend fun loadOverview(): Cached<OverviewDto> =
         RedisCache.getOrLoad(OverviewCache.OVERVIEW) { loadFromDb() }
 
+    /** 从数据库重新聚合工作概览数据。 */
     private suspend fun loadFromDb(): OverviewDto = coroutineScope {
         val started = System.nanoTime()
         val employeesDeferred = async {

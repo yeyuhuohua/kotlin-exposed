@@ -38,6 +38,7 @@ class MenuService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /** 查询菜单列表。 */
     @Cacheable(cacheNames = [CacheNames.MENUS], key = "'all'")
     @Transactional(readOnly = true)
     fun list(): List<MenuDto> =
@@ -86,6 +87,7 @@ class MenuService(
         )
     }
 
+    /** 新增菜单并返回保存后的记录。 */
     @CacheEvict(cacheNames = [CacheNames.MENUS], allEntries = true)
     @Transactional
     fun create(@Valid request: MenuCreateRequest): MenuDto {
@@ -109,6 +111,7 @@ class MenuService(
         return entity.toDto()
     }
 
+    /** 更新指定菜单。 */
     @CacheEvict(cacheNames = [CacheNames.MENUS], allEntries = true)
     @Transactional
     fun update(@MenuKey key: String, @Valid request: MenuUpdateRequest): MenuDto {
@@ -138,6 +141,7 @@ class MenuService(
         return menuMapper.selectById(key)?.toDto() ?: error("menu update missing row")
     }
 
+    /** 删除指定菜单。 */
     @CacheEvict(cacheNames = [CacheNames.MENUS], allEntries = true)
     @Transactional
     fun delete(@MenuKey key: String) {
@@ -156,6 +160,7 @@ class MenuService(
             KtQueryWrapper(MenuEntity::class.java).eq(MenuEntity::key, key).last("FOR UPDATE"),
         ).firstOrNull()
 
+    /** 将菜单数据转换为对外传输对象。 */
     private fun MenuEntity.toDto() = MenuDto(
         key = key,
         title = title,

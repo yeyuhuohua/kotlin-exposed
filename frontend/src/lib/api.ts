@@ -47,9 +47,11 @@ const errorMessages: Record<string, string> = {
 export const apiBaseUrl: string =
   import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? 'http://127.0.0.1:8081' : '')
 
+/** 发送带 Bearer Token、超时和取消处理的 API 请求，并统一转换响应错误。 */
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const token = options.auth === false ? undefined : readSession()?.token
   const controller = new AbortController()
+  /** 取消当前 API 请求，并保留外部请求的取消原因。 */
   const abort = () => controller.abort(options.signal?.reason)
   if (options.signal?.aborted) abort()
   else options.signal?.addEventListener('abort', abort, { once: true })
@@ -109,6 +111,7 @@ export function messageForStatus(status: number, error: string | null | undefine
   return '请求失败，请重试'
 }
 
+/** 把非空查询参数编码为 URL 查询字符串。 */
 export function query(params: Record<string, string | number | undefined | null>) {
   const result = new URLSearchParams()
   Object.entries(params).forEach(([key, value]) => {

@@ -7,6 +7,7 @@ import com.atguigu.hr.common.cache.RedisCache
 object TEmpCache {
     const val T_EMP = "hr:t-emp"
 
+    /** 清除全部示例人员列表缓存。 */
     suspend fun evictList() {
         RedisCache.evict(T_EMP)
     }

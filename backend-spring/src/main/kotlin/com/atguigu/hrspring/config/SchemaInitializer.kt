@@ -15,6 +15,7 @@ import java.util.Locale
 @Configuration
 class SchemaInitializer {
 
+    /** 应用启动时按固定顺序初始化角色、菜单、权限和管理员。 */
     @Bean
     fun schemaInitializerRunner(
         jdbcTemplate: JdbcTemplate,
@@ -42,6 +43,7 @@ class SchemaInitializer {
         }
     }
 
+    /** 写入缺失的内置角色，不覆盖已有角色配置。 */
     private fun seedRoles(jdbcTemplate: JdbcTemplate) {
         jdbcTemplate.update(
             "INSERT IGNORE INTO auth_roles (code, name, enabled) VALUES ('ADMIN', 'Administrator', 1), ('READER', 'Read only', 1)",
@@ -51,6 +53,7 @@ class SchemaInitializer {
         )
     }
 
+    /** 写入缺失的内置菜单，保留管理员后续修改。 */
     private fun seedMenus(jdbcTemplate: JdbcTemplate) {
         MENU_SEEDS.forEach { seed ->
             jdbcTemplate.update(
@@ -66,6 +69,7 @@ class SchemaInitializer {
         }
     }
 
+    /** 为内置查询角色补齐默认读取权限。 */
     private fun seedReaderGrants(jdbcTemplate: JdbcTemplate) {
         val codes = PermissionCatalog.defaults(Roles.READER).toMutableSet()
         MENU_SEEDS.filter { it.adminOnly == 0 && it.key != "chat" }.forEach { codes.add("page:${it.key}") }
@@ -77,6 +81,7 @@ class SchemaInitializer {
         }
     }
 
+    /** 在配置允许时创建初始管理员账号。 */
     private fun seedAdmin(
         jdbcTemplate: JdbcTemplate,
         passwordHasher: PasswordHasher,

@@ -23,6 +23,7 @@ data class TEmpUpdateRequest(
     val deptId: Int? = null,
     val empno: Int? = null,
 ) {
+    /** 判断请求是否至少包含一个可更新字段。 */
     @JsonIgnore
     @AssertTrue(message = "no fields to update")
     fun hasUpdates(): Boolean = name != null || age != null || deptId != null || empno != null

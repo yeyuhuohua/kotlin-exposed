@@ -16,23 +16,27 @@ class GeographyService(
     private val countryMapper: CountryMapper,
     private val regionMapper: RegionMapper,
 ) {
+    /** 查询国家列表。 */
     @Cacheable(cacheNames = [CacheNames.COUNTRIES], key = "'all'")
     @Transactional(readOnly = true)
     fun listCountries(): List<CountryDto> =
         countryMapper.selectList(KtQueryWrapper(CountryEntity::class.java).orderByAsc(CountryEntity::countryId)).map { it.toDto() }
 
+    /** 查询区域列表。 */
     @Cacheable(cacheNames = [CacheNames.REGIONS], key = "'all'")
     @Transactional(readOnly = true)
     fun listRegions(): List<RegionDto> =
         regionMapper.selectList(KtQueryWrapper(RegionEntity::class.java).orderByAsc(RegionEntity::regionId)).map { it.toDto() }
 }
 
+/** 将国家与地区数据转换为对外传输对象。 */
 private fun CountryEntity.toDto() = CountryDto(
     countryId = countryId,
     countryName = countryName,
     regionId = regionId,
 )
 
+/** 将国家与地区数据转换为对外传输对象。 */
 private fun RegionEntity.toDto() = RegionDto(
     regionId = checkNotNull(regionId),
     regionName = regionName,

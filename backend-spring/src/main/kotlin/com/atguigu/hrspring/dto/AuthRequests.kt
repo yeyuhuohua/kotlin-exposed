@@ -32,6 +32,7 @@ data class UserUpdateRequest(
     @field:Password
     val password: String? = null,
 ) {
+    /** 判断请求是否至少包含一个可更新字段。 */
     @JsonIgnore
     @AssertTrue(message = "no fields to update")
     fun hasUpdates(): Boolean = roleCode != null || enabled != null || password != null
@@ -51,6 +52,7 @@ data class RoleUpdateRequest(
     val name: String? = null,
     val enabled: Boolean? = null,
 ) {
+    /** 判断请求是否至少包含一个可更新字段。 */
     @JsonIgnore
     @AssertTrue(message = "no fields to update")
     fun hasUpdates(): Boolean = name != null || enabled != null

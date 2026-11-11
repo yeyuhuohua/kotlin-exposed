@@ -44,6 +44,7 @@ class EmployeeService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /** 查询员工列表。 */
     @Cacheable(
         cacheNames = [CacheNames.EMPLOYEES],
         key = "T(com.atguigu.hrspring.common.cache.CacheKeys).employees(#page, #departmentId, #jobId, #q, #unassignedOnly)",
@@ -62,6 +63,7 @@ class EmployeeService(
         return ApiList(rows.total, rows.items.map { it.toDto() })
     }
 
+    /** 查询按部门筛选的员工列表。 */
     @Cacheable(cacheNames = [CacheNames.EMPLOYEES_BY_DEPT], key = "#departmentId")
     fun listByDepartment(departmentId: Int): List<EmployeeDto> =
         employeeMapper.selectList(
@@ -100,16 +102,19 @@ class EmployeeService(
         )
     }
 
+    /** 查询指定员工。 */
     @Cacheable(cacheNames = [CacheNames.EMPLOYEE], key = "#id")
     fun get(id: Int): EmployeeDto =
         employeeMapper.selectById(id)?.toDto()
             ?: throw ApiException.notFound("employee not found")
 
+    /** 查询员工关联详情。 */
     @Cacheable(cacheNames = [CacheNames.EMPLOYEE_DETAILS], key = "#id")
     fun getDetail(id: Int): EmployeeDetailDto =
         employeeMapper.findDetail(id)?.toDetail()
             ?: throw ApiException.notFound("employee not found")
 
+    /** 查询员工详情视图列表。 */
     @Cacheable(cacheNames = [CacheNames.EMP_DETAILS], key = "#page.limit + ':' + #page.offset")
     fun listDetails(page: PageParams): ApiList<EmployeeDetailDto> {
         val rows = empDetailsViewMapper.selectPage(page) {
@@ -118,6 +123,7 @@ class EmployeeService(
         return ApiList(rows.total, rows.items.map { it.toDto() })
     }
 
+    /** 新增员工并返回保存后的记录。 */
     @EvictEmployeeGraphs
     @Transactional
     fun create(@Valid request: EmployeeCreateRequest): EmployeeDto {
@@ -141,6 +147,7 @@ class EmployeeService(
         }
     }
 
+    /** 更新指定员工。 */
     @EvictEmployeeGraphs
     @Transactional
     fun update(id: Int, @Valid request: EmployeeUpdateRequest): EmployeeDto {
@@ -156,6 +163,7 @@ class EmployeeService(
         }
     }
 
+    /** 按请求中显式提交的字段部分更新员工。 */
     @EvictEmployeeGraphs
     @Transactional
     fun patch(id: Int, @Valid patch: EmployeePatch): EmployeeDto {
@@ -174,6 +182,7 @@ class EmployeeService(
         }
     }
 
+    /** 删除指定员工。 */
     @EvictEmployeeGraphs
     @Transactional
     fun delete(id: Int) {
@@ -191,10 +200,12 @@ class EmployeeService(
                 .last("FOR UPDATE"),
         ).firstOrNull()
 
+    /** 加载当前页面所需的数据。 */
     private fun load(id: Int): EmployeeDto =
         employeeMapper.selectById(id)?.toDto()
             ?: throw ApiException.notFound("employee not found")
 
+    /** 执行员工写入，并把数据库约束异常转换为稳定的业务错误。 */
     private fun <T> write(conflictMessage: String, block: () -> T): T {
         try {
             return block()
@@ -220,6 +231,7 @@ class EmployeeService(
 )
 internal annotation class EvictEmployeeGraphs
 
+/** 向员工查询追加分页前的部门、岗位和关键字条件。 */
 private fun KtQueryWrapper<EmployeeEntity>.applyEmployeeFilters(
     departmentId: Int?,
     jobId: String?,
@@ -255,6 +267,7 @@ private fun KtUpdateWrapper<EmployeeEntity>.assign(column: KProperty1<EmployeeEn
     }
 }
 
+/** 将员工数据转换为对外传输对象。 */
 private fun EmployeeEntity.toDto() = EmployeeDto(
     employeeId = checkNotNull(employeeId),
     firstName = firstName,
@@ -269,6 +282,7 @@ private fun EmployeeEntity.toDto() = EmployeeDto(
     departmentId = departmentId,
 )
 
+/** 将员工数据转换为对外传输对象。 */
 private fun EmpDetailsViewEntity.toDto() = EmployeeDetailDto(
     employeeId = employeeId,
     firstName = firstName,
@@ -319,6 +333,7 @@ private fun Map<*, *>.getAny(name: String): Any? {
     return this[found]
 }
 
+/** 把数据库聚合值转换为长整数。 */
 private fun Any?.asLong(): Long = when (this) {
     null -> 0L
     is BigDecimal -> toLong()
@@ -327,6 +342,7 @@ private fun Any?.asLong(): Long = when (this) {
     else -> toString().toLong()
 }
 
+/** 把数据库聚合值转换为双精度数，空值返回 null。 */
 private fun Any?.asDouble(): Double? = when (this) {
     null -> null
     is BigDecimal -> toDouble()
@@ -334,6 +350,7 @@ private fun Any?.asDouble(): Double? = when (this) {
     else -> toString().toDoubleOrNull()
 }
 
+/** 把数据库聚合值转换为整数。 */
 private fun Any?.asInt(): Int? = when (this) {
     null -> null
     is BigDecimal -> toInt()
@@ -342,12 +359,14 @@ private fun Any?.asInt(): Int? = when (this) {
     else -> toString().toIntOrNull()
 }
 
+/** 把数据库值转换为文本，空值返回 null。 */
 private fun Any?.asText(): String? = when (this) {
     null -> null
     is String -> this
     else -> toString()
 }
 
+/** 把数据库日期值转换为 ISO 日期字符串。 */
 private fun Any?.asIsoDate(): String? = when (this) {
     null -> null
     is String -> this

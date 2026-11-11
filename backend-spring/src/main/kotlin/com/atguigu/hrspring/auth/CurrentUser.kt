@@ -44,11 +44,15 @@ data class RolePermissionsDto(
 object CurrentUserHolder {
     private val holder = ThreadLocal<AuthUser?>()
 
+    /** 把认证用户绑定到当前请求或 MCP 回调线程。 */
     fun set(user: AuthUser?) = holder.set(user)
 
+    /** 返回当前线程绑定的认证用户；未绑定时返回 null。 */
     fun get(): AuthUser? = holder.get()
 
+    /** 取得当前认证用户；缺少身份时抛出 401。 */
     fun require(): AuthUser = get() ?: throw com.atguigu.hrspring.common.api.ApiException.unauthorized()
 
+    /** 移除当前线程的用户，避免线程复用造成身份串联。 */
     fun clear() = holder.remove()
 }

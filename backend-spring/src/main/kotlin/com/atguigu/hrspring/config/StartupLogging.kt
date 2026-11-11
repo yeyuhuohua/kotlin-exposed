@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component
 class StartupLogging {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /** 应用启动完成后记录接口和文档访问地址。 */
     @EventListener
     fun onApplicationReady(event: ApplicationReadyEvent) {
         val context = event.applicationContext as? ServletWebServerApplicationContext ?: return

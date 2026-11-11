@@ -7,6 +7,7 @@ import com.atguigu.hr.common.cache.RedisCache
 object JobCache {
     const val JOBS = "hr:jobs"
 
+    /** 清除全部岗位列表缓存。 */
     suspend fun evictList() {
         RedisCache.evict(JOBS)
     }

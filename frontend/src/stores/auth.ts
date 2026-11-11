@@ -15,7 +15,9 @@ export const useAuth = defineStore('auth', () => {
   const pages = ref<PageRoute[]>([])
   const isAdmin = computed(() => user.value?.roleCode === 'ADMIN')
   const home = computed(() => homePath(user.value, pages.value))
+  /** 使用状态中的当前用户判断是否有权访问指定页面。 */
   const canPage = (path: string) => allowsPage(user.value, path)
+  /** 使用状态中的当前用户判断是否有权调用指定接口。 */
   const canApi = (method: string, path: string) => allowsApi(user.value, method, path)
   let initialized: Promise<void> | undefined
   let pagesLoaded: Promise<void> | undefined
@@ -24,6 +26,7 @@ export const useAuth = defineStore('auth', () => {
   let expiryTimer: ReturnType<typeof setTimeout> | undefined
   /** 上一次拉取 /auth/me 的时间，用于避免每次路由跳转都请求一次。 */
   let refreshedAt = 0
+  /** 清除本地登录会话、用户、页面清单和定时刷新状态。 */
   function clear() {
     clearSession()
     user.value = null
@@ -34,6 +37,7 @@ export const useAuth = defineStore('auth', () => {
     refreshedAt = 0
     clearTimeout(expiryTimer)
   }
+  /** 安排 Token 到期后的自动退出。 */
   function scheduleExpiry() {
     clearTimeout(expiryTimer)
     const session = readSession()
@@ -43,6 +47,7 @@ export const useAuth = defineStore('auth', () => {
         Math.max(0, session.expiresAt - Date.now()),
       )
   }
+  /** 恢复本地登录会话，并重新加载用户和页面权限。 */
   async function restore() {
     if (!initialized)
       initialized = (async () => {
@@ -90,6 +95,7 @@ export const useAuth = defineStore('auth', () => {
     }
     await pagesLoaded
   }
+  /** 验证账号凭据并建立登录会话。 */
   async function login(username: string, password: string) {
     const result = await api<LoginResult>(authPaths.login, {
       method: 'POST',
@@ -130,6 +136,7 @@ export const useAuth = defineStore('auth', () => {
       if (error instanceof ApiError && error.status === 401 && readSession()?.token === token) clear()
     }
   }
+  /** 注销当前登录会话，并清理相关的客户端状态。 */
   async function logout() {
     const token = readSession()?.token
     try {

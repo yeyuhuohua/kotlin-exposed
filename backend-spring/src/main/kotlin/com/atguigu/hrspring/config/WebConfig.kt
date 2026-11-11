@@ -22,6 +22,7 @@ class WebConfig(
     private val permissionInterceptor: PermissionInterceptor,
 ) : WebMvcConfigurer {
 
+    /** 注册接口权限拦截器及其路径范围。 */
     override fun addInterceptors(registry: InterceptorRegistry) {
         registry.addInterceptor(permissionInterceptor).addPathPatterns("/api/**")
     }
@@ -61,9 +62,11 @@ class WebConfig(
     @Bean
     fun securityHeadersFilter(): FilterRegistrationBean<OncePerRequestFilter> {
         val filter = object : OncePerRequestFilter() {
+            /** 判断当前请求是否不需要安全响应头。 */
             override fun shouldNotFilter(request: HttpServletRequest): Boolean =
                 !request.applicationPath().startsWith("/api/")
 
+            /** 为响应写入安全头后继续过滤器链。 */
             override fun doFilterInternal(
                 request: HttpServletRequest,
                 response: HttpServletResponse,

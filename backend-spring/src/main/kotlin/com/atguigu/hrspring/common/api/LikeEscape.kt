@@ -6,6 +6,7 @@ package com.atguigu.hrspring.common.api
 object LikeEscape {
     const val ESCAPE_CHAR = '\\'
 
+    /** 转义 LIKE 查询输入中的百分号、下划线和转义字符。 */
     fun escape(keyword: String): String = buildString(keyword.length) {
         for (c in keyword) {
             if (c == ESCAPE_CHAR || c == '%' || c == '_') append(ESCAPE_CHAR)

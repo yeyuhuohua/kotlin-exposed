@@ -40,6 +40,7 @@ class CacheConfig(
     private val epoch: CacheEpoch,
 ) : CachingConfigurer {
 
+    /** 创建带共享失效版本和故障降级能力的 Redis 缓存管理器。 */
     @Bean
     override fun cacheManager(): CacheManager {
         val config = RedisCacheConfiguration.defaultCacheConfig()
@@ -55,6 +56,7 @@ class CacheConfig(
         return RecordingCacheManager(TransactionAwareCacheManagerProxy(redis), epoch)
     }
 
+    /** 创建缓存异常处理器，使 Redis 故障不直接破坏业务请求。 */
     @Bean
     override fun errorHandler(): CacheErrorHandler = LoggingCacheErrorHandler(epoch)
 }
@@ -79,21 +81,25 @@ internal fun cacheSerializer(): GenericJacksonJsonRedisSerializer {
 private class LoggingCacheErrorHandler(private val epoch: CacheEpoch) : CacheErrorHandler {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /** 缓存读取失败时记录故障并回退到数据源。 */
     override fun handleCacheGetError(exception: RuntimeException, cache: Cache, key: Any) {
         epoch.unavailable()
         log.warn("redis cache get failed for {}: {}", cache.name, exception.message)
     }
 
+    /** 缓存写入失败时记录故障并保留本次业务结果。 */
     override fun handleCachePutError(exception: RuntimeException, cache: Cache, key: Any, value: Any?) {
         epoch.unavailable()
         log.warn("redis cache put failed for {}: {}", cache.name, exception.message)
     }
 
+    /** 缓存失效失败时记录故障，避免业务写入被回滚。 */
     override fun handleCacheEvictError(exception: RuntimeException, cache: Cache, key: Any) {
         epoch.unavailable()
         log.warn("redis cache evict failed for {}: {}", cache.name, exception.message)
     }
 
+    /** 缓存清空失败时记录故障并执行降级。 */
     override fun handleCacheClearError(exception: RuntimeException, cache: Cache) {
         epoch.unavailable()
         log.warn("redis cache clear failed for {}: {}", cache.name, exception.message)
@@ -106,10 +112,12 @@ private class RecordingCacheManager(
 ) : CacheManager {
     private val caches = ConcurrentHashMap<String, Cache>()
 
+    /** 按名称取得带失效版本包装的缓存实例。 */
     override fun getCache(name: String): Cache? = caches[name] ?: delegate.getCache(name)?.let {
         caches.computeIfAbsent(name) { _ -> RecordingCache(it, epoch::current, epoch::invalidate) }
     }
 
+    /** 返回当前缓存管理器支持的缓存名称。 */
     override fun getCacheNames(): Collection<String> = delegate.cacheNames
 }
 
@@ -118,10 +126,13 @@ internal class RecordingCache(
     private val currentEpoch: () -> String?,
     private val invalidateEpoch: () -> Unit,
 ) : Cache {
+    /** 返回当前缓存的名称。 */
     override fun getName(): String = delegate.name
 
+    /** 返回底层 Redis 缓存实例。 */
     override fun getNativeCache(): Any = delegate.nativeCache
 
+    /** 按缓存键读取值，并在返回前复核失效版本。 */
     override fun get(key: Any): Cache.ValueWrapper? {
         CacheLoads.take(name, key)
         val version = currentEpoch()
@@ -134,6 +145,7 @@ internal class RecordingCache(
         return value
     }
 
+    /** 读取缓存值并校验目标类型。 */
     override fun <T : Any> get(key: Any, type: Class<T>?): T? {
         val value = get(key)?.get() ?: return null
         require(type == null || type.isInstance(value)) { "Cached value has an incompatible type" }
@@ -141,6 +153,7 @@ internal class RecordingCache(
         return value as T
     }
 
+    /** 读取缓存；未命中时调用加载器，并按版本规则回填。 */
     override fun <T : Any> get(key: Any, valueLoader: Callable<T>): T? {
         get(key)?.get()?.let {
             @Suppress("UNCHECKED_CAST")
@@ -153,6 +166,7 @@ internal class RecordingCache(
         }
     }
 
+    /** 使用读取时的失效版本写入缓存，版本缺失或变化时跳过。 */
     override fun put(key: Any, value: Any?) {
         val version = CacheLoads.take(name, key) ?: return
         if (currentEpoch() != version || value == null) return
@@ -160,22 +174,27 @@ internal class RecordingCache(
         delegate.put("$version:$key", value)
     }
 
+    /** 使指定缓存项失效；缓存不可用时按旁路策略处理。 */
     override fun evict(key: Any) {
         clear()
     }
 
+    /** 仅当缓存项存在时使其失效。 */
     override fun evictIfPresent(key: Any): Boolean = invalidate()
 
+    /** 清空当前缓存；事务同步期间推迟到提交后失效。 */
     override fun clear() {
         if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
                 object : org.springframework.transaction.support.TransactionSynchronization {
+                    /** 把缓存失效推迟到数据库事务成功提交后执行。 */
                     override fun afterCommit() = invalidateEpoch()
                 },
             )
         } else invalidateEpoch()
     }
 
+    /** 失效当前缓存的全部条目，并返回已处理标记。 */
     override fun invalidate(): Boolean {
         clear()
         return true
@@ -184,6 +203,7 @@ internal class RecordingCache(
 
 @Component
 class CacheHitCleanupFilter : OncePerRequestFilter() {
+    /** 请求结束后清理缓存命中标记和读取版本快照。 */
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,

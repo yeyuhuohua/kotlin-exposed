@@ -26,6 +26,7 @@ object AuditRepository {
         SchemaUtils.create(LoginRecords, ApiCallRecords)
     }
 
+    /** 异步写入一条登录审计记录。 */
     suspend fun insertLogin(
         username: String,
         userId: Int?,
@@ -46,6 +47,7 @@ object AuditRepository {
         }
     }
 
+    /** 异步写入一条接口调用审计记录。 */
     suspend fun insertApiCall(
         userId: Int?,
         username: String?,
@@ -72,6 +74,7 @@ object AuditRepository {
         }
     }
 
+    /** 查询登录记录列表。 */
     suspend fun listLogins(
         limit: Int,
         offset: Long,
@@ -93,6 +96,7 @@ object AuditRepository {
         ApiList(total = total, items = items)
     }
 
+    /** 查询接口调用记录列表。 */
     suspend fun listApiCalls(
         limit: Int,
         offset: Long,
@@ -120,6 +124,7 @@ object AuditRepository {
     }
 }
 
+/** 将持久层数据转换为登录审计传输对象。 */
 private fun ResultRow.toLoginRecord() = LoginRecordDto(
     id = this[LoginRecords.id],
     username = this[LoginRecords.username],
@@ -131,6 +136,7 @@ private fun ResultRow.toLoginRecord() = LoginRecordDto(
     createdAt = this[LoginRecords.createdAt].toString(),
 )
 
+/** 将持久层数据转换为接口调用审计传输对象。 */
 private fun ResultRow.toApiCallRecord() = ApiCallRecordDto(
     id = this[ApiCallRecords.id],
     userId = this[ApiCallRecords.userId],

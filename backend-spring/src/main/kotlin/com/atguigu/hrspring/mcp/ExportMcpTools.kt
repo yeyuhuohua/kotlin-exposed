@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component
 class ExportMcpTools(
     private val documentExportService: DocumentExportService,
 ) {
+    /** 把给定表格写成 xlsx，返回浏览器可直接打开的临时下载链接。不要自己编造链接，也不要输出文件二进制。sheets 是 JSON 数组，每项含 name、headers、rows。rows 是二维数组，单元格可以是字符串或数字。示例：[{\。 */
     @McpTool(
         name = "export_excel",
         description = "把给定表格写成 xlsx，返回浏览器可直接打开的临时下载链接。不要自己编造链接，也不要输出文件二进制。sheets 是 JSON 数组，每项含 name、headers、rows。rows 是二维数组，单元格可以是字符串或数字。示例：[{\"name\":\"入职\",\"headers\":[\"姓名\",\"部门\"],\"rows\":[[\"张三\",\"研发\"]]}]。最多 5 个表、每表 2000 行。",
@@ -22,6 +23,7 @@ class ExportMcpTools(
         context: McpSyncRequestContext,
     ): ExportResult = documentExportService.exportExcel(filename, sheets)
 
+    /** 把标题和正文写成 docx，返回临时下载链接。blocks 是 JSON 数组，type 只能是 heading、paragraph、table。heading 含 level(1-3) 和 text；paragraph 含 text；table 含 headers 和 rows。示例：[{\。 */
     @McpTool(
         name = "export_word",
         description = "把标题和正文写成 docx，返回临时下载链接。blocks 是 JSON 数组，type 只能是 heading、paragraph、table。heading 含 level(1-3) 和 text；paragraph 含 text；table 含 headers 和 rows。示例：[{\"type\":\"paragraph\",\"text\":\"本月入职 2 人。\"},{\"type\":\"table\",\"headers\":[\"姓名\"],\"rows\":[[\"张三\"]]}]。",
@@ -33,6 +35,7 @@ class ExportMcpTools(
         context: McpSyncRequestContext,
     ): ExportResult = documentExportService.exportWord(filename, title, blocks)
 
+    /** 把已经查到的标题和正文写成 pdf，返回临时下载链接。不要自己编造链接。blocks 与 export_word 相同，type 只能是 heading、paragraph、table。heading 含 level(1-3) 和 text；paragraph 含 text；table 含 headers 和 rows。把 downloadUrl 原样告诉用户。truncated 为 true 时说明正文被截断，或有字符因字体缺字被替换。 */
     @McpTool(
         name = "export_pdf",
         description = "把已经查到的标题和正文写成 pdf，返回临时下载链接。不要自己编造链接。blocks 与 export_word 相同，type 只能是 heading、paragraph、table。heading 含 level(1-3) 和 text；paragraph 含 text；table 含 headers 和 rows。把 downloadUrl 原样告诉用户。truncated 为 true 时说明正文被截断，或有字符因字体缺字被替换。",

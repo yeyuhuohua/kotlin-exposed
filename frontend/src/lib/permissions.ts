@@ -14,6 +14,7 @@ const adminOnlyApis: string[] = [
   menusPaths.item,
 ]
 
+/** 判断当前用户是否有权访问指定页面。 */
 export function canPage(user: User | null, keyOrPath: string): boolean {
   if (!user?.enabled) return false
   if (['/account', '/forbidden', 'account'].includes(keyOrPath)) return true
@@ -22,6 +23,7 @@ export function canPage(user: User | null, keyOrPath: string): boolean {
   return (user.permissions || []).includes(`page:${key}`)
 }
 
+/** 根据服务端下发的权限判断能否调用指定接口。 */
 export function canApi(user: User | null, method: string, path: string): boolean {
   if (method === 'GET' && path === systemPaths.health) return true
   if (!user?.enabled) return false

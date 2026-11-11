@@ -7,6 +7,7 @@ import kotlinx.coroutines.coroutineScope
 
 /** 并发检查 MySQL 与 Redis 连通性，不依赖具体业务表是否有记录。 */
 object HealthService {
+    /** 检查数据库和缓存依赖，返回服务健康状态。 */
     suspend fun check(): HealthDto = coroutineScope {
         val dbOk = async { DatabaseFactory.ping() }
         val redisOk = async { RedisFactory.ping() }

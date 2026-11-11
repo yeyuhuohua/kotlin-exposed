@@ -6,6 +6,7 @@ import io.r2dbc.spi.R2dbcException
 /** MySQL 完整性约束：1062 重复键，1451/1452 外键。SQLState 23 开头同属约束类。 */
 private val mysqlConstraintCodes = setOf(1062, 1451, 1452)
 
+/** 根据数据库异常类型和约束信息判断是否属于数据冲突。 */
 fun Throwable.isConstraintConflict(): Boolean {
     var current: Throwable? = this
     while (current != null) {

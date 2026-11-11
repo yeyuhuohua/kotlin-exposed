@@ -12,9 +12,11 @@ import org.springframework.stereotype.Component
 class TEmpMcpTools(
     private val tEmpService: TEmpService,
 ) {
+    /** 查询 t_emp 人物示例表，返回全部人物。 */
     @McpTool(name = "list_t_emp", description = "查询 t_emp 人物示例表，返回全部人物。")
     fun listTEmp(context: McpSyncRequestContext): List<TEmpDto> = tEmpService.list()
 
+    /** 新增人物。id 自增，empno 必填；年龄可以省略或为 0，不能为负。 */
     @McpTool(name = "create_t_emp", description = "新增人物。id 自增，empno 必填；年龄可以省略或为 0，不能为负。")
     fun createTEmp(
         @McpToolParam(description = "工号 empno，必填", required = true) empno: Int,
@@ -31,6 +33,7 @@ class TEmpMcpTools(
         ),
     )
 
+    /** 按 id 部分更新人物，只改传入的字段。年龄不能为负。 */
     @McpTool(name = "update_t_emp", description = "按 id 部分更新人物，只改传入的字段。年龄不能为负。")
     fun updateTEmp(
         @McpToolParam(description = "人物主键", required = true) id: Int,

@@ -44,6 +44,7 @@ class DocumentExportService(
         enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
     }
 
+    /** 关闭当前资源并释放相关句柄。 */
     @PreDestroy
     fun close() = fileStore.close()
 
@@ -96,6 +97,7 @@ class DocumentExportService(
         truncated: Boolean,
     ): ExportResult = fileStore.store(filename, mediaType, bytes, rowCount, truncated)
 
+    /** 解析并限制 Excel 多工作表输入，记录是否发生截断。 */
     private fun parseSheets(raw: String): ParsedSheets {
         val state = ParseState()
         val root = readJson(raw, "sheets")
@@ -121,6 +123,7 @@ class DocumentExportService(
         return ParsedSheets(sheets, state.truncated)
     }
 
+    /** 解析 Word 标题、段落和表格块，并执行数量限制。 */
     private fun parseBlocks(raw: String): ParsedBlocks {
         val state = ParseState()
         val root = readJson(raw, "blocks")
@@ -156,6 +159,7 @@ class DocumentExportService(
         return ParsedBlocks(blocks, state.truncated)
     }
 
+    /** 生成按列数对齐的表格行，缺少单元格时补空值。 */
     private fun alignedRow(row: JsonNode, width: Int, state: ParseState): List<Any> {
         if (!row.isArray) throw ApiException.badRequest("each row must be an array")
         if (row.size() > width) throw ApiException.badRequest("row has more cells than headers")
@@ -163,6 +167,7 @@ class DocumentExportService(
         return List(width) { index -> cellValue(row.get(index), state) }
     }
 
+    /** 读取并校验导出 JSON 的结构与大小。 */
     private fun readJson(raw: String, field: String): JsonNode {
         if (raw.length > MAX_JSON_CHARS) throw ApiException.badRequest("$field is too large")
         return try {
@@ -172,6 +177,7 @@ class DocumentExportService(
         }
     }
 
+    /** 把解析后的工作表写入 Excel 文件。 */
     private fun writeWorkbook(sheets: List<SheetSpec>): ByteArray {
         val usedNames = mutableSetOf<String>()
         val buffer = java.io.ByteArrayOutputStream()
@@ -191,6 +197,7 @@ class DocumentExportService(
         return buffer.toByteArray()
     }
 
+    /** 把标题、段落和表格写入 Word 文件。 */
     private fun writeDocument(title: String, blocks: List<WordBlock>): ByteArray {
         val document = Documents.of()
             .addParagraph(Paragraphs.of(Texts.of(title).bold().fontSize(18.0).create()).create())
@@ -219,6 +226,7 @@ class DocumentExportService(
         return buffer.toByteArray()
     }
 
+    /** 把导出内容排版为 PDF，并记录缺字替换情况。 */
     private fun writePdf(title: String, blocks: List<WordBlock>): Pair<ByteArray, Boolean> {
         val document = PDDocument()
         val fonts = FontPool(document)
@@ -262,20 +270,24 @@ class DocumentExportService(
         private val faces = mutableListOf<TrueTypeFont>()
         private val collections = mutableListOf<TrueTypeCollection>()
 
+        /** 为导出文档准备资源、限制和解析状态。 */
         fun prepare() {
             if (loadNext(null) == null) throw ApiException.badRequest("pdf font is unavailable")
         }
 
+        /** 将文本按 Unicode 码点拆分为字体处理单元。 */
         fun glyphs(): PdfGlyphFonts {
             val primary = loaded.first()
             return PdfGlyphFonts(primary) { glyph -> fontFor(glyph) }
         }
 
+        /** 关闭当前资源并释放相关句柄。 */
         override fun close() {
             faces.forEach { runCatching { it.close() } }
             collections.forEach { runCatching { it.close() } }
         }
 
+        /** 选择能覆盖指定字符且允许嵌入的 PDF 字体。 */
         private fun fontFor(glyph: String): PDFont? {
             for (font in loaded) {
                 if (measures(font, glyph)) return font
@@ -288,6 +300,7 @@ class DocumentExportService(
             }
         }
 
+        /** 加载下一个候选字体文件。 */
         private fun loadNext(codePoint: Int?): PDFont? {
             val deferredFiles = ArrayDeque<java.io.File>()
             val deferredRevisit = ArrayDeque<java.io.File>()
@@ -322,6 +335,7 @@ class DocumentExportService(
             }
         }
 
+        /** 打开字体文件并准备后续解析。 */
         private fun openFile(file: java.io.File, codePoint: Int?): OpenFate =
             if (file.extension.equals("ttc", ignoreCase = true)) {
                 openCollection(file, codePoint)
@@ -329,6 +343,7 @@ class DocumentExportService(
                 openTrueType(file, codePoint)
             }
 
+        /** 解析 TrueType 字体。 */
         private fun openTrueType(file: java.io.File, codePoint: Int?): OpenFate {
             val face = try {
                 TTFParser().parse(RandomAccessReadBufferedFile(file))
@@ -356,6 +371,7 @@ class DocumentExportService(
             }
         }
 
+        /** 从 TrueType 字体集合中选择可用字体。 */
         private fun openCollection(file: java.io.File, codePoint: Int?): OpenFate {
             val collection = try {
                 TrueTypeCollection(file)
@@ -414,6 +430,7 @@ class DocumentExportService(
         data object Discard : OpenFate
     }
 
+    /** 把指定内容添加到文档或数据的开头。 */
     private fun prepend(target: ArrayDeque<java.io.File>, items: ArrayDeque<java.io.File>) {
         if (items.isEmpty()) return
         val rest = ArrayDeque(target)
@@ -440,18 +457,21 @@ class DocumentExportService(
         else -> value.toString()
     }
 
+    /** 把 JSON 数组转换为字符串列表，非数组时返回参数错误。 */
     private fun stringList(node: JsonNode?, field: String, state: ParseState): List<String> {
         if (node == null || node.isNull) return emptyList()
         if (!node.isArray) throw ApiException.badRequest("$field must be an array")
         return node.values().map { cellValue(it, state).toString() }
     }
 
+    /** 读取必填文本，空白时返回参数错误。 */
     private fun requiredText(node: JsonNode?, field: String, state: ParseState): String {
         val value = cellValue(node, state).toString()
         if (value.isBlank()) throw ApiException.badRequest("$field is required")
         return value
     }
 
+    /** 读取短文本，空值使用回退内容并限制最大长度。 */
     private fun text(node: JsonNode?, fallback: String): String {
         val value = when {
             node == null || node.isNull || node.isMissingNode -> ""
@@ -502,6 +522,7 @@ class DocumentExportService(
         return plainLength(value) > MAX_CELL_CHARS
     }
 
+    /** 估算 BigDecimal 转为普通十进制文本后的长度。 */
     private fun plainLength(value: BigDecimal): Int {
         val precision = value.precision().coerceAtLeast(1)
         val scale = value.scale()
@@ -537,6 +558,7 @@ class DocumentExportService(
         )
         internal const val PDF_MARGIN = 48f
 
+        /** 清理下载文件名中的危险字符，并补充正确扩展名。 */
         fun safeFilename(raw: String?, fallback: String, extension: String): String {
             val cleaned = raw?.replace(filenameCleaner, "")?.trim()?.trim('.').orEmpty()
             val base = cleaned.substringBeforeLast('.').take(80).ifBlank {
@@ -545,6 +567,7 @@ class DocumentExportService(
             return base + extension
         }
 
+        /** 生成合法且大小写不重复的工作表名称。 */
         fun uniqueSheetName(raw: String, used: MutableSet<String>): String {
             val cleaned = sanitizeSheetName(raw)
             var candidate = cleaned
@@ -598,6 +621,7 @@ private class ParseState {
     var truncated: Boolean = false
     private var cells: Long = 0
 
+    /** 累计导出单元格数量，超过总上限时拒绝导出。 */
     fun charge(rows: Int, columns: Int) {
         val added = rows.toLong() * columns
         if (added < 0 || cells > DocumentExportService.MAX_TOTAL_CELLS - added) {

@@ -56,6 +56,7 @@ const treeRows = computed<TreeRow[]>(() => {
   return rows
 })
 
+/** 根据菜单层级返回表格行样式类名。 */
 function treeRowClass({ row }: { row: TreeRow }) {
   return row.kind === 'group' ? 'menu-group-row' : ''
 }
@@ -90,12 +91,14 @@ const groupOptions = computed(() => {
   const names = [...new Set((menus.data.value ?? []).map((item) => item.group).filter(Boolean))].sort()
   return [...names, TAIL_GROUP_LABEL]
 })
+/** 打开新增菜单对话框并设置父节点。 */
 function openCreate() {
   editing.value = undefined
   form.value = { ...blank }
   formError.value = ''
   dialogOpen.value = true
 }
+/** 用指定菜单数据打开编辑对话框。 */
 function openEdit(menu: MenuItem) {
   editing.value = menu
   form.value = {
@@ -129,6 +132,7 @@ function validate(): string {
 }
 /** 界面上的「导航末尾」对应后端空分组。 */
 const storedGroup = (label: string) => (label === TAIL_GROUP_LABEL ? '' : label.trim())
+/** 校验并保存当前编辑内容。 */
 async function save() {
   if (saving.value) return
   const message = validate()
@@ -176,10 +180,12 @@ async function save() {
 const deleting = ref<MenuItem>()
 const deleteError = ref('')
 const deleteBusy = ref(false)
+/** 打开指定菜单的删除确认流程。 */
 function openDelete(menu: MenuItem) {
   deleting.value = menu
   deleteError.value = ''
 }
+/** 请求用户确认后执行记录删除。 */
 async function confirmDelete() {
   if (!deleting.value) return
   deleteBusy.value = true

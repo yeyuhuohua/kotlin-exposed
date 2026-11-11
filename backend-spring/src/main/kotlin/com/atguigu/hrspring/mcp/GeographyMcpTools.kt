@@ -10,9 +10,11 @@ import org.springframework.stereotype.Component
 class GeographyMcpTools(
     private val geographyService: GeographyService,
 ) {
+    /** 查询全部国家，按 countryId 升序返回。无参数。 */
     @McpTool(name = "list_countries", description = "查询全部国家，按 countryId 升序返回。无参数。")
     fun listCountries(context: McpSyncRequestContext): List<CountryDto> = geographyService.listCountries()
 
+    /** 查询全部地区，按 regionId 升序返回。无参数。 */
     @McpTool(name = "list_regions", description = "查询全部地区，按 regionId 升序返回。无参数。")
     fun listRegions(context: McpSyncRequestContext): List<RegionDto> = geographyService.listRegions()
 }

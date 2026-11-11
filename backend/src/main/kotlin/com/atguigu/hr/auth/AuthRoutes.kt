@@ -40,6 +40,7 @@ private const val MAX_LOGIN_BODY_BYTES = 4 * 1024L
 /** 登录体手工解析：与全局 ContentNegotiation 同样忽略未知字段。 */
 private val loginBodyJson = Json { ignoreUnknownKeys = true }
 
+/** 注册登录等无需认证的鉴权路由。 */
 @OptIn(ExperimentalKtorApi::class)
 fun Route.authPublicRoutes(service: AuthService, throttle: LoginThrottle) {
     post("/auth/login") {
@@ -97,6 +98,7 @@ fun Route.authPublicRoutes(service: AuthService, throttle: LoginThrottle) {
     }
 }
 
+/** 注册当前用户、账号和角色权限等受保护路由。 */
 @OptIn(ExperimentalKtorApi::class)
 fun Route.authProtectedRoutes(service: AuthService) {
     get("/auth/me") {
@@ -263,6 +265,8 @@ fun Route.authProtectedRoutes(service: AuthService) {
     }
 }
 
+/** 从当前请求取得已认证用户，缺失时抛出 401。 */
 private fun ApplicationCall.authUser(): AuthUser = checkNotNull(principal<UserPrincipal>()).user
+/** 读取并规范化路径中的角色编码。 */
 private fun ApplicationCall.roleCode(): String = parameters["code"]?.takeIf { Regex("[A-Z][A-Z0-9_]{1,19}").matches(it) }
     ?: throw AuthException(HttpStatusCode.BadRequest, "invalid role code")

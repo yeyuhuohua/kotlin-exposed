@@ -16,11 +16,13 @@ object PasswordHasher {
     private val encoder = Base64.getEncoder()
     private val decoder = Base64.getDecoder()
 
+    /** 使用随机盐和 PBKDF2-SHA256 生成密码哈希。 */
     suspend fun hash(password: String): String = withContext(Dispatchers.Default) {
         val salt = ByteArray(16).also(random::nextBytes)
         "pbkdf2-sha256\$$ITERATIONS\$${encoder.encodeToString(salt)}\$${encoder.encodeToString(derive(password, salt, ITERATIONS))}"
     }
 
+    /** 使用固定时间比较验证密码或凭据是否匹配。 */
     suspend fun verify(password: String, encoded: String): Boolean = withContext(Dispatchers.Default) {
         try {
             val parts = encoded.split('$')
@@ -36,6 +38,7 @@ object PasswordHasher {
         }
     }
 
+    /** 根据密码、盐和迭代次数派生固定长度的密钥。 */
     private fun derive(password: String, salt: ByteArray, iterations: Int): ByteArray {
         val spec = PBEKeySpec(password.toCharArray(), salt, iterations, 256)
         return try {

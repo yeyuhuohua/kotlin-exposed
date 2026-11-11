@@ -4,15 +4,18 @@ export interface RememberedCredentials {
   username: string
   password: string
 }
+/** 将明文凭据编码为本地存储格式。 */
 function encode(value: string): string {
   // 逐字节拼接而不是 spread：输入变长时 String.fromCharCode(...bytes) 会栈溢出。
   let binary = ''
   for (const byte of new TextEncoder().encode(value)) binary += String.fromCharCode(byte)
   return btoa(binary)
 }
+/** 解码本地保存的凭据；格式不合法时返回 null。 */
 function decode(value: string): string {
   return new TextDecoder().decode(Uint8Array.from(atob(value), (char) => char.charCodeAt(0)))
 }
+/** 读取本机保存的登录凭据。 */
 export function readCredentials(): RememberedCredentials | null {
   try {
     const value = JSON.parse(localStorage.getItem(KEY) || 'null') as {
@@ -26,6 +29,7 @@ export function readCredentials(): RememberedCredentials | null {
   }
   return null
 }
+/** 加密并保存本机登录凭据。 */
 export function saveCredentials(username: string, password: string) {
   try {
     localStorage.setItem(KEY, JSON.stringify({ username, password: encode(password) }))
@@ -33,6 +37,7 @@ export function saveCredentials(username: string, password: string) {
     /* 存储功能可能被禁用。 */
   }
 }
+/** 删除本机保存的登录凭据。 */
 export function clearCredentials() {
   try {
     localStorage.removeItem(KEY)

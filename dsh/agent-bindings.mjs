@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto'
 
+/** 创建 Agent 与 HR 会话的绑定存储。 */
 export function createAgentBindings() {
   const byAgent = new Map()
 
+  /** 绑定 Agent 与 HR 会话，拒绝其他用户接管活跃 Agent。 */
   function bind(agentId, session) {
     if (typeof agentId !== 'string' || !agentId || agentId.length > 200) {
       throw Object.assign(new Error('invalid agent session'), { status: 400 })
@@ -18,10 +20,12 @@ export function createAgentBindings() {
     session.agentIds.add(agentId)
   }
 
+  /** 查询 Agent 当前绑定的 HR 会话。 */
   function resolve(agentId) {
     return byAgent.get(agentId)
   }
 
+  /** 撤销指定会话及其全部 Agent 绑定。 */
   function revoke(session) {
     for (const agentId of session.agentIds) {
       if (byAgent.get(agentId) === session) byAgent.delete(agentId)

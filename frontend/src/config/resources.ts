@@ -15,6 +15,7 @@ import {
 } from '../api/paths'
 import type { Field, Resource } from '../types'
 /** 业务目录与可编辑字段集中声明；只为后端真实提供的接口显示写操作。 */
+/** 创建一个数值输入字段配置。 */
 const number = (key: string, label: string, required = false, createOnly = false): Field => ({
   key,
   label,
@@ -23,12 +24,14 @@ const number = (key: string, label: string, required = false, createOnly = false
   createOnly,
   step: '1',
 })
+/** 创建一个文本输入字段配置。 */
 const text = (key: string, label: string, required = false, maxLength?: number): Field => ({
   key,
   label,
   required,
   maxLength,
 })
+/** 创建一个从关联资源加载选项的下拉字段配置。 */
 const lookup = (key: string, label: string, source: string, required = false): Field => ({
   key,
   label,

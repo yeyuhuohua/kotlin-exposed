@@ -8,6 +8,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 
+/** 注册工作概览相关的 HTTP 路由。 */
 @OptIn(ExperimentalKtorApi::class)
 fun Route.overviewRoutes() {
     /** 协程并行汇总员工、部门、岗位、地点、地区、t_emp。 */

@@ -1,10 +1,14 @@
 import type { Employee, Field, Row } from '../types'
 /** 统一数据格式与部分更新载荷；未标记 clearable 的字段拒绝静默清空。 */
+/** 使用中文地区格式显示整数。 */
 export const integer = (value: number) => new Intl.NumberFormat('zh-CN').format(value)
+/** 把数值格式化为最多两位小数的中文数字，空值显示占位符。 */
 export const money = (value: unknown) =>
   value == null ? '—' : new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(Number(value))
+/** 拼接员工的名和姓，并去除多余空白。 */
 export const fullName = (employee: Pick<Employee, 'firstName' | 'lastName'>) =>
   [employee.firstName, employee.lastName].filter(Boolean).join(' ')
+/** 从姓名中提取用于头像显示的缩写。 */
 export const initials = (name: string) =>
   name
     .trim()
@@ -21,6 +25,7 @@ export interface FormPayloadOptions {
 export function codePointLength(value: string): number {
   return [...value].length
 }
+/** 将当前表单转换为接口请求体，只提交实际修改的字段。 */
 export function formPayload(
   fields: Field[],
   values: Row,

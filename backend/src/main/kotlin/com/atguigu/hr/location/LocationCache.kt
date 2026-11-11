@@ -7,6 +7,7 @@ import com.atguigu.hr.common.cache.RedisCache
 object LocationCache {
     const val LOCATIONS = "hr:locations"
 
+    /** 清除全部办公地点列表缓存。 */
     suspend fun evictList() {
         RedisCache.evict(LOCATIONS)
     }

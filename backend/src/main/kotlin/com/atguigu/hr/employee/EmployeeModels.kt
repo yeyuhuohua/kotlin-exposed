@@ -75,9 +75,11 @@ data class EmployeeUpdateRequest(
     @JsonSchema.Description("电话，不传则不改")
     val phoneNumber: String? = null,
 ) {
+    /** 判断请求是否至少包含一个可更新字段。 */
     fun hasUpdates(): Boolean =
         salary != null || departmentId != null || jobId != null || phoneNumber != null
 
+    /** 校验员工请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? {
         if (jobId != null && jobId.isBlank()) return "jobId must not be blank"
         if (jobId != null && jobId.exceedsMaxLength(10)) return "jobId must be at most 10 characters"
@@ -91,13 +93,16 @@ data class EmployeeUpdateRequest(
 internal fun salaryError(value: Double): String? =
     if (value.isFinite() && value >= 0) null else "salary must be a non-negative number"
 
+/** 校验员工提成比例是否位于允许范围内。 */
 internal fun commissionPctError(value: Double): String? =
     if (value.isFinite() && value in 0.0..1.0) null else "commissionPct must be between 0 and 1"
 
+/** 校验薪资是否为非负有限数值。 */
 internal fun validateSalary(value: Double) {
     salaryError(value)?.let { throw IllegalArgumentException(it) }
 }
 
+/** 校验提成比例是否为零到一之间的有限数值。 */
 internal fun validateCommissionPct(value: Double) {
     commissionPctError(value)?.let { throw IllegalArgumentException(it) }
 }
@@ -128,6 +133,7 @@ data class EmployeeCreateRequest(
     @JsonSchema.Description("所属部门 ID")
     val departmentId: Int? = null,
 ) {
+    /** 校验员工请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? {
         if (lastName.isBlank() || email.isBlank() || jobId.isBlank() || hireDate.isBlank()) {
             return "lastName, email, hireDate, jobId are required"
@@ -231,19 +237,23 @@ data class EmployeePatch(
             )
         }
 
+        /** 读取 JSON 字段，并把显式 null 与字段缺社区分开。 */
         private fun JsonObject.element(key: String) = this[key]?.takeIf { it !is JsonNull }
 
+        /** 读取可空字符串字段，其他 JSON 类型返回校验错误。 */
         private fun JsonObject.text(key: String): String? =
             element(key)?.let { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content }
                 ?: validateAbsentOrNull(key)
 
         // 注意：JsonPrimitive.doubleOrNull 对字符串 "9000" 也会解析成功，必须显式排除字符串。
+        /** 读取可空数值字段，显式拒绝可被转换的字符串。 */
         private fun JsonObject.number(key: String): Double? = element(key)?.let { value ->
             val primitive = value as? JsonPrimitive
             if (primitive == null || primitive.isString) typeError(key, "number")
             primitive.doubleOrNull ?: typeError(key, "number")
         }
 
+        /** 读取可空整数字段，显式拒绝字符串和非整数。 */
         private fun JsonObject.integer(key: String): Int? = element(key)?.let { value ->
             val primitive = value as? JsonPrimitive
             if (primitive == null || primitive.isString) typeError(key, "integer")
@@ -259,6 +269,7 @@ data class EmployeePatch(
             return null
         }
 
+        /** 生成字段类型不匹配的统一校验错误。 */
         private fun typeError(key: String, expected: String): Nothing =
             throw IllegalArgumentException("$key must be a $expected or null")
     }

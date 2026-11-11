@@ -23,17 +23,20 @@ import org.springframework.web.bind.annotation.RestController
 class JobController(
     private val jobService: JobService,
 ) {
+    /** 查询岗位列表。 */
     @Operation(summary = "全部岗位")
     @GetMapping
     fun list(): ResponseEntity<ApiResult<List<JobDto>>> {
         return cachedOk(jobService.list())
     }
 
+    /** 新增岗位并返回保存后的记录。 */
     @Operation(summary = "新增岗位并刷新缓存", description = "岗位编码不能是 . 或 ..，也不能包含路径分隔符或控制字符。")
     @PostMapping
     fun create(@RequestBody request: JobCreateRequest): ResponseEntity<ApiResult<JobDto>> =
         body(jobService.create(request), "created")
 
+    /** 更新指定岗位。 */
     @Operation(summary = "部分更新岗位并刷新缓存")
     @PutMapping("/{id}")
     fun update(

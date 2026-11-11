@@ -60,6 +60,7 @@ val ApiCallAudit = createApplicationPlugin("ApiCallAudit", ::ApiCallAuditConfig)
     }
 }
 
+/** 从最终 HTTP 响应提取审计输入，避免记录转换前状态码。 */
 internal fun ApplicationCall.toAuditInput(startedNs: Long): ApiCallRecordInput {
     val user = principal<UserPrincipal>()?.user
     return ApiCallRecordInput(

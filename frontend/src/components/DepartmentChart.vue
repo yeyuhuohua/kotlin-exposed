@@ -13,9 +13,11 @@ function cssToken(name: string) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
 }
 const colors = ref<string[]>([])
+/** 读取当前主题下的图表语义配色。 */
 function readPalette() {
   colors.value = ['--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5', '--chart-6'].map(cssToken)
 }
+/** 根据部门统计数据绘制图表。 */
 function draw() {
   chart?.destroy()
   if (!canvas.value) return

@@ -96,6 +96,7 @@ onMounted(async () => {
     lookupError.value = cause instanceof Error ? cause.message : '筛选选项加载失败'
   }
 })
+/** 应用当前搜索条件并重新查询第一页。 */
 function applySearch() {
   const next = search.value.trim()
   const unchanged = keyword.value === next && page.value === 1
@@ -103,6 +104,7 @@ function applySearch() {
   page.value = 1
   if (unchanged) void refresh()
 }
+/** 清空筛选条件并重新查询。 */
 function resetFilters() {
   search.value = ''
   keyword.value = ''
@@ -111,27 +113,33 @@ function resetFilters() {
   page.value = 1
   void router.replace({ query: {} })
 }
+/** 打开指定记录的编辑对话框。 */
 function edit(employee?: Employee) {
   editing.value = employee
   formOpen.value = true
   detailId.value = undefined
 }
+/** 关闭员工详情展示。 */
 function closeDetail() {
   detailId.value = undefined
   if (route.query.employeeId) void router.replace({ query: { ...route.query, employeeId: undefined } })
 }
+/** 在保存成功后关闭对话框并刷新数据。 */
 function saved() {
   formOpen.value = false
   void refresh()
 }
+/** 调整每页条数并重新查询第一页。 */
 function setPageSize(value: number) {
   pageSize.value = value
   page.value = 1
 }
+/** 请求用户确认后执行记录删除。 */
 function confirmDelete(employee: Employee) {
   deleting.value = employee
   deleteError.value = ''
 }
+/** 删除当前目标及其关联状态。 */
 async function remove() {
   if (!deleting.value) return
   deleteBusy.value = true

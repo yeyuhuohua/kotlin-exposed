@@ -15,6 +15,7 @@ import org.jetbrains.exposed.v1.r2dbc.update
 /** 示例人员持久层：使用 R2DBC 挂起事务，并在事务结束前收集查询结果。 */
 
 object TEmpRepository {
+    /** 查询示例人员列表。 */
     suspend fun listTEmp(): List<TEmpDto> = dbQuery {
         TEmp.selectAll()
             .orderBy(TEmp.id to SortOrder.ASC)
@@ -22,6 +23,7 @@ object TEmpRepository {
             .toList()
     }
 
+    /** 查询示例人员。 */
     suspend fun findTEmp(id: Int): TEmpDto? = dbQuery {
         TEmp.selectAll()
             .where { TEmp.id eq id }
@@ -29,6 +31,7 @@ object TEmpRepository {
             .firstOrNull()
     }
 
+    /** 更新示例人员。 */
     suspend fun updateTEmp(id: Int, patch: TEmpUpdateRequest): TEmpDto? = dbUpdate {
         val rows = TEmp.update({ TEmp.id eq id }) {
             patch.name?.let { value -> it[name] = value }
@@ -39,6 +42,7 @@ object TEmpRepository {
         if (rows == 0) null else loadTEmp(id)
     }
 
+    /** 新增示例人员。 */
     suspend fun createTEmp(body: TEmpCreateRequest): TEmpDto = dbUpdate {
         val stmt = TEmp.insert {
             it[name] = body.name
@@ -49,6 +53,7 @@ object TEmpRepository {
         loadTEmp(stmt[TEmp.id]) ?: error("t_emp insert missing row")
     }
 
+    /** 加载示例人员。 */
     private suspend fun loadTEmp(id: Int): TEmpDto? =
         TEmp.selectAll()
             .where { TEmp.id eq id }
@@ -56,6 +61,7 @@ object TEmpRepository {
             .firstOrNull()
 }
 
+/** 将持久层数据转换为示例人员传输对象。 */
 private fun ResultRow.toTEmp() = TEmpDto(
     id = this[TEmp.id],
     name = this[TEmp.name],

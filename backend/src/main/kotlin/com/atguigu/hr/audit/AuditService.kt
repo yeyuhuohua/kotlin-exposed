@@ -61,6 +61,7 @@ object AuditService {
     /** 因积压或停机被丢弃的记录数；internal 供测试与监控断言。 */
     internal fun droppedCount(): Long = dropped.get()
 
+    /** 提交登录审计事件，不阻塞当前登录请求。 */
     fun recordLogin(
         username: String,
         userId: Int?,
@@ -76,10 +77,12 @@ object AuditService {
         }
     }
 
+    /** 提交接口调用审计事件，不阻塞当前业务请求。 */
     fun recordApiCall(input: ApiCallRecordInput) = enqueue {
         apiCallWriter(input)
     }
 
+    /** 把审计事件写入有界队列，队列满时执行降级处理。 */
     private fun enqueue(task: suspend () -> Unit) {
         ensureStarted()
         // 队列满或停机关闭后入队失败，都计入丢弃
@@ -94,6 +97,7 @@ object AuditService {
         }
     }
 
+    /** 按需启动审计消费线程。 */
     private fun ensureStarted() {
         if (started) return
         synchronized(lifecycleLock) {
@@ -155,9 +159,11 @@ object AuditService {
         }
     }
 
+    /** 查询登录记录列表。 */
     suspend fun listLogins(limit: Int, offset: Long, username: String?, success: Boolean?) =
         AuditRepository.listLogins(limit, offset, username, success)
 
+    /** 查询接口调用记录列表。 */
     suspend fun listApiCalls(limit: Int, offset: Long, username: String?, method: String?, path: String?) =
         AuditRepository.listApiCalls(limit, offset, username, method, path)
 }

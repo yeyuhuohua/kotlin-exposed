@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController
 class GeographyController(
     private val geographyService: GeographyService,
 ) {
+    /** 处理“全部国家”请求。 */
     @Tag(name = "countries")
     @Operation(summary = "全部国家")
     @GetMapping("/countries")
@@ -23,6 +24,7 @@ class GeographyController(
         return cachedOk(geographyService.listCountries())
     }
 
+    /** 处理“全部地区”请求。 */
     @Tag(name = "regions")
     @Operation(summary = "全部地区")
     @GetMapping("/regions")

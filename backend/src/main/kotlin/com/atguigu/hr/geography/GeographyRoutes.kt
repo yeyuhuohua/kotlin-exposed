@@ -8,6 +8,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 
+/** 注册国家与地区相关的 HTTP 路由。 */
 @OptIn(ExperimentalKtorApi::class)
 fun Route.geographyRoutes() {
     /** 全部国家。 */

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component
 class OverviewMcpTools(
     private val overviewService: OverviewService,
 ) {
+    /** 汇总员工样本、部门人数、薪资，以及部门、岗位、地点、区域和示例人员数量。 */
     @McpTool(
         name = "get_overview",
         description = "汇总员工样本、部门人数、薪资，以及部门、岗位、地点、区域和示例人员数量。",

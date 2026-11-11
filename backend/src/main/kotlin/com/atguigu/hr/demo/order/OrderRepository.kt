@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.r2dbc.selectAll
 /** 示例订单持久层：使用 R2DBC 挂起事务，并在事务结束前收集查询结果。 */
 
 object OrderRepository {
+    /** 查询示例订单列表。 */
     suspend fun listOrders(): List<OrderDto> = dbQuery {
         Orders.selectAll()
             .map { it.toOrder() }
@@ -16,6 +17,7 @@ object OrderRepository {
     }
 }
 
+/** 将持久层数据转换为示例订单传输对象。 */
 private fun ResultRow.toOrder() = OrderDto(
     orderId = this[Orders.orderId],
     orderName = this[Orders.orderName],

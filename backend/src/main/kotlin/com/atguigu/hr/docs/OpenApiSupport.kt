@@ -22,6 +22,7 @@ private val knife4jJson = Json {
 
 private val httpOps = setOf("get", "put", "post", "delete", "options", "head", "patch", "trace")
 
+/** 把运行时 OpenAPI 文档转换为 Knife4j 兼容结构。 */
 fun OpenApiDoc.toKnife4jJson(): String {
     val raw = knife4jJson.encodeToJsonElement(OpenApiDoc.serializer(), copy(openapi = "3.0.3"))
     val cleaned = stripNulls(raw)
@@ -30,6 +31,7 @@ fun OpenApiDoc.toKnife4jJson(): String {
     return knife4jJson.encodeToString(JsonElement.serializer(), withAuthDocumentation(knife4jReady))
 }
 
+/** 递归移除文档中的 null 节点。 */
 private fun stripNulls(element: JsonElement): JsonElement = when (element) {
     is JsonNull -> element
     is JsonArray -> JsonArray(element.map(::stripNulls).filter { it !is JsonNull })
@@ -42,6 +44,7 @@ private fun stripNulls(element: JsonElement): JsonElement = when (element) {
     else -> element
 }
 
+/** 补齐文档操作的成功和失败响应定义。 */
 private fun ensureOperationResponses(element: JsonElement): JsonElement {
     val root = element as? JsonObject ?: return element
     val paths = root["paths"] as? JsonObject ?: return root
@@ -103,6 +106,7 @@ private fun adaptResponseExamplesForKnife4j(element: JsonElement): JsonElement {
     return JsonObject(root + ("paths" to newPaths))
 }
 
+/** 调整响应媒体类型以兼容文档界面。 */
 private fun adaptResponseMedia(resp: JsonElement): JsonElement {
     val obj = resp as? JsonObject ?: return resp
     val content = obj["content"] as? JsonObject ?: return obj
@@ -112,6 +116,7 @@ private fun adaptResponseMedia(resp: JsonElement): JsonElement {
     return JsonObject(obj + ("content" to newContent))
 }
 
+/** 按 Knife4j 的兼容要求改写响应 Content-Type。 */
 private fun rewriteMediaTypeForKnife4j(media: JsonElement): JsonElement {
     val obj = media as? JsonObject ?: return media
     val firstValue = firstExampleValue(obj)
@@ -129,6 +134,7 @@ private fun rewriteMediaTypeForKnife4j(media: JsonElement): JsonElement {
     return JsonObject(next)
 }
 
+/** 取得示例节点中的第一个有效示例值。 */
 private fun firstExampleValue(media: JsonObject): JsonElement? {
     val examples = media["examples"] as? JsonObject
     val fromMap = examples?.values
@@ -138,6 +144,7 @@ private fun firstExampleValue(media: JsonObject): JsonElement? {
     return fromMap ?: media["example"]
 }
 
+/** 根据示例值推导 OpenAPI Schema。 */
 private fun schemaFromExample(value: JsonElement): JsonObject = when (value) {
     is JsonObject -> JsonObject(
         mapOf(
@@ -166,6 +173,7 @@ private fun schemaFromExample(value: JsonElement): JsonObject = when (value) {
     )
 }
 
+/** 把 Kotlin 基本类型映射为 OpenAPI 类型。 */
 private fun primitiveType(value: JsonPrimitive): String = when {
     value.isString -> "string"
     value.booleanOrNull != null -> "boolean"

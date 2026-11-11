@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component
 class EmployeeMcpTools(
     private val employeeService: EmployeeService,
 ) {
+    /** 分页查询员工。可按部门、岗位、姓名或邮箱筛选；unassignedOnly 为 true 时只看未分配部门。 */
     @McpTool(
         name = "list_employees",
         description = "分页查询员工。可按部门、岗位、姓名或邮箱筛选；unassignedOnly 为 true 时只看未分配部门。",
@@ -38,12 +39,14 @@ class EmployeeMcpTools(
         unassignedOnly == true,
     )
 
+    /** 按主键查询员工。 */
     @McpTool(name = "get_employee", description = "按主键查询员工。")
     fun getEmployee(
         @McpToolParam(description = "员工主键 employee_id", required = true) id: Int,
         context: McpSyncRequestContext,
     ): EmployeeDto = employeeService.get(id)
 
+    /** 新增员工并刷新缓存。employeeId、lastName、email、hireDate、jobId 必填。 */
     @McpTool(
         name = "create_employee",
         description = "新增员工并刷新缓存。employeeId、lastName、email、hireDate、jobId 必填。",
@@ -77,6 +80,7 @@ class EmployeeMcpTools(
         },
     )
 
+    /** 部分更新员工的薪资、部门、岗位或电话。未传的字段不改，不能清空。 */
     @McpTool(name = "update_employee", description = "部分更新员工的薪资、部门、岗位或电话。未传的字段不改，不能清空。")
     fun updateEmployee(
         @McpToolParam(description = "员工主键 employee_id", required = true) id: Int,
@@ -95,6 +99,7 @@ class EmployeeMcpTools(
         },
     )
 
+    /** 精确部分更新员工，只修改显式提交的字段。 */
     @McpTool(
         name = "patch_employee",
         description = "精确部分更新员工。只改 patch 里出现的字段；值为 null 表示清空可空列。允许 firstName、salary、commissionPct、departmentId、managerId、phoneNumber、jobId。jobId 不能为 null。",
@@ -108,6 +113,7 @@ class EmployeeMcpTools(
         context: McpSyncRequestContext,
     ): EmployeeDto = employeeService.patch(id, EmployeePatch.parse(patch))
 
+    /** 删除员工并清除相关缓存。被任职历史等外键引用时会失败。 */
     @McpTool(name = "delete_employee", description = "删除员工并清除相关缓存。被任职历史等外键引用时会失败。")
     fun deleteEmployee(
         @McpToolParam(description = "员工主键 employee_id", required = true) id: Int,
@@ -117,12 +123,14 @@ class EmployeeMcpTools(
         return "deleted"
     }
 
+    /** 查询员工详情，包含岗位、部门、地点、国家和区域。 */
     @McpTool(name = "get_employee_details", description = "查询员工详情，包含岗位、部门、地点、国家和区域。")
     fun getEmployeeDetails(
         @McpToolParam(description = "员工主键 employee_id", required = true) id: Int,
         context: McpSyncRequestContext,
     ): EmployeeDetailDto = employeeService.getDetail(id)
 
+    /** 分页查询员工详情视图 emp_details_view。视图没有邮箱、电话和入职日期。 */
     @McpTool(name = "list_emp_details", description = "分页查询员工详情视图 emp_details_view。视图没有邮箱、电话和入职日期。")
     fun listEmpDetails(
         @McpToolParam(description = "每页条数，默认 50，最大 200", required = false) limit: Int?,

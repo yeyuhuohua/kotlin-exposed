@@ -18,6 +18,7 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 import kotlinx.serialization.json.JsonObject
 
+/** 注册员工相关的 HTTP 路由。 */
 @OptIn(ExperimentalKtorApi::class)
 fun Route.employeeRoutes() {
     /** 分页查询员工，支持部门、岗位、关键字筛选。 */

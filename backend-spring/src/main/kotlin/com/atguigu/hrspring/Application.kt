@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.EnableScheduling
 @MapperScan(basePackages = ["com.atguigu.hrspring"], annotationClass = Mapper::class)
 class Application
 
+/** 启动 Spring Boot 应用。 */
 fun main(args: Array<String>) {
     runApplication<Application>(*args) {
         setDefaultProperties(

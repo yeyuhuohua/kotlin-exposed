@@ -14,14 +14,17 @@ class DocsController(
     @Value("\${springdoc.swagger-ui.path:/swagger-ui.html}") private val swaggerUiPath: String,
 ) {
 
+    /** 跳转到 Knife4j 文档页面。 */
     private fun redirect(request: HttpServletRequest, to: String): ResponseEntity<Void> {
         val path = ServletUriComponentsBuilder.fromServletMapping(request).path(to).build().toUri().rawPath
         return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(path)).build()
     }
 
+    /** 处理文档根路径访问。 */
     @GetMapping("/", "/docs", "/scalar")
     fun root(request: HttpServletRequest): ResponseEntity<Void> = redirect(request, "/doc.html")
 
+    /** 提供 Swagger 文档页面。 */
     @GetMapping("/swagger")
     fun swagger(request: HttpServletRequest): ResponseEntity<Void> = redirect(request, swaggerUiPath)
 }

@@ -34,12 +34,14 @@ const rules: FormRules = {
   username: [{ required: true, whitespace: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 }
+/** 判断回跳地址是否包含可能造成路径欺骗的字符。 */
 function hasUnsafePathCharacters(value: string) {
   return [...value].some((character) => {
     const code = character.charCodeAt(0)
     return code <= 31 || code === 127 || code === 92
   })
 }
+/** 校验登录表单，提交凭据并跳转到有权限的首页。 */
 async function submit() {
   if (busy.value) return
   busy.value = true

@@ -24,14 +24,17 @@ class AuditFilterConfig(
     private val auditService: AuditService,
     private val clientIp: ClientIp,
 ) {
+    /** 注册接口调用审计过滤器。 */
     @Bean
     fun auditFilter(): FilterRegistrationBean<OncePerRequestFilter> {
         val filter = object : OncePerRequestFilter() {
+            /** 排除不需要记录接口审计的请求。 */
             override fun shouldNotFilter(request: HttpServletRequest): Boolean {
                 val path = request.applicationPath()
                 return !path.startsWith("/api/") || path == "/api/health"
             }
 
+            /** 在最终响应完成后记录用户、路径、状态和耗时。 */
             override fun doFilterInternal(
                 request: HttpServletRequest,
                 response: HttpServletResponse,
@@ -86,6 +89,7 @@ internal fun redactExportQuery(query: String): String =
         if (decodeQueryName(encodedName).equals("token", ignoreCase = true)) "token=redacted" else part
     }
 
+/** 解码查询参数名，避免编码后的参数绕过审计识别。 */
 private fun decodeQueryName(raw: String): String {
     val normalized = raw.replace('+', ' ')
     return try {

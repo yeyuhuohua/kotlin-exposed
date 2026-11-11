@@ -14,6 +14,7 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 
+/** 注册办公地点相关的 HTTP 路由。 */
 @OptIn(ExperimentalKtorApi::class)
 fun Route.locationRoutes() {
     /** 全部地点。 */

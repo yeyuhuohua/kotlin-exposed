@@ -24,11 +24,13 @@ class CodePointSizeValidator : ConstraintValidator<CodePointSize, String> {
     private var min: Int = 0
     private var max: Int = Int.MAX_VALUE
 
+    /** 初始化校验器；无需额外状态时保持空实现。 */
     override fun initialize(constraint: CodePointSize) {
         min = constraint.min
         max = constraint.max
     }
 
+    /** 判断值是否满足当前校验规则。 */
     override fun isValid(value: String?, context: ConstraintValidatorContext): Boolean {
         if (value == null) return true
         return value.codePointCount(0, value.length) in min..max
@@ -46,6 +48,7 @@ annotation class NotBlankIfPresent(
 )
 
 class NotBlankIfPresentValidator : ConstraintValidator<NotBlankIfPresent, String> {
+    /** 判断值是否满足当前校验规则。 */
     override fun isValid(value: String?, context: ConstraintValidatorContext): Boolean =
         value == null || value.isNotBlank()
 }
@@ -63,10 +66,12 @@ annotation class FiniteMin(
 class FiniteMinValidator : ConstraintValidator<FiniteMin, Double> {
     private var min: Double = 0.0
 
+    /** 初始化校验器；无需额外状态时保持空实现。 */
     override fun initialize(constraint: FiniteMin) {
         min = constraint.value
     }
 
+    /** 判断值是否满足当前校验规则。 */
     override fun isValid(value: Double?, context: ConstraintValidatorContext): Boolean {
         if (value == null) return true
         return value.isFinite() && value >= min
@@ -88,11 +93,13 @@ class FiniteRangeValidator : ConstraintValidator<FiniteRange, Double> {
     private var min: Double = 0.0
     private var max: Double = 1.0
 
+    /** 初始化校验器；无需额外状态时保持空实现。 */
     override fun initialize(constraint: FiniteRange) {
         min = constraint.min
         max = constraint.max
     }
 
+    /** 判断值是否满足当前校验规则。 */
     override fun isValid(value: Double?, context: ConstraintValidatorContext): Boolean {
         if (value == null) return true
         return value.isFinite() && value in min..max
@@ -110,6 +117,7 @@ annotation class HireDate(
 )
 
 class HireDateValidator : ConstraintValidator<HireDate, String> {
+    /** 判断值是否满足当前校验规则。 */
     override fun isValid(value: String?, context: ConstraintValidatorContext): Boolean {
         if (value == null) return true
         val date = runCatching { LocalDate.parse(value) }.getOrNull()
@@ -139,6 +147,7 @@ annotation class NotDotSegment(
 )
 
 class NotDotSegmentValidator : ConstraintValidator<NotDotSegment, String> {
+    /** 判断值是否满足当前校验规则。 */
     override fun isValid(value: String?, context: ConstraintValidatorContext): Boolean =
         value == null || (value != "." && value != "..")
 }
@@ -153,6 +162,7 @@ annotation class Username(
 )
 
 class UsernameValidator : ConstraintValidator<Username, String> {
+    /** 判断值是否满足当前校验规则。 */
     override fun isValid(value: String?, context: ConstraintValidatorContext): Boolean {
         if (value == null) return false
         return USERNAME_PATTERN.matches(value.trim().lowercase(Locale.ROOT))
@@ -170,6 +180,7 @@ annotation class Password(
 
 /** null 表示更新请求没改密码。空白或长度不对仍然拒绝。 */
 class PasswordValidator : ConstraintValidator<Password, String> {
+    /** 判断值是否满足当前校验规则。 */
     override fun isValid(value: String?, context: ConstraintValidatorContext): Boolean {
         if (value == null) return true
         return value.length in 8..128 && value.isNotBlank()
@@ -186,6 +197,7 @@ annotation class RoleCode(
 )
 
 class RoleCodeValidator : ConstraintValidator<RoleCode, String> {
+    /** 判断值是否满足当前校验规则。 */
     override fun isValid(value: String?, context: ConstraintValidatorContext): Boolean {
         if (value == null) return false
         return ROLE_CODE_PATTERN.matches(value.trim().uppercase(Locale.ROOT))
@@ -203,6 +215,7 @@ annotation class RoleName(
 
 /** null 表示更新请求没改名称。 */
 class RoleNameValidator : ConstraintValidator<RoleName, String> {
+    /** 判断值是否满足当前校验规则。 */
     override fun isValid(value: String?, context: ConstraintValidatorContext): Boolean {
         if (value == null) return true
         val trimmed = value.trim()

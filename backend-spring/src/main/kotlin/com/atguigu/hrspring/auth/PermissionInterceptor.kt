@@ -15,6 +15,7 @@ import org.springframework.web.servlet.HandlerInterceptor
 @Component
 class PermissionInterceptor : HandlerInterceptor {
 
+    /** 在控制器执行前检查当前用户是否拥有目标接口权限。 */
     override fun preHandle(request: HttpServletRequest, response: HttpServletResponse, handler: Any): Boolean {
         if (request.getAttribute(McpSecurityConfig.AUTHENTICATED_REQUEST) == true) return true
         val path = request.applicationPath()
@@ -35,6 +36,7 @@ class PermissionInterceptor : HandlerInterceptor {
         return true
     }
 
+    /** 识别使用短期下载凭据而非登录 JWT 的导出下载请求。 */
     private fun isExportDownload(request: HttpServletRequest): Boolean {
         val method = request.method
         if (!method.equals("GET", ignoreCase = true) && !method.equals("HEAD", ignoreCase = true)) return false

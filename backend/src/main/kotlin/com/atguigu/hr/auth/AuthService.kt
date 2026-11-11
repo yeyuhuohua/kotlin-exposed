@@ -20,6 +20,7 @@ class AuthService(
     private val menuKeys: (suspend () -> Set<String>)? = null,
     private val adminUsername: String = PROTECTED_USERNAME,
 ) {
+    /** 验证账号凭据并建立登录会话。 */
     suspend fun login(body: LoginRequest): TokenDto {
         val username = body.username.trim().lowercase(Locale.ROOT)
         if (!validUsername(username) || body.password.length !in 1..128) unauthorized()
@@ -46,6 +47,7 @@ class AuthService(
         return current.copy(permissions = permissions)
     }
 
+    /** 校验账号状态和密码，并加载角色权限。 */
     suspend fun authenticate(id: Int, version: Int): AuthUser? {
         // 其它实例撤销过权限时先清本地缓存（递增代次），再决定是否命中
         if (sharedInvalidation?.advanced() == true) userCache.clear()
@@ -58,14 +60,18 @@ class AuthService(
         return user
     }
 
+    /** 查询用户列表。 */
     suspend fun listUsers(limit: Int, offset: Long) = store.listUsers(limit, offset)
+    /** 查询角色列表。 */
     suspend fun listRoles() = store.listRoles()
 
+    /** 查询角色权限。 */
     suspend fun getRolePermissions(actor: AuthUser, code: String): RolePermissionsDto {
         requirePermissionAdmin(actor, "GET")
         return store.getRolePermissions(code) ?: throw AuthException(HttpStatusCode.NotFound, "role not found")
     }
 
+    /** 更新角色权限。 */
     suspend fun updateRolePermissions(actor: AuthUser, code: String, body: RolePermissionsRequest): RolePermissionsDto {
         requirePermissionAdmin(actor, "PUT")
         if (body.revision < 0) badRequest("invalid permissions revision")
@@ -79,12 +85,14 @@ class AuthService(
         }
     }
 
+    /** 要求当前用户是拥有指定权限的管理员。 */
     private fun requirePermissionAdmin(actor: AuthUser, method: String) {
         if (actor.roleCode != RoleCode.ADMIN.name || !actor.hasPermission("api:$method:/api/auth/roles/{code}/permissions")) {
             throw AuthException(HttpStatusCode.Forbidden, "only ADMIN can manage permissions", ErrorCode.ADMIN_ONLY)
         }
     }
 
+    /** 新增角色。 */
     suspend fun createRole(body: RoleCreateRequest): RoleDto {
         val code = body.code.trim().uppercase(Locale.ROOT)
         if (!Regex("[A-Z][A-Z0-9_]{1,19}").matches(code)) badRequest("role code must contain 2-20 uppercase letters, digits or underscores and start with a letter")
@@ -99,6 +107,7 @@ class AuthService(
         }
     }
 
+    /** 更新角色。 */
     suspend fun updateRole(code: String, body: RoleUpdateRequest): RoleDto {
         if (body.name == null && body.enabled == null) badRequest("no fields to update")
         return try {
@@ -110,11 +119,13 @@ class AuthService(
         }
     }
 
+    /** 校验角色名称是否非空且长度符合限制。 */
     private fun validRoleName(name: String): String = name.trim().also {
         // 与 name 列 varchar(50) 的码点计长一致，不按 UTF-16 单元
         if (it.isBlank() || it.exceedsMaxLength(50)) badRequest("role name must contain 1-50 characters")
     }
 
+    /** 新增用户。 */
     suspend fun createUser(body: UserCreateRequest): UserDto {
         val username = normalizeUsername(body.username)
         // 受保护管理员只能由初始化流程创建，避免普通账号占用保留用户名。
@@ -140,6 +151,7 @@ class AuthService(
         }
     }
 
+    /** 更新用户。 */
     suspend fun updateUser(actorId: Int, id: Int, body: UserUpdateRequest): UserDto {
         if (body.roleCode == null && body.enabled == null && body.password == null) badRequest("no fields to update")
         if (actorId == id && (body.enabled == false || (body.roleCode != null && body.roleCode != RoleCode.ADMIN.name))) {
@@ -222,9 +234,11 @@ class AuthService(
         }
     }
 
+    /** 判断账号是否属于禁止降级、停用或删除的受保护账号。 */
     private fun AuthUser.isProtectedAccount(): Boolean =
         protectedAccount || username.equals(adminUsername.trim(), ignoreCase = true)
 
+    /** 校验角色编码、名称和状态是否合法。 */
     private suspend fun validateRole(code: String) {
         if (store.listRoles().none { it.code == code && it.enabled }) {
             badRequest("role must exist and be enabled")
@@ -235,17 +249,21 @@ class AuthService(
         /** 保留用户名：内置管理员的标识，createUser 拒绝、保护规则按它识别。 */
         const val PROTECTED_USERNAME = "admin"
 
+        /** 去除用户名两端空白并统一为小写。 */
         fun normalizeUsername(value: String): String {
             val username = value.trim().lowercase(Locale.ROOT)
             if (!validUsername(username)) badRequest("username must contain 3-64 ASCII letters, digits, dots, underscores or hyphens")
             return username
         }
 
+        /** 校验密码长度是否满足安全限制。 */
         fun validatePassword(password: String) {
             if (password.length !in 8..128 || password.isBlank()) badRequest("password must contain 8-128 characters and must not be blank")
         }
 
+        /** 校验用户名格式和长度是否合法。 */
         private fun validUsername(value: String) = Regex("[a-z0-9._-]{3,64}").matches(value)
+        /** 构造 400 错误结果。 */
         private fun badRequest(message: String): Nothing = throw AuthException(HttpStatusCode.BadRequest, message)
         /** 登录失败统一用 invalid_credentials，前端据此提示"账号或密码错误"而不是"会话过期"。 */
         private fun unauthorized(): Nothing = throw AuthException(

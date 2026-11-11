@@ -16,6 +16,7 @@ object PermissionCatalog {
     /** 助手对所有有效账号开放，不作为可撤销的角色授权项。 */
     const val CHAT_PAGE = "page:chat"
 
+    /** 生成一个登记在册的 HTTP 接口权限定义。 */
     private fun api(method: String, path: String, label: String, group: String, adminOnly: Boolean = false) =
         PermissionDefinition("api:$method:/api$path", "API", label, group, "/api$path", method, adminOnly)
 
@@ -78,8 +79,10 @@ object PermissionCatalog {
     /** 只需登录、不查权限码的路径。 */
     private val loginOnlyPatterns = listOf("/api/auth/me", "/api/auth/logout", "/api/auth/routes")
 
+    /** 判断路径是否只需登录，不需要额外的接口权限码。 */
     fun isLoginOnly(path: String): Boolean = path in loginOnlyPatterns
 
+    /** 按 HTTP 方法和路径查找对应的权限定义。 */
     fun requiredApi(method: String, path: String): PermissionDefinition? {
         val normalizedMethod = if (method == "HEAD") "GET" else method
         return apiPatterns.firstOrNull { (definition, pattern) ->
@@ -87,6 +90,7 @@ object PermissionCatalog {
         }?.first
     }
 
+    /** 返回角色初始权限：管理员拥有全部权限，查询角色拥有非管理类读取权限。 */
     fun defaults(roleCode: String): Set<String> = definitions.filter {
         roleCode == Roles.ADMIN || (roleCode == Roles.READER && !it.adminOnly && it.method == "GET")
     }.mapTo(linkedSetOf()) { it.code }
@@ -122,6 +126,7 @@ data class AuthUser(
 ) {
     val active: Boolean get() = enabled && roleEnabled
 
+    /** 检查账号是否启用，以及是否拥有指定权限码。 */
     fun hasPermission(code: String): Boolean =
         active && (roleCode == Roles.ADMIN || PermissionCatalog.effective(this).contains(code))
 }
@@ -129,6 +134,7 @@ data class AuthUser(
 /** 路径参数段(任意名字,如 {id}、{code})匹配单层非斜杠路径。 */
 private val pathParameter = Regex("\\{[^/{}]+}")
 
+/** 把包含路径参数的 API 路径编译为单层路径匹配正则。 */
 internal fun apiPathPattern(path: String): Regex =
     Regex(path.split('/').joinToString("/") { segment ->
         if (pathParameter.matches(segment)) "[^/]+" else Regex.escape(segment)

@@ -6,12 +6,14 @@ export type ThemeName = 'light' | 'dark'
 
 const STORAGE_KEY = 'hr-workspace.theme'
 
+/** 读取操作系统是否偏好深色主题。 */
 function systemPrefersDark(): boolean {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     ? window.matchMedia('(prefers-color-scheme: dark)').matches
     : false
 }
 
+/** 读取用户保存的主题偏好。 */
 function storedTheme(): ThemeName | null {
   try {
     const value = localStorage.getItem(STORAGE_KEY)
@@ -42,6 +44,7 @@ export const useTheme = defineStore('theme', () => {
   const followsSystem = ref(stored === null)
   applyTheme(theme.value)
 
+  /** 应用指定主题，停止跟随系统，并保存用户选择。 */
   function set(next: ThemeName) {
     theme.value = next
     followsSystem.value = false
@@ -53,6 +56,7 @@ export const useTheme = defineStore('theme', () => {
     }
   }
 
+  /** 切换浅色和深色主题并保存用户选择。 */
   function toggle() {
     set(theme.value === 'dark' ? 'light' : 'dark')
   }

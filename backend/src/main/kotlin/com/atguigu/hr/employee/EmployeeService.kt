@@ -8,6 +8,7 @@ import com.atguigu.hr.overview.OverviewCache
 /** 协调员工查询与缓存，写操作使用统一失效入口避免返回旧数据。 */
 
 object EmployeeService {
+    /** 查询员工列表。 */
     suspend fun listEmployees(
         limit: Int,
         offset: Long,
@@ -21,16 +22,19 @@ object EmployeeService {
         EmployeeRepository.listEmployees(limit, offset, departmentId, jobId, q, unassignedOnly)
     }
 
+    /** 查询员工。 */
     suspend fun findEmployee(id: Int): Cached<EmployeeDto?> =
         RedisCache.getOrLoadNullable(EmployeeCache.employee(id)) {
             EmployeeRepository.findEmployee(id)
         }
 
+    /** 查询员工关联详情，不存在时返回 null。 */
     suspend fun findEmployeeDetail(id: Int): Cached<EmployeeDetailDto?> =
         RedisCache.getOrLoadNullable(EmployeeCache.employeeDetails(id)) {
             EmployeeRepository.findEmployeeDetail(id)
         }
 
+    /** 查询员工关联详情列表。 */
     suspend fun listEmployeeDetails(limit: Int, offset: Long): Cached<ApiList<EmployeeDetailDto>> =
         RedisCache.getOrLoad(EmployeeCache.empDetails(limit, offset)) {
             EmployeeRepository.listEmployeeDetails(limit, offset)
@@ -46,24 +50,30 @@ object EmployeeService {
     suspend fun countByDepartment(): List<DepartmentHeadcountDto> =
         EmployeeRepository.countEmployeesByDepartment()
 
+    /** 汇总员工薪资统计指标。 */
     suspend fun salarySummary(): SalarySummaryDto = EmployeeRepository.salarySummary()
 
+    /** 更新员工。 */
     suspend fun updateEmployee(id: Int, patch: EmployeeUpdateRequest): EmployeeDto? = invalidateAfterWrite {
         EmployeeRepository.updateEmployee(id, patch)
     }
 
+    /** 精确部分更新员工，只修改显式提交的字段。 */
     suspend fun patchEmployee(id: Int, patch: EmployeePatch): EmployeeDto? = invalidateAfterWrite {
         EmployeeRepository.patchEmployee(id, patch)
     }
 
+    /** 新增员工。 */
     suspend fun createEmployee(body: EmployeeCreateRequest): EmployeeDto = invalidateAfterWrite {
         EmployeeRepository.createEmployee(body)
     }
 
+    /** 删除员工。 */
     suspend fun deleteEmployee(id: Int): Boolean = invalidateAfterWrite {
         EmployeeRepository.deleteEmployee(id) > 0
     }
 
+    /** 员工写入后失效相关缓存，避免旧数据继续命中。 */
     private suspend fun <T> invalidateAfterWrite(block: suspend () -> T): T = RedisCache.withInvalidation(
         EmployeeCache.EMPLOYEE_PREFIX,
         EmployeeCache.EMPLOYEES_PREFIX,

@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Select
 @Mapper
 interface EmployeeMapper : BaseMapper<EmployeeEntity> {
     /** 按部门人数聚合，含未分配部门。departmentName 为空表示未分配。 */
+    /** 按部门统计员工人数。 */
     @Select(
         """
         SELECT e.department_id AS departmentId,
@@ -56,5 +57,6 @@ interface EmployeeMapper : BaseMapper<EmployeeEntity> {
         WHERE e.employee_id = #{id}
         """,
     )
+    /** 通过多表 JOIN 查询指定员工的关联详情。 */
     fun findDetail(@Param("id") id: Int): Map<String, Any>?
 }

@@ -32,10 +32,12 @@ const groups = computed(() => {
   }
   return [...map].map(([label, items]) => ({ label, items }))
 })
+/** 判断指定权限是否可授予当前编辑的角色。 */
 const allowed = (permission: PermissionDefinition) =>
   !permission.adminOnly || current.value?.role.code === 'ADMIN'
 const pages = computed(() => selected.value.filter((code) => code.startsWith('page:')).length)
 const apis = computed(() => selected.value.filter((code) => code.startsWith('api:')).length)
+/** 加载当前页面所需的数据。 */
 async function load() {
   loading.value = true
   error.value = ''
@@ -54,17 +56,20 @@ async function load() {
     loading.value = false
   }
 }
+/** 全选或取消全选当前权限分组。 */
 function selectAll() {
   const eligible = catalog.value
     .filter((item) => item.kind === tab.value && allowed(item))
     .map((item) => item.code)
   selected.value = [...new Set([...selected.value, ...eligible])]
 }
+/** 清空当前权限分组的选择。 */
 function clearTab() {
   selected.value = selected.value.filter(
     (code) => !catalog.value.some((item) => item.kind === tab.value && item.code === code),
   )
 }
+/** 校验并保存当前编辑内容。 */
 async function save() {
   if (!current.value || locked.value) return
   busy.value = true

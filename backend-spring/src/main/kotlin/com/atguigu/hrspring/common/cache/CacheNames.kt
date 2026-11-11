@@ -31,6 +31,7 @@ object CacheNames {
 
 /** 查询串里的分隔符转义，避免不同筛选条件写成同一个缓存键。 */
 object CacheKeys {
+    /** 把员工分页和筛选条件编码为无歧义缓存键。 */
     @JvmStatic
     fun employees(
         page: PageParams,
@@ -39,6 +40,7 @@ object CacheKeys {
         q: String?,
         unassignedOnly: Boolean,
     ): String {
+        /** 用文本长度前缀编码可选筛选值，避免拼接歧义。 */
         fun token(value: String?): String = value?.let { "${it.length}:$it" } ?: "N"
         return listOf(
             page.limit.toString(),
@@ -50,6 +52,7 @@ object CacheKeys {
         ).joinToString(":")
     }
 
+    /** 把用户分页参数规范化后编码为缓存键。 */
     @JvmStatic
     fun users(limit: Int?, offset: Long?): String {
         val size = (limit ?: 50).coerceIn(1, 200)
@@ -62,12 +65,15 @@ object CacheKeys {
 object CacheHitMarker {
     private val hit = ThreadLocal<Boolean?>()
 
+    /** 只记录当前请求第一次缓存读取的命中结果。 */
     fun markFirst(value: Boolean) {
         if (hit.get() == null) hit.set(value)
     }
 
+    /** 返回当前请求首次缓存读取是否命中。 */
     fun current(): Boolean = hit.get() == true
 
+    /** 清除当前线程的缓存命中标记。 */
     fun clear() {
         hit.remove()
     }

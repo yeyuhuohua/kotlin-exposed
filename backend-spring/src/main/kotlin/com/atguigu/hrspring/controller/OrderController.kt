@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController
 class OrderController(
     private val orderService: OrderService,
 ) {
+    /** 查询示例订单列表。 */
     @Operation(summary = "order 表示例数据")
     @GetMapping("/api/orders")
     fun list(): ResponseEntity<ApiResult<List<OrderDto>>> {

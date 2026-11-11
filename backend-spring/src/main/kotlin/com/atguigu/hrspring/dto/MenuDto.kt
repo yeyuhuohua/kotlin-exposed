@@ -53,6 +53,7 @@ data class MenuCreateRequest(
     val adminOnly: Boolean = false,
     val enabled: Boolean = true,
 ) {
+    /** 校验菜单请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? = menuKeyError(key) ?: menuPayloadError(title, path, icon, group, sort)
 }
 
@@ -66,9 +67,11 @@ data class MenuUpdateRequest(
     val sort: Int = 100,
     val enabled: Boolean = true,
 ) {
+    /** 校验菜单请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? = menuPayloadError(title, path, icon, group, sort)
 }
 
+/** 按 Unicode 码点而不是 UTF-16 单元计算文本长度。 */
 private fun String.codePointLength(): Int = codePointCount(0, length)
 
 private val menuKeyPattern = Regex("[a-z][a-z0-9-]{1,39}")
@@ -89,6 +92,7 @@ annotation class ValidMenuCreate(
 )
 
 class MenuCreateValidator : ConstraintValidator<ValidMenuCreate, MenuCreateRequest> {
+    /** 判断值是否满足当前校验规则。 */
     override fun isValid(value: MenuCreateRequest?, context: ConstraintValidatorContext): Boolean {
         val message = value?.contentError() ?: return true
         context.disableDefaultConstraintViolation()
@@ -107,6 +111,7 @@ annotation class ValidMenuUpdate(
 )
 
 class MenuUpdateValidator : ConstraintValidator<ValidMenuUpdate, MenuUpdateRequest> {
+    /** 判断值是否满足当前校验规则。 */
     override fun isValid(value: MenuUpdateRequest?, context: ConstraintValidatorContext): Boolean {
         val message = value?.contentError() ?: return true
         context.disableDefaultConstraintViolation()
@@ -125,10 +130,12 @@ annotation class MenuKey(
 )
 
 class MenuKeyValidator : ConstraintValidator<MenuKey, String> {
+    /** 判断值是否满足当前校验规则。 */
     override fun isValid(value: String?, context: ConstraintValidatorContext): Boolean =
         value != null && menuKeyError(value) == null
 }
 
+/** 校验菜单标识格式及保留字，返回对应错误。 */
 internal fun menuKeyError(key: String): String? {
     if (!menuKeyPattern.matches(key)) {
         return "menu key must contain 2-40 lowercase letters, digits or hyphens and start with a letter"
@@ -137,6 +144,7 @@ internal fun menuKeyError(key: String): String? {
     return null
 }
 
+/** 校验菜单标题、路径、图标、分组和排序。 */
 private fun menuPayloadError(title: String, path: String, icon: String?, group: String, sort: Int): String? {
     if (title.isBlank() || title.trim().codePointLength() > 30) {
         return "menu title must contain 1-30 characters"

@@ -14,6 +14,7 @@ const legacy = `- insert:
         failOnStartupError: false
 `
 
+/** 将旧版固定令牌 MCP 配置迁移为会话级代理配置。 */
 export function migrateProfile(source, replacement) {
   const migrated = source.includes(legacy)
     ? source.replace(legacy, source.includes("name: '@hr/mcp'") ? '' : replacement)

@@ -15,15 +15,18 @@ class DepartmentMcpTools(
     private val departmentService: DepartmentService,
     private val employeeService: EmployeeService,
 ) {
+    /** 查询全部部门，按 departmentId 升序返回。无参数。 */
     @McpTool(name = "list_departments", description = "查询全部部门，按 departmentId 升序返回。无参数。")
     fun listDepartments(context: McpSyncRequestContext): List<DepartmentDto> = departmentService.list()
 
+    /** 按 departmentId 查询单个部门。部门不存在时报 department not found。 */
     @McpTool(name = "get_department", description = "按 departmentId 查询单个部门。部门不存在时报 department not found。")
     fun getDepartment(
         @McpToolParam(description = "部门主键 department_id，例如 90") departmentId: Int,
         context: McpSyncRequestContext,
     ): DepartmentDto = departmentService.find(departmentId)
 
+    /** 新增部门。departmentId、departmentName 必填，departmentName 最长 30。managerId、locationId 可选。 */
     @McpTool(
         name = "create_department",
         description = "新增部门。departmentId、departmentName 必填，departmentName 最长 30。managerId、locationId 可选。",
@@ -34,6 +37,7 @@ class DepartmentMcpTools(
         context: McpSyncRequestContext,
     ): DepartmentDto = departmentService.create(request)
 
+    /** 按 departmentId 部分更新部门。request 里只传要改的字段（departmentName、managerId、locationId），不传的保持原值。 */
     @McpTool(
         name = "update_department",
         description = "按 departmentId 部分更新部门。request 里只传要改的字段（departmentName、managerId、locationId），不传的保持原值。",
@@ -44,6 +48,7 @@ class DepartmentMcpTools(
         context: McpSyncRequestContext,
     ): DepartmentDto = departmentService.update(departmentId, request)
 
+    /** 查询指定部门下的员工。departmentId 为部门主键。部门不存在时仍返回该部门 id 下的员工列表（通常为空），不报 404。 */
     @McpTool(
         name = "list_department_employees",
         description = "查询指定部门下的员工。departmentId 为部门主键。部门不存在时仍返回该部门 id 下的员工列表（通常为空），不报 404。",

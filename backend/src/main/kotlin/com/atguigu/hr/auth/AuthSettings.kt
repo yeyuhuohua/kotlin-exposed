@@ -17,6 +17,7 @@ data class AuthSettings(
     }
 
     companion object {
+        /** 从应用配置读取鉴权设置并应用安全约束。 */
         fun from(config: ApplicationConfig) = AuthSettings(
             secret = config.propertyOrNull("auth.jwtSecret")?.getString()?.takeIf { it.isNotBlank() }
                 ?: error("Set auth.jwtSecret in application.yaml to a random secret of at least 32 bytes"),

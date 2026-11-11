@@ -5,6 +5,7 @@ export function useResource<T>(loader: (signal: AbortSignal) => Promise<T>) {
   const loading = ref(false)
   const error = ref('')
   let controller: AbortController | undefined
+  /** 重新加载当前资源数据。 */
   async function refresh() {
     controller?.abort()
     const current = new AbortController()

@@ -30,10 +30,12 @@ data class LocationUpdateRequest(
     @JsonSchema.Description("国家编码，例如 US，不传则不改")
     val countryId: String? = null,
 ) {
+    /** 判断请求是否至少包含一个可更新字段。 */
     fun hasUpdates(): Boolean =
         streetAddress != null || postalCode != null || city != null ||
             stateProvince != null || countryId != null
 
+    /** 校验办公地点请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? {
         if (city != null && city.isBlank()) return "city must not be blank"
         if (streetAddress != null && streetAddress.exceedsMaxLength(40)) {
@@ -66,6 +68,7 @@ data class LocationCreateRequest(
     @JsonSchema.Description("国家编码，例如 US")
     val countryId: String? = null,
 ) {
+    /** 校验办公地点请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? {
         if (city.isBlank()) return "city is required"
         if (streetAddress != null && streetAddress.exceedsMaxLength(40)) {

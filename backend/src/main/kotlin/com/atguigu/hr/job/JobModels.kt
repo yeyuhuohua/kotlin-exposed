@@ -24,9 +24,11 @@ data class JobUpdateRequest(
     @JsonSchema.Description("最高月薪，不传则不改")
     val maxSalary: Int? = null,
 ) {
+    /** 判断请求是否至少包含一个可更新字段。 */
     fun hasUpdates(): Boolean =
         jobTitle != null || minSalary != null || maxSalary != null
 
+    /** 校验岗位请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? = when {
         jobTitle != null && jobTitle.isBlank() -> "jobTitle must not be blank"
         jobTitle != null && jobTitle.exceedsMaxLength(35) -> "jobTitle must be at most 35 characters"
@@ -56,6 +58,7 @@ data class JobCreateRequest(
     @JsonSchema.Description("最高月薪")
     val maxSalary: Int? = null,
 ) {
+    /** 校验岗位请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? = when {
         jobId.isBlank() || jobTitle.isBlank() -> "jobId and jobTitle are required"
         // "." 与 ".." 会被客户端按路径段规范化，创建后 /jobs/{id} 将永远到不了更新接口

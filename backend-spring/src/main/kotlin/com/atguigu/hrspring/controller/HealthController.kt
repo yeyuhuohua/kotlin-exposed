@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController
 class HealthController(
     private val healthService: HealthService,
 ) {
+    /** 处理“健康检查”请求。 */
     @Operation(summary = "健康检查")
     @GetMapping("/api/health")
     fun health(): ResponseEntity<ApiResult<HealthDto>> {

@@ -12,9 +12,11 @@ import org.springframework.stereotype.Component
 class MenuMcpTools(
     private val menuService: MenuService,
 ) {
+    /** 查询全部菜单，包含已停用的菜单。 */
     @McpTool(name = "list_menus", description = "查询全部菜单，包含已停用的菜单。")
     fun listMenus(context: McpSyncRequestContext): List<MenuDto> = menuService.list()
 
+    /** 新增菜单。key 与路径全局唯一，adminOnly 创建后不可再改。 */
     @McpTool(name = "create_menu", description = "新增菜单。key 与路径全局唯一，adminOnly 创建后不可再改。")
     fun createMenu(
         @McpToolParam(description = "菜单 key，2-40 位，小写字母开头，可含数字和连字符", required = true) key: String,
@@ -39,6 +41,7 @@ class MenuMcpTools(
         ),
     )
 
+    /** 整体替换菜单的标题、路径、图标、分组、排序和启用状态。不改 key、adminOnly 和 builtin。 */
     @McpTool(name = "update_menu", description = "整体替换菜单的标题、路径、图标、分组、排序和启用状态。不改 key、adminOnly 和 builtin。")
     fun updateMenu(
         @McpToolParam(description = "菜单 key", required = true) key: String,
@@ -61,6 +64,7 @@ class MenuMcpTools(
         ),
     )
 
+    /** 删除菜单，并清理各角色持有的 page:key 授权。内置菜单不可删除。 */
     @McpTool(name = "delete_menu", description = "删除菜单，并清理各角色持有的 page:key 授权。内置菜单不可删除。")
     fun deleteMenu(
         @McpToolParam(description = "菜单 key", required = true) key: String,

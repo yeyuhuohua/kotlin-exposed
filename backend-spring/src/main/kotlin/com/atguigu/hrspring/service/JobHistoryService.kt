@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional
 class JobHistoryService(
     private val jobHistoryMapper: JobHistoryMapper,
 ) {
+    /** 查询任职历史列表。 */
     @Cacheable(cacheNames = [CacheNames.JOB_HISTORY], key = "'all'")
     @Transactional(readOnly = true)
     fun list(): List<JobHistoryDto> =
@@ -20,6 +21,7 @@ class JobHistoryService(
         ).map { it.toDto() }
 }
 
+/** 将任职历史数据转换为对外传输对象。 */
 private fun JobHistoryEntity.toDto() = JobHistoryDto(
     employeeId = employeeId,
     startDate = startDate.toString(),

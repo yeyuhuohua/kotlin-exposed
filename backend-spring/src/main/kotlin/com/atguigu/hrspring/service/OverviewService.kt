@@ -18,6 +18,7 @@ class OverviewService(
     private val geographyService: GeographyService,
     private val tEmpService: TEmpService,
 ) {
+    /** 加载当前页面所需的数据。 */
     @Cacheable(cacheNames = [CacheNames.OVERVIEW], key = "'all'")
     fun load(): OverviewDto {
         val started = System.nanoTime()

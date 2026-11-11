@@ -15,6 +15,7 @@ import org.jetbrains.exposed.v1.r2dbc.update
 /** 办公地点持久层：使用 R2DBC 挂起事务，并在事务结束前收集查询结果。 */
 
 object LocationRepository {
+    /** 查询办公地点列表。 */
     suspend fun listLocations(): List<LocationDto> = dbQuery {
         Locations.selectAll()
             .orderBy(Locations.locationId to SortOrder.ASC)
@@ -22,6 +23,7 @@ object LocationRepository {
             .toList()
     }
 
+    /** 查询办公地点。 */
     suspend fun findLocation(id: Int): LocationDto? = dbQuery {
         Locations.selectAll()
             .where { Locations.locationId eq id }
@@ -29,6 +31,7 @@ object LocationRepository {
             .firstOrNull()
     }
 
+    /** 更新办公地点。 */
     suspend fun updateLocation(id: Int, patch: LocationUpdateRequest): LocationDto? = dbUpdate {
         val rows = Locations.update({ Locations.locationId eq id }) {
             patch.streetAddress?.let { value -> it[streetAddress] = value }
@@ -40,6 +43,7 @@ object LocationRepository {
         if (rows == 0) null else loadLocation(id)
     }
 
+    /** 新增办公地点。 */
     suspend fun createLocation(body: LocationCreateRequest): LocationDto = dbUpdate {
         Locations.insert {
             it[locationId] = body.locationId
@@ -52,6 +56,7 @@ object LocationRepository {
         loadLocation(body.locationId) ?: error("location insert missing row")
     }
 
+    /** 加载办公地点。 */
     private suspend fun loadLocation(id: Int): LocationDto? =
         Locations.selectAll()
             .where { Locations.locationId eq id }
@@ -59,6 +64,7 @@ object LocationRepository {
             .firstOrNull()
 }
 
+/** 将持久层数据转换为办公地点传输对象。 */
 private fun ResultRow.toLocation() = LocationDto(
     locationId = this[Locations.locationId],
     streetAddress = this[Locations.streetAddress],

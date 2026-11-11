@@ -16,6 +16,7 @@ data class PermissionDefinition(
 )
 
 object PermissionCatalog {
+    /** 生成一个登记在册的 HTTP 接口权限定义。 */
     private fun api(method: String, path: String, label: String, group: String, adminOnly: Boolean = false) =
         PermissionDefinition("api:$method:/api$path", "API", label, group, "/api$path", method, adminOnly)
 
@@ -75,6 +76,7 @@ object PermissionCatalog {
         definition to apiPathPattern(definition.path)
     }
 
+    /** 按 HTTP 方法和路径查找对应的权限定义。 */
     fun requiredApi(method: String, path: String): PermissionDefinition? {
         val normalizedMethod = if (method == "HEAD") "GET" else method
         return apiPatterns.firstOrNull { (definition, pattern) ->
@@ -82,6 +84,7 @@ object PermissionCatalog {
         }?.first
     }
 
+    /** 返回角色初始权限：管理员拥有全部权限，查询角色拥有非管理类读取权限。 */
     fun defaults(roleCode: String): Set<String> = definitions.filter {
         roleCode == RoleCode.ADMIN.name || (roleCode == RoleCode.READER.name && !it.adminOnly && it.method == "GET")
     }.mapTo(linkedSetOf()) { it.code }

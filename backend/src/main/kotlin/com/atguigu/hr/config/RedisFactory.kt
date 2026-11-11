@@ -38,6 +38,7 @@ object RedisFactory {
     val async: RedisAsyncCommands<String, String>
         get() = connection?.async() ?: throw IllegalStateException("Redis 未连接，缓存旁路")
 
+    /** 建立连接并初始化后续操作所需的客户端。 */
     fun connect(config: ApplicationConfig) {
         val host = config.property("redis.host").getString()
         val port = config.property("redis.port").getString().toInt()
@@ -104,11 +105,13 @@ object RedisFactory {
         return runCatching { async.ping().await() == "PONG" }.isSuccess
     }
 
+    /** 停止当前服务并释放其持有的资源。 */
     fun shutdown() {
         connection?.close()
         client?.shutdown()
     }
 
+    /** 重置 Redis 连接状态，供隔离测试使用。 */
     internal fun resetForTest() {
         connection?.close()
         connection = null

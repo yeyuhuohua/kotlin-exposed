@@ -6,6 +6,7 @@ import com.atguigu.hr.common.cache.RedisCache
 /** 协调任职历史查询与缓存，写操作使用统一失效入口避免返回旧数据。 */
 
 object JobHistoryService {
+    /** 查询任职历史列表。 */
     suspend fun listJobHistory(): Cached<List<JobHistoryDto>> =
         RedisCache.getOrLoad(JobHistoryCache.JOB_HISTORY) { JobHistoryRepository.listJobHistory() }
 }

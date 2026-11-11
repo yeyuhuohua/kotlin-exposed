@@ -99,6 +99,7 @@ return 1
         Group.T_EMP to listOf(Group.OVERVIEW),
     )
 
+    /** 取得指定缓存键所属的分组。 */
     internal fun groupOf(key: String): Group? = when {
         key.startsWith("hr:employees:") -> Group.EMPLOYEES
         key.startsWith("hr:employee:") -> Group.EMPLOYEE
@@ -116,6 +117,7 @@ return 1
         else -> null
     }
 
+    /** 按缓存分组归类键，便于批量失效。 */
     private fun groupsOf(keys: Array<out String>): List<Group> =
         keys.map { requireNotNull(groupOf(it)) { "Unsupported cache key: $it" } }.distinct()
 
@@ -132,9 +134,11 @@ return 1
         return result
     }
 
+    /** 优先读取缓存，未命中时加载并回填；故障时直接查询数据源。 */
     suspend inline fun <reified T> getOrLoad(key: String, noinline loader: suspend () -> T): Cached<T> =
         getOrLoad(key, serializer(), loader)
 
+    /** 优先读取缓存，未命中时加载并回填；故障时直接查询数据源。 */
     suspend fun <T> getOrLoad(
         key: String,
         serializer: KSerializer<T>,
@@ -159,11 +163,13 @@ return 1
         return Cached(value, hit = false)
     }
 
+    /** 读取可空业务值，并使用占位标记缓存空结果。 */
     suspend inline fun <reified T : Any> getOrLoadNullable(
         key: String,
         noinline loader: suspend () -> T?,
     ): Cached<T?> = getOrLoadNullable(key, serializer(), loader)
 
+    /** 读取可空业务值，并使用占位标记缓存空结果。 */
     suspend fun <T : Any> getOrLoadNullable(
         key: String,
         serializer: KSerializer<T>,
@@ -185,12 +191,16 @@ return 1
         return Cached(value, hit = false)
     }
 
+    /** 使指定缓存项失效；缓存不可用时按旁路策略处理。 */
     suspend fun evict(key: String) = evictAll(key)
 
+    /** 清除指定前缀下的缓存项。 */
     suspend fun evictByPrefix(prefix: String) = evictAll(prefix)
 
+    /** 删除符合指定模式的缓存键。 */
     suspend fun evictMatching(pattern: String) = evictAll(pattern.substringBefore('*'))
 
+    /** 清除当前命名空间下的全部缓存项。 */
     suspend fun evictAll(vararg keys: String) = invalidate(groupsOf(keys))
 
     /** 先同步标记全部分组，再逐个清理；清理失败的分组保持旁路，不会重新暴露旧缓存。 */
@@ -224,6 +234,7 @@ return 1
         return outcome.value
     }
 
+    /** 读取原始缓存值，并区分缓存故障与未命中。 */
     suspend fun readRaw(key: String): String? {
         val group = groupOf(key) ?: return null
         // 清理与退避在 cacheOutcome 之外，排队等待不算进 Redis 命令的超时预算。
@@ -279,6 +290,7 @@ return 1
         }.getOrNull()
     }
 
+    /** 记录 Redis 故障并设置短时间旁路，避免连续阻塞请求。 */
     private fun Group.backoffOnFailure() {
         failNotBefore.set(System.nanoTime() + RECOVER_BACKOFF_MS * 1_000_000)
     }
@@ -325,8 +337,10 @@ return 1
         }
     }
 
+    /** 扫描指定模式的缓存键，供批量失效使用。 */
     private suspend fun scanKeys(pattern: String): List<String> = RedisScanner.scan(pattern)
 
+    /** 读取两个后端共享的缓存失效版本。 */
     suspend fun sharedEpoch(): String? {
         if (System.nanoTime() < sharedEpochRetryAt.get()) return null
         val result = cacheOutcome("shared epoch") {
@@ -336,10 +350,12 @@ return 1
         return result?.value
     }
 
+    /** 向其他后端实例广播缓存失效消息。 */
     suspend fun broadcastInvalidation() {
         cacheAttempt("broadcast") { RedisFactory.async.set(SHARED_EPOCH_KEY, newVersionToken()).await() }
     }
 
+    /** 返回缓存条目的过期时间。 */
     private fun ttl(): SetArgs = SetArgs.Builder.ex(RedisFactory.ttlSeconds)
 
     private data class Outcome<T>(val value: T)

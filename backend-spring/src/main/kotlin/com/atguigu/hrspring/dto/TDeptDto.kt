@@ -18,6 +18,7 @@ data class TDeptUpdateRequest(
     @field:CodePointSize(max = 30, message = "address must be at most 30 characters")
     val address: String? = null,
 ) {
+    /** 判断请求是否至少包含一个可更新字段。 */
     @JsonIgnore
     @AssertTrue(message = "no fields to update")
     fun hasUpdates(): Boolean = deptName != null || address != null
@@ -30,6 +31,7 @@ data class TDeptCreateRequest(
     @field:CodePointSize(max = 30, message = "address must be at most 30 characters")
     val address: String? = null,
 ) {
+    /** 判断请求是否至少包含一个已提交的字段值。 */
     @JsonIgnore
     @AssertTrue(message = "deptName or address is required")
     fun hasValues(): Boolean = deptName != null || address != null

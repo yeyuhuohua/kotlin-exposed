@@ -23,6 +23,7 @@ data class UserPrincipal(val user: AuthUser)
 /** JWT challenge 已发出 401 时置位，RoleAuthorization 据此不再重复响应（审计也只记一次）。 */
 private val authChallengeSentKey = AttributeKey<Boolean>("AuthChallengeSent")
 
+/** 安装 Bearer JWT 认证，并把有效用户附加到当前请求。 */
 fun Application.installTokenAuthentication(service: AuthService, tokens: TokenService) {
     install(Authentication) {
         jwt("auth-jwt") {
@@ -67,14 +68,17 @@ val RoleAuthorization = createRouteScopedPlugin("RoleAuthorization", ::RoleAutho
 
 // Ktor 中的空路径会复用父节点，因此使用独立的透明节点，
 // 避免业务写权限限制泄漏到 /auth/logout 或 /auth/me。
+/** 在当前请求上附加菜单和接口权限后继续处理。 */
 fun Route.withBusinessPermissions(build: Route.() -> Unit) {
     val child = createChild(object : RouteSelector() {
+        /** 执行权限插件的身份解析和访问校验。 */
         override suspend fun evaluate(context: RoutingResolveContext, segmentIndex: Int) = RouteSelectorEvaluation.Transparent
     })
     child.install(RoleAuthorization)
     child.build()
 }
 
+/** 注册鉴权插件的统一异常响应。 */
 fun StatusPagesConfig.authErrors() {
     exception<AuthException> { call, cause ->
         if (cause.status == HttpStatusCode.Unauthorized) {

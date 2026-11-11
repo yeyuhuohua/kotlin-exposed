@@ -23,17 +23,20 @@ import org.springframework.web.bind.annotation.RestController
 class TEmpController(
     private val tEmpService: TEmpService,
 ) {
+    /** 查询示例人员列表。 */
     @Operation(summary = "t_emp 人物示例表")
     @GetMapping("/api/t-emp")
     fun list(): ResponseEntity<ApiResult<List<TEmpDto>>> {
         return cachedOk(tEmpService.list())
     }
 
+    /** 新增示例人员并返回保存后的记录。 */
     @Operation(summary = "新增人物并刷新缓存")
     @PostMapping("/api/t-emp")
     fun create(@RequestBody request: TEmpCreateRequest): ResponseEntity<ApiResult<TEmpDto>> =
         body(tEmpService.create(request), "created")
 
+    /** 更新指定示例人员。 */
     @Operation(summary = "部分更新人物并刷新缓存")
     @PutMapping("/api/t-emp/{id}")
     fun update(

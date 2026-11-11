@@ -27,9 +27,11 @@ data class TEmpUpdateRequest(
     @JsonSchema.Description("工号 empno，不传则不改")
     val empno: Int? = null,
 ) {
+    /** 判断请求是否至少包含一个可更新字段。 */
     fun hasUpdates(): Boolean =
         name != null || age != null || deptId != null || empno != null
 
+    /** 校验示例人员请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? = when {
         name != null && name.exceedsMaxLength(20) -> "name must be at most 20 characters"
         age != null && age < 0 -> "age must be non-negative"
@@ -50,6 +52,7 @@ data class TEmpCreateRequest(
     @JsonSchema.Description("工号 empno，必填")
     val empno: Int,
 ) {
+    /** 校验示例人员请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? = when {
         name != null && name.exceedsMaxLength(20) -> "name must be at most 20 characters"
         age != null && age < 0 -> "age must be non-negative"

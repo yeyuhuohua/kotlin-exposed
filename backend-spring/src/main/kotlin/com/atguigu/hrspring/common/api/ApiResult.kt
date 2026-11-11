@@ -36,6 +36,7 @@ object ErrorCode {
     const val INTERNAL_ERROR = "internal_error"
     const val DEPENDENCY_UNAVAILABLE = "dependency_unavailable"
 
+    /** 根据 HTTP 状态码构造对应错误码的失败响应。 */
     fun forStatus(status: Int): String = when (status) {
         400 -> VALIDATION_FAILED
         401 -> UNAUTHORIZED
@@ -61,26 +62,35 @@ class ApiException(
     val resolvedError: String get() = error ?: ErrorCode.forStatus(status)
 
     companion object {
+        /** 构造 400 错误结果。 */
         fun badRequest(message: String, error: String? = null) = ApiException(400, message, error)
 
+        /** 构造 401 错误结果。 */
         fun unauthorized(message: String = "authentication required", error: String? = null) =
             ApiException(401, message, error ?: ErrorCode.UNAUTHORIZED)
 
+        /** 处理后端返回的无权限响应。 */
         fun forbidden(message: String = "insufficient permissions", error: String? = null) =
             ApiException(403, message, error ?: ErrorCode.FORBIDDEN)
 
+        /** 构造 404 错误结果。 */
         fun notFound(message: String = "not found") = ApiException(404, message, ErrorCode.NOT_FOUND)
 
+        /** 构造 409 错误结果。 */
         fun conflict(message: String, error: String? = null) = ApiException(409, message, error ?: ErrorCode.CONFLICT)
     }
 }
 
+/** 构造成功响应。 */
 fun <T> ok(data: T): ApiResult<T> = ApiResult(200, "ok", data)
 
+/** 构造创建成功的响应。 */
 fun <T> created(data: T): ApiResult<T> = ApiResult(200, "created", data)
 
+/** 构造更新成功的响应。 */
 fun <T> updated(data: T): ApiResult<T> = ApiResult(200, "updated", data)
 
+/** 使用指定提示文本构造成功响应。 */
 fun okMessage(message: String): ApiResult<String> = ApiResult(200, "ok", message)
 
 /**

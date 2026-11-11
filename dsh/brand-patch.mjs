@@ -2,6 +2,7 @@ import fs from 'node:fs'
 
 const root = '/usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai'
 
+/** 精确替换第三方源码片段，匹配失败时终止构建。 */
 function replace(file, from, to) {
   const path = `${root}/${file}`
   const source = fs.readFileSync(path, 'utf8')

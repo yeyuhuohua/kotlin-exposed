@@ -38,6 +38,7 @@ onMounted(async () => {
     health.value = undefined
   }
 })
+/** 注销当前登录会话，并清理相关的客户端状态。 */
 async function logout() {
   signingOut.value = true
   try {

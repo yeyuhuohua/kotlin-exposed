@@ -19,6 +19,7 @@ class TokenService(private val settings: AuthSettings) {
         .withClaimPresence("ver")
         .build()
 
+    /** 签发包含用户 ID、Token 版本和有效期的 JWT。 */
     fun issue(user: AuthUser, currentUser: CurrentUserDto): TokenDto {
         val now = Instant.now()
         val token = JWT.create()

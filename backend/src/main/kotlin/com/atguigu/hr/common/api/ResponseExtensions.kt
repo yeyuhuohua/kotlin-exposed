@@ -6,6 +6,7 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 
+/** 使用统一响应信封写出成功数据。 */
 suspend inline fun <reified T> ApplicationCall.respondOk(data: T, message: String = "ok") {
     respond(HttpStatusCode.OK, ApiResult.ok(data, message))
 }

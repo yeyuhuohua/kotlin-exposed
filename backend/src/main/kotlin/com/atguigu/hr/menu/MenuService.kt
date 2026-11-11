@@ -42,22 +42,28 @@ object MenuService {
         )
     }
 
+    /** 新增菜单并返回保存后的记录。 */
     suspend fun create(request: MenuCreateRequest): MenuDto = MenuRepository.create(request).also { changed() }
 
+    /** 更新指定菜单。 */
     suspend fun update(key: String, request: MenuUpdateRequest): MenuDto? =
         MenuRepository.update(key, request)?.also { changed() }
 
+    /** 删除指定菜单。 */
     suspend fun delete(key: String): Boolean = MenuRepository.delete(key).also { if (it) changed() }
 
+    /** 比较菜单变更是否影响前端路由和权限缓存。 */
     private suspend fun changed() {
         invalidate()
         RedisCache.broadcastInvalidation()
     }
 
+    /** 使当前进程内的菜单缓存失效。 */
     fun invalidate() {
         cache.set(null)
     }
 
+    /** 按用户权限和菜单启用状态生成可见页面路由。 */
     internal fun pagesFor(user: AuthUser, menus: List<MenuDto>): List<PageRoute> {
         val enabled = menus.filter { it.enabled }
         val visible = if (user.roleCode == RoleCode.ADMIN.name) {

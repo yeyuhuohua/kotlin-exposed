@@ -36,6 +36,7 @@ class AuditService(
     @Volatile
     internal var drainTimeoutMs = SHUTDOWN_DRAIN_MILLIS
 
+    /** 启动后台处理流程。 */
     @PostConstruct
     fun start() {
         repeat(CONSUMER_COUNT) { index ->
@@ -46,6 +47,7 @@ class AuditService(
         }
     }
 
+    /** 持续消费审计队列，退出前尽量写完已排队事件。 */
     private fun consume() {
         while (!stopping.get() && (accepting.get() || queue.isNotEmpty())) {
             val task = try {
@@ -81,6 +83,7 @@ class AuditService(
         }
     }
 
+    /** 判断异常是否表示线程中断或协程取消。 */
     private fun isInterruption(error: Exception): Boolean {
         var current: Throwable? = error
         while (current != null) {
@@ -90,6 +93,7 @@ class AuditService(
         return false
     }
 
+    /** 停止当前服务并释放其持有的资源。 */
     @PreDestroy
     fun shutdown() {
         synchronized(lifecycleLock) { accepting.set(false) }
@@ -105,6 +109,7 @@ class AuditService(
         remaining.forEach { it.discard() }
     }
 
+    /** 等待审计消费者处理完已有任务并退出。 */
     private fun joinConsumers(deadline: Long) {
         for (thread in consumers) {
             val remaining = deadline - System.currentTimeMillis()
@@ -118,6 +123,7 @@ class AuditService(
         }
     }
 
+    /** 提交登录审计事件，不阻塞当前登录请求。 */
     fun recordLogin(
         username: String,
         userId: Int?,
@@ -142,6 +148,7 @@ class AuditService(
         }
     }
 
+    /** 提交接口调用审计事件，不阻塞当前业务请求。 */
     fun recordApiCall(
         userId: Int?,
         username: String?,
@@ -172,6 +179,7 @@ class AuditService(
         }
     }
 
+    /** 把审计事件写入有界队列，队列满时执行降级处理。 */
     private fun enqueue(write: () -> Unit) {
         synchronized(lifecycleLock) {
             if (!accepting.get()) return
@@ -182,15 +190,18 @@ class AuditService(
     private inner class AuditTask(val write: () -> Unit) {
         private val settled = AtomicBoolean(false)
 
+        /** 标记审计任务完成并唤醒等待中的关闭流程。 */
         fun complete() {
             settled.set(true)
         }
 
+        /** 丢弃无法执行的审计任务并更新完成计数。 */
         fun discard() {
             if (settled.compareAndSet(false, true)) recordLoss()
         }
     }
 
+    /** 记录审计事件丢失数量，避免影响业务请求。 */
     private fun recordLoss() {
         val count = dropped.incrementAndGet()
         if (count == 1L || count % 1000 == 0L) {

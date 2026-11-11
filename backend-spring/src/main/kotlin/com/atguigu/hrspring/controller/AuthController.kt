@@ -47,6 +47,7 @@ class AuthController(
     private val authService: AuthService,
     private val objectMapper: ObjectMapper,
 ) {
+    /** 验证账号凭据并建立登录会话。 */
     @Operation(summary = "使用数据库账号登录并获取访问 Token")
     @PostMapping("/login")
     fun login(
@@ -81,6 +82,7 @@ class AuthController(
         }
     }
 
+    /** 处理“查询当前用户、角色及有效权限”请求。 */
     @Operation(summary = "查询当前用户、角色及有效权限")
     @GetMapping("/me")
     fun me(response: HttpServletResponse): ApiResult<CurrentUserDto> {
@@ -88,6 +90,7 @@ class AuthController(
         return ok(authService.currentUser(CurrentUserHolder.require()))
     }
 
+    /** 注销当前登录会话，并清理相关的客户端状态。 */
     @Operation(summary = "退出登录并撤销当前账号在所有设备上的 Token")
     @PostMapping("/logout")
     fun logout(): ApiResult<String> {
@@ -95,11 +98,13 @@ class AuthController(
         return ok("logged out on all devices")
     }
 
+    /** 处理“查询当前用户可访问的页面清单（前端据此动态注册路由与菜单；页面来自菜单表）”请求。 */
     @Operation(summary = "查询当前用户可访问的页面清单（前端据此动态注册路由与菜单；页面来自菜单表）")
     @GetMapping("/routes")
     fun routes(): ResponseEntity<ApiResult<List<PageRoute>>> =
         noStore(cachedOk(authService.pageRoutes(CurrentUserHolder.require()), false))
 
+    /** 处理“分页查询用户（仅 ADMIN）”请求。 */
     @Operation(summary = "分页查询用户（仅 ADMIN）")
     @GetMapping("/users")
     fun listUsers(
@@ -111,11 +116,13 @@ class AuthController(
         return noStore(cachedOk(authService.listUsers(limit, offset)))
     }
 
+    /** 处理“创建用户（仅 ADMIN；不提供公开注册）”请求。 */
     @Operation(summary = "创建用户（仅 ADMIN；不提供公开注册）")
     @PostMapping("/users")
     fun createUser(@RequestBody request: UserCreateRequest): ResponseEntity<ApiResult<UserDto>> =
         ResponseEntity.ok(created(authService.createUser(request)))
 
+    /** 处理“调整角色、启停账号或重置密码，并撤销已有 Token（仅 ADMIN）”请求。 */
     @Operation(summary = "调整角色、启停账号或重置密码，并撤销已有 Token（仅 ADMIN）")
     @PutMapping("/users/{id}")
     fun updateUser(
@@ -127,6 +134,7 @@ class AuthController(
             updated(authService.updateUser(CurrentUserHolder.require().id, userId(id), request)),
         )
 
+    /** 处理“删除账号（仅 ADMIN；admin 账号与当前登录账号不可删除）”请求。 */
     @Operation(summary = "删除账号（仅 ADMIN；admin 账号与当前登录账号不可删除）")
     @DeleteMapping("/users/{id}")
     fun deleteUser(
@@ -139,17 +147,20 @@ class AuthController(
         return ok("deleted")
     }
 
+    /** 处理“查询角色列表（仅 ADMIN）”请求。 */
     @Operation(summary = "查询角色列表（仅 ADMIN）")
     @GetMapping("/roles")
     fun listRoles(): ResponseEntity<ApiResult<List<RoleDto>>> {
         return cachedOk(authService.listRoles())
     }
 
+    /** 处理“创建角色（仅 ADMIN；初始业务权限为空）”请求。 */
     @Operation(summary = "创建角色（仅 ADMIN；初始业务权限为空）")
     @PostMapping("/roles")
     fun createRole(@RequestBody request: RoleCreateRequest): ResponseEntity<ApiResult<RoleDto>> =
         ResponseEntity.ok(created(authService.createRole(request)))
 
+    /** 处理“修改角色名称或状态（仅 ADMIN；ADMIN 角色受保护）”请求。 */
     @Operation(summary = "修改角色名称或状态（仅 ADMIN；ADMIN 角色受保护）")
     @PutMapping("/roles/{code}")
     fun updateRole(
@@ -159,6 +170,7 @@ class AuthController(
     ): ResponseEntity<ApiResult<RoleDto>> =
         ResponseEntity.ok(updated(authService.updateRole(code, request)))
 
+    /** 处理“删除角色（仅 ADMIN；ADMIN 角色受保护，仍有账号引用时返回 409）”请求。 */
     @Operation(summary = "删除角色（仅 ADMIN；ADMIN 角色受保护，仍有账号引用时返回 409）")
     @DeleteMapping("/roles/{code}")
     fun deleteRole(
@@ -169,6 +181,7 @@ class AuthController(
         return ok("deleted")
     }
 
+    /** 处理“查看角色的页面与接口权限（仅 ADMIN）”请求。 */
     @Operation(summary = "查看角色的页面与接口权限（仅 ADMIN）")
     @GetMapping("/roles/{code}/permissions")
     fun getRolePermissions(
@@ -177,6 +190,7 @@ class AuthController(
     ): ResponseEntity<ApiResult<RolePermissionsDto>> =
         noStore(cachedOk(authService.getRolePermissions(CurrentUserHolder.require(), code), false))
 
+    /** 处理“替换角色权限并撤销该角色所有用户的 Token（仅 ADMIN）”请求。 */
     @Operation(summary = "替换角色权限并撤销该角色所有用户的 Token（仅 ADMIN）")
     @PutMapping("/roles/{code}/permissions")
     fun updateRolePermissions(
@@ -186,14 +200,17 @@ class AuthController(
     ): ResponseEntity<ApiResult<RolePermissionsDto>> =
         ResponseEntity.ok(updated(authService.updateRolePermissions(CurrentUserHolder.require(), code, request)))
 
+    /** 处理“查询权限目录（仅 ADMIN）：页面部分来自菜单表，接口部分为后端登记”请求。 */
     @Operation(summary = "查询权限目录（仅 ADMIN）：页面部分来自菜单表，接口部分为后端登记")
     @GetMapping("/permissions")
     fun permissions(): ResponseEntity<ApiResult<List<PermissionDefinition>>> =
         noStore(cachedOk(authService.listPermissions(), false))
 
+    /** 处理“查询权限目录（仅 ADMIN）：页面部分来自菜单表，接口部分为后端登记”请求。 */
     private fun userId(raw: String): Int =
         raw.toIntOrNull()?.takeIf { it > 0 } ?: throw ApiException.badRequest("invalid user id")
 
+    /** 处理“查询权限目录（仅 ADMIN）：页面部分来自菜单表，接口部分为后端登记”请求。 */
     private fun <T> noStore(response: ResponseEntity<ApiResult<T>>): ResponseEntity<ApiResult<T>> {
         val payload = response.body ?: throw IllegalStateException("missing response body")
         return ResponseEntity.status(response.statusCode)

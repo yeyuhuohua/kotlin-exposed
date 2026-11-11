@@ -15,6 +15,7 @@ import org.jetbrains.exposed.v1.r2dbc.update
 /** 部门持久层：使用 R2DBC 挂起事务，并在事务结束前收集查询结果。 */
 
 object DepartmentRepository {
+    /** 查询部门列表。 */
     suspend fun listDepartments(): List<DepartmentDto> = dbQuery {
         Departments.selectAll()
             .orderBy(Departments.departmentId to SortOrder.ASC)
@@ -22,6 +23,7 @@ object DepartmentRepository {
             .toList()
     }
 
+    /** 查询部门。 */
     suspend fun findDepartment(id: Int): DepartmentDto? = dbQuery {
         Departments.selectAll()
             .where { Departments.departmentId eq id }
@@ -29,6 +31,7 @@ object DepartmentRepository {
             .firstOrNull()
     }
 
+    /** 更新部门。 */
     suspend fun updateDepartment(id: Int, patch: DepartmentUpdateRequest): DepartmentDto? = dbUpdate {
         val rows = Departments.update({ Departments.departmentId eq id }) {
             patch.departmentName?.let { value -> it[departmentName] = value }
@@ -38,6 +41,7 @@ object DepartmentRepository {
         if (rows == 0) null else loadDepartment(id)
     }
 
+    /** 新增部门。 */
     suspend fun createDepartment(body: DepartmentCreateRequest): DepartmentDto = dbUpdate {
         Departments.insert {
             it[departmentId] = body.departmentId
@@ -48,6 +52,7 @@ object DepartmentRepository {
         loadDepartment(body.departmentId) ?: error("department insert missing row")
     }
 
+    /** 加载部门。 */
     private suspend fun loadDepartment(id: Int): DepartmentDto? =
         Departments.selectAll()
             .where { Departments.departmentId eq id }
@@ -55,6 +60,7 @@ object DepartmentRepository {
             .firstOrNull()
 }
 
+/** 将持久层数据转换为部门传输对象。 */
 private fun ResultRow.toDepartment() = DepartmentDto(
     departmentId = this[Departments.departmentId],
     departmentName = this[Departments.departmentName],

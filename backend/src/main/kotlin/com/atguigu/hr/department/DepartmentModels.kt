@@ -24,9 +24,11 @@ data class DepartmentUpdateRequest(
     @JsonSchema.Description("地点 location_id，不传则不改")
     val locationId: Int? = null,
 ) {
+    /** 判断请求是否至少包含一个可更新字段。 */
     fun hasUpdates(): Boolean =
         departmentName != null || managerId != null || locationId != null
 
+    /** 校验部门请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? = when {
         departmentName != null && departmentName.isBlank() -> "departmentName must not be blank"
         departmentName != null && departmentName.exceedsMaxLength(30) -> "departmentName must be at most 30 characters"
@@ -47,6 +49,7 @@ data class DepartmentCreateRequest(
     @JsonSchema.Description("地点 location_id")
     val locationId: Int? = null,
 ) {
+    /** 校验部门请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? = when {
         departmentName.isBlank() -> "departmentName is required"
         departmentName.exceedsMaxLength(30) -> "departmentName must be at most 30 characters"

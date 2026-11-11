@@ -38,6 +38,7 @@ internal fun grantError(code: String, menuAdminOnlyByKey: Map<String, Boolean>):
     return ErrorCode.UNKNOWN_PERMISSION
 }
 
+/** 读取配置中的受保护管理员用户名。 */
 internal fun protectedUsername(username: String, configuredAdmin: String): Boolean =
     username.equals(AuthService.PROTECTED_USERNAME, ignoreCase = true) ||
         username.equals(configuredAdmin, ignoreCase = true)
@@ -46,6 +47,7 @@ class AuthRepository(
     private val database: R2dbcDatabase,
     private val adminUsername: String = AuthService.PROTECTED_USERNAME,
 ) : AuthStore {
+    /** 初始化校验器；无需额外状态时保持空实现。 */
     suspend fun initialize() = suspendTransaction(db = database) {
         SchemaUtils.create(Roles, Users, RolePermissionProfiles, RolePermissions)
         RoleCode.entries.forEach { role ->
@@ -66,6 +68,7 @@ class AuthRepository(
     }
 
     // 重启时绝不能覆盖已有密码，也不能把已有账号提升为管理员。
+    /** 按配置初始化首位管理员，已存在时不覆盖账号。 */
     suspend fun bootstrapAdmin(username: String, passwordHash: String) = suspendTransaction(db = database) {
         Users.insertIgnore {
             it[Users.username] = username
@@ -74,17 +77,21 @@ class AuthRepository(
         }
     }
 
+    /** 查询用户名对应的账号。 */
     override suspend fun findByUsername(username: String): AuthUser? = suspendTransaction(db = database, readOnly = true) {
         val row = (Users innerJoin Roles).selectAll().where { Users.username eq username }.firstOrNull()
         row?.toAuthUser()?.let { loadPermissions(it) }
     }
 
+    /** 查询主键对应的账号。 */
     override suspend fun findById(id: Int): AuthUser? = suspendTransaction(db = database, readOnly = true) {
         loadUser(id)
     }
 
+    /** 判断用户名是否属于内置或配置指定的受保护账号。 */
     private fun isProtectedUsername(username: String): Boolean = protectedUsername(username, adminUsername)
 
+    /** 查询用户列表。 */
     override suspend fun listUsers(limit: Int, offset: Long): ApiList<UserDto> =
         suspendTransaction(db = database, readOnly = true) {
             val total = Users.selectAll().count()
@@ -101,17 +108,20 @@ class AuthRepository(
             ApiList(total, items)
         }
 
+    /** 查询角色列表。 */
     override suspend fun listRoles(): List<RoleDto> = suspendTransaction(db = database, readOnly = true) {
         Roles.selectAll().orderBy(Roles.code to SortOrder.ASC)
             .map { RoleDto(it[Roles.code], it[Roles.name], it[Roles.enabled]) }.toList()
     }
 
+    /** 新增角色。 */
     override suspend fun createRole(code: String, name: String): RoleDto = suspendTransaction(db = database) {
         Roles.insert { it[Roles.code] = code; it[Roles.name] = name }
         RolePermissionProfiles.insert { it[roleCode] = code }
         RoleDto(code, name, true)
     }
 
+    /** 更新角色。 */
     override suspend fun updateRole(code: String, body: RoleUpdateRequest): RoleDto? = suspendTransaction(db = database) {
         if (code == RoleCode.ADMIN.name) {
             throw AuthException(HttpStatusCode.Forbidden, "ADMIN role is protected", ErrorCode.ROLE_PROTECTED)
@@ -125,10 +135,12 @@ class AuthRepository(
         RoleDto(code, body.name ?: row[Roles.name], body.enabled ?: row[Roles.enabled])
     }
 
+    /** 查询角色权限。 */
     override suspend fun getRolePermissions(code: String): RolePermissionsDto? = suspendTransaction(db = database, readOnly = true) {
         loadRolePermissions(code)
     }
 
+    /** 新增用户。 */
     override suspend fun createUser(username: String, passwordHash: String, roleCode: String): AuthUser =
         suspendTransaction(db = database) {
             requireEnabledRole(roleCode)
@@ -140,6 +152,7 @@ class AuthRepository(
             checkNotNull(loadUser(id))
         }
 
+    /** 更新用户。 */
     override suspend fun updateUser(id: Int, roleCode: String?, enabled: Boolean?, passwordHash: String?): AuthUser? =
         suspendTransaction(db = database) {
             roleCode?.let { requireEnabledRole(it) }
@@ -175,12 +188,14 @@ class AuthRepository(
         Roles.deleteWhere { Roles.code eq role[Roles.code] } > 0
     }
 
+    /** 提升用户 Token 版本，使该用户已有 Token 失效。 */
     override suspend fun revokeTokens(id: Int) {
         suspendTransaction(db = database) {
             Users.update({ Users.id eq id }) { it[tokenVersion] = Users.tokenVersion + 1 }
         }
     }
 
+    /** 整体替换角色权限，并处理关联的鉴权缓存失效。 */
     override suspend fun replaceRolePermissions(code: String, request: RolePermissionsRequest): RolePermissionsDto = suspendTransaction(db = database) {
         if (code == RoleCode.ADMIN.name) {
             throw AuthException(HttpStatusCode.Forbidden, "ADMIN role is protected", ErrorCode.ROLE_PROTECTED)
@@ -217,15 +232,18 @@ class AuthRepository(
         checkNotNull(loadRolePermissions(code))
     }
 
+    /** 加载用户。 */
     private suspend fun loadUser(id: Int): AuthUser? {
         val row = (Users innerJoin Roles).selectAll().where { Users.id eq id }.firstOrNull()
         return row?.toAuthUser()?.let { loadPermissions(it) }
     }
 
+    /** 加载权限目录。 */
     private suspend fun loadPermissions(user: AuthUser): AuthUser {
         return user.copy(rolePermissions = roleGrants(user.roleCode))
     }
 
+    /** 加载角色权限。 */
     private suspend fun loadRolePermissions(code: String): RolePermissionsDto? {
         val role = Roles.selectAll().where { Roles.code eq code }.firstOrNull() ?: return null
         val profile = RolePermissionProfiles.selectAll().where { RolePermissionProfiles.roleCode eq code }.firstOrNull()
@@ -237,6 +255,7 @@ class AuthRepository(
         )
     }
 
+    /** 读取指定角色的权限码集合。 */
     private suspend fun roleGrants(code: String): Set<String> {
         if (code == RoleCode.ADMIN.name) return PermissionCatalog.defaults(code)
         return RolePermissions.selectAll().where { RolePermissions.roleCode eq code }
@@ -244,22 +263,26 @@ class AuthRepository(
             .filterTo(linkedSetOf()) { grantableCode(it) }
     }
 
+    /** 批量写入角色的权限授权记录。 */
     private suspend fun insertRoleGrants(code: String, permissions: Set<String>) {
         permissions.forEach { permission ->
             RolePermissions.insert { it[roleCode] = code; it[permissionCode] = permission }
         }
     }
 
+    /** 提升角色下所有用户的 Token 版本，撤销旧会话。 */
     private suspend fun revokeRoleTokens(code: String) {
         Users.update({ Users.roleCode eq code }) { it[tokenVersion] = Users.tokenVersion + 1 }
     }
 
+    /** 取得指定角色，角色不存在或未启用时返回业务错误。 */
     private suspend fun requireEnabledRole(code: String) {
         val role = Roles.selectAll().where { Roles.code eq code }.forUpdate().firstOrNull()
         if (role == null || !role[Roles.enabled]) throw AuthException(HttpStatusCode.BadRequest, "role must exist and be enabled")
     }
 }
 
+/** 将持久层数据转换为认证用户传输对象。 */
 private fun ResultRow.toAuthUser() = AuthUser(
     id = this[Users.id],
     username = this[Users.username],

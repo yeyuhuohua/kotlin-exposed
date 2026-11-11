@@ -17,6 +17,7 @@ internal class PdfGlyphFonts(
     var omitted: Boolean = false
         private set
 
+    /** 为字符选择可嵌入字体；缺字时使用替代字符并记录。 */
     fun take(glyph: String): Pair<PDFont, String> {
         choose(glyph)?.let { return it to glyph }
         omitted = true
@@ -79,11 +80,13 @@ internal class PdfLayout(
         document.addPage(page)
     }
 
+    /** 在 PDF 当前位置插入垂直间距，必要时换页。 */
     fun gap(amount: Float) {
         ensure(amount)
         y -= amount
     }
 
+    /** 按可用宽度换行并写入 PDF 文本。 */
     fun writeWrapped(text: String, size: Float) {
         val width = pageWidth - DocumentExportService.PDF_MARGIN * 2
         for (line in wrap(text, size, width)) {
@@ -97,6 +100,7 @@ internal class PdfLayout(
         }
     }
 
+    /** 写入 PDF 表头和数据行，并支持跨页行切片。 */
     fun writeTable(headers: List<String>, rows: List<List<String>>, size: Float) {
         val columns = headers.size
         val tableWidth = pageWidth - DocumentExportService.PDF_MARGIN * 2
@@ -108,6 +112,7 @@ internal class PdfLayout(
         gap(8f)
     }
 
+    /** 逐行排版表格单元格，按剩余页面空间切片。 */
     private fun drawRow(cells: List<String>, size: Float, columnWidth: Float, header: Boolean) {
         val wrapped = cells.map { wrap(it, size, columnWidth - 6f) }
         val lineHeight = size + 3f
@@ -133,11 +138,13 @@ internal class PdfLayout(
         }
     }
 
+    /** 计算当前页剩余空间可容纳的表格行数。 */
     private fun linesThatFit(lineHeight: Float): Int {
         val available = y - DocumentExportService.PDF_MARGIN
         return ((available - 6f) / lineHeight).toInt()
     }
 
+    /** 绘制表格的一片行内容、边框和表头背景。 */
     private fun paintRowSlice(
         slice: List<List<List<TextRun>>>,
         lineHeight: Float,
@@ -174,6 +181,7 @@ internal class PdfLayout(
 
     private data class TextRun(val font: PDFont, val text: String)
 
+    /** 按段落和文本宽度拆分 PDF 行，并保留字体分段。 */
     private fun wrap(text: String, size: Float, maxWidth: Float): List<List<TextRun>> {
         val lines = mutableListOf<List<TextRun>>()
         for (paragraph in normalizePdfText(text).split('\n')) {
@@ -241,6 +249,7 @@ internal class PdfLayout(
         }
     }
 
+    /** 使用指定字体和坐标写入一段 PDF 文本。 */
     private fun drawText(font: PDFont, text: String, size: Float, x: Float, textY: Float) {
         if (text.isEmpty()) return
         stream.beginText()
@@ -250,14 +259,17 @@ internal class PdfLayout(
         stream.endText()
     }
 
+    /** 计算文本在指定字体和字号下的宽度。 */
     private fun textWidth(font: PDFont, text: String, size: Float): Float =
         font.getStringWidth(text) / 1000f * size
 
+    /** 确保当前页有足够高度，不足时新建页面。 */
     private fun ensure(height: Float) {
         if (y - height >= DocumentExportService.PDF_MARGIN) return
         newPage()
     }
 
+    /** 关闭当前内容流并新建 A4 页面。 */
     private fun newPage() {
         stream.close()
         page = PDPage(PDRectangle.A4)
@@ -266,6 +278,7 @@ internal class PdfLayout(
         y = pageHeight - DocumentExportService.PDF_MARGIN
     }
 
+    /** 关闭当前资源并释放相关句柄。 */
     override fun close() {
         stream.close()
     }

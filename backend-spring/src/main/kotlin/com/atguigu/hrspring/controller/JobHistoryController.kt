@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController
 class JobHistoryController(
     private val jobHistoryService: JobHistoryService,
 ) {
+    /** 查询任职历史列表。 */
     @Operation(summary = "任职历史")
     @GetMapping
     fun list(): ResponseEntity<ApiResult<List<JobHistoryDto>>> {

@@ -37,6 +37,7 @@ object MenuRepository {
         }
     }
 
+    /** 查询菜单列表。 */
     suspend fun list(): List<MenuDto> = dbQuery {
         Menus.selectAll()
             .orderBy(Menus.sort to SortOrder.ASC, Menus.key to SortOrder.ASC)
@@ -44,10 +45,12 @@ object MenuRepository {
             .toList()
     }
 
+    /** 查询指定菜单。 */
     suspend fun find(key: String): MenuDto? = dbQuery {
         Menus.selectAll().where { Menus.key eq key }.firstOrNull()?.toMenuDto()
     }
 
+    /** 新增菜单并返回保存后的记录。 */
     suspend fun create(request: MenuCreateRequest): MenuDto = dbUpdate {
         Menus.insert {
             it[key] = request.key
@@ -87,6 +90,7 @@ object MenuRepository {
     }
 }
 
+/** 将持久层数据转换为菜单传输对象。 */
 private fun ResultRow.toMenuDto() = MenuDto(
     key = this[Menus.key],
     title = this[Menus.title],

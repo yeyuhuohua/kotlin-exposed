@@ -24,12 +24,15 @@ import org.springframework.stereotype.Component
 class AuthMcpTools(
     private val authService: AuthService,
 ) {
+    /** 查询当前登录用户、角色和有效权限，包含仍启用的页面权限码。 */
     @McpTool(name = "get_current_user", description = "查询当前登录用户、角色和有效权限，包含仍启用的页面权限码。")
     fun getCurrentUser(context: McpSyncRequestContext): CurrentUserDto = authService.currentUser(CurrentUserHolder.require())
 
+    /** 查询当前用户可访问的页面清单，供前端注册路由和菜单。 */
     @McpTool(name = "list_page_routes", description = "查询当前用户可访问的页面清单，供前端注册路由和菜单。")
     fun listPageRoutes(context: McpSyncRequestContext): List<PageRoute> = authService.pageRoutes(CurrentUserHolder.require())
 
+    /** 分页查询用户。每页 1 到 200 条，默认 50；offset 为跳过的条数，默认 0。 */
     @McpTool(name = "list_users", description = "分页查询用户。每页 1 到 200 条，默认 50；offset 为跳过的条数，默认 0。")
     fun listUsers(
         @McpToolParam(description = "每页条数，默认 50，最大 200", required = false) limit: Int? = null,
@@ -37,6 +40,7 @@ class AuthMcpTools(
         context: McpSyncRequestContext,
     ): ApiList<UserDto> = authService.listUsers(limit, offset)
 
+    /** 创建用户。用户名 3 到 64 位，密码 8 到 128 位。不能使用保留用户名 admin。 */
     @McpTool(name = "create_user", description = "创建用户。用户名 3 到 64 位，密码 8 到 128 位。不能使用保留用户名 admin。")
     fun createUser(
         @McpToolParam(description = "用户名", required = true) username: String,
@@ -45,6 +49,7 @@ class AuthMcpTools(
         context: McpSyncRequestContext,
     ): UserDto = authService.createUser(UserCreateRequest(username, password, roleCode))
 
+    /** 修改用户的角色、启停或密码，并撤销该用户已有 Token。不能停用或降级自己，也不能改内置 admin。 */
     @McpTool(
         name = "update_user",
         description = "修改用户的角色、启停或密码，并撤销该用户已有 Token。不能停用或降级自己，也不能改内置 admin。",
@@ -61,6 +66,7 @@ class AuthMcpTools(
         UserUpdateRequest(roleCode, enabled, password),
     )
 
+    /** 删除用户。不能删除自己，也不能删除内置 admin。 */
     @McpTool(name = "delete_user", description = "删除用户。不能删除自己，也不能删除内置 admin。")
     fun deleteUser(
         @McpToolParam(description = "用户编号", required = true) id: Int,
@@ -72,9 +78,11 @@ class AuthMcpTools(
         return "deleted"
     }
 
+    /** 查询全部角色，按角色编码排序。 */
     @McpTool(name = "list_roles", description = "查询全部角色，按角色编码排序。")
     fun listRoles(context: McpSyncRequestContext): List<RoleDto> = authService.listRoles()
 
+    /** 创建角色，初始业务权限为空。编码为 2 到 20 位大写字母、数字或下划线，并以字母开头。 */
     @McpTool(
         name = "create_role",
         description = "创建角色，初始业务权限为空。编码为 2 到 20 位大写字母、数字或下划线，并以字母开头。",
@@ -85,6 +93,7 @@ class AuthMcpTools(
         context: McpSyncRequestContext,
     ): RoleDto = authService.createRole(RoleCreateRequest(code, name))
 
+    /** 修改角色名称或启停状态。ADMIN 角色受保护。停用或重新启用会撤销该角色用户的 Token。 */
     @McpTool(name = "update_role", description = "修改角色名称或启停状态。ADMIN 角色受保护。停用或重新启用会撤销该角色用户的 Token。")
     fun updateRole(
         @McpToolParam(description = "角色编码", required = true) code: String,
@@ -93,6 +102,7 @@ class AuthMcpTools(
         context: McpSyncRequestContext,
     ): RoleDto = authService.updateRole(code, RoleUpdateRequest(name, enabled))
 
+    /** 删除角色及其权限。ADMIN 角色受保护；仍有用户引用该角色时失败。 */
     @McpTool(name = "delete_role", description = "删除角色及其权限。ADMIN 角色受保护；仍有用户引用该角色时失败。")
     fun deleteRole(
         @McpToolParam(description = "角色编码", required = true) code: String,
@@ -102,15 +112,18 @@ class AuthMcpTools(
         return "deleted"
     }
 
+    /** 查询权限目录。页面权限在前，接口权限在后。 */
     @McpTool(name = "list_permissions", description = "查询权限目录。页面权限在前，接口权限在后。")
     fun listPermissions(context: McpSyncRequestContext): List<PermissionDefinition> = authService.listPermissions()
 
+    /** 查看角色已授予的页面和接口权限，以及保存时要用的版本号。 */
     @McpTool(name = "get_role_permissions", description = "查看角色已授予的页面和接口权限，以及保存时要用的版本号。")
     fun getRolePermissions(
         @McpToolParam(description = "角色编码", required = true) code: String,
         context: McpSyncRequestContext,
     ): RolePermissionsDto = authService.getRolePermissions(CurrentUserHolder.require(), code)
 
+    /** 按版本号整表替换角色权限，并撤销该角色所有用户的 Token。版本不一致时需要先重新查询。ADMIN 角色不可修改。 */
     @McpTool(
         name = "update_role_permissions",
         description = "按版本号整表替换角色权限，并撤销该角色所有用户的 Token。版本不一致时需要先重新查询。ADMIN 角色不可修改。",

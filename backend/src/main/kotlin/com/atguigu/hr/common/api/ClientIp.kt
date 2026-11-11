@@ -20,6 +20,7 @@ object ClientIp {
     @Volatile
     private var trustedProxies: Set<String> = DEFAULT_TRUSTED
 
+    /** 配置可信代理范围，供客户端 IP 解析使用。 */
     fun configure(config: ApplicationConfig) {
         trustedProxies = config.propertyOrNull("security.trustedProxies")?.getList()
             ?.map { it.trim() }
@@ -29,6 +30,7 @@ object ClientIp {
             ?: DEFAULT_TRUSTED
     }
 
+    /** 按可信代理链解析真实客户端 IP，不信任未授权转发头。 */
     fun resolve(call: ApplicationCall): String = resolveClientIp(
         // remoteHost 可能是反向解析出的主机名（如 localhost），remoteAddress 才是连接对端地址
         direct = call.request.origin.remoteAddress,
@@ -63,4 +65,5 @@ fun resolveClientIp(direct: String, forwardedFor: String?, trusted: Set<String>)
     return hops.asReversed().firstOrNull { it !in normalizedTrusted } ?: normalizedDirect
 }
 
+/** 按可信代理解析客户端 IP，并规范化 IPv6 地址值。 */
 fun ApplicationCall.clientIp(): String = ClientIp.resolve(this)

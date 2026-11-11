@@ -33,6 +33,7 @@ data class JobCreateRequest(
     @field:Min(value = 0, message = "maxSalary must be non-negative")
     val maxSalary: Int? = null,
 ) {
+    /** 判断岗位最低薪资是否不高于最高薪资。 */
     @JsonIgnore
     @AssertTrue(message = "minSalary must not exceed maxSalary")
     fun isSalaryOrderValid(): Boolean =
@@ -48,6 +49,7 @@ data class JobUpdateRequest(
     @field:Min(value = 0, message = "maxSalary must be non-negative")
     val maxSalary: Int? = null,
 ) {
+    /** 判断请求是否至少包含一个可更新字段。 */
     @JsonIgnore
     @AssertTrue(message = "no fields to update")
     fun hasUpdates(): Boolean =

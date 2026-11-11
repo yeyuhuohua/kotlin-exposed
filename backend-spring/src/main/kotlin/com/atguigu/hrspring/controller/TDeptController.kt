@@ -23,17 +23,20 @@ import org.springframework.web.bind.annotation.RestController
 class TDeptController(
     private val tDeptService: TDeptService,
 ) {
+    /** 查询示例部门列表。 */
     @Operation(summary = "t_dept 门派示例表")
     @GetMapping("/api/t-dept")
     fun list(): ResponseEntity<ApiResult<List<TDeptDto>>> {
         return cachedOk(tDeptService.list())
     }
 
+    /** 新增示例部门并返回保存后的记录。 */
     @Operation(summary = "新增门派并刷新缓存")
     @PostMapping("/api/t-dept")
     fun create(@RequestBody request: TDeptCreateRequest): ResponseEntity<ApiResult<TDeptDto>> =
         body(tDeptService.create(request), "created")
 
+    /** 更新指定示例部门。 */
     @Operation(summary = "部分更新门派并刷新缓存")
     @PutMapping("/api/t-dept/{id}")
     fun update(

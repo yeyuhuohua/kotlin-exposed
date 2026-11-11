@@ -8,6 +8,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 
+/** 注册薪资等级相关的 HTTP 路由。 */
 @OptIn(ExperimentalKtorApi::class)
 fun Route.jobGradeRoutes() {
     /** 薪资等级。 */

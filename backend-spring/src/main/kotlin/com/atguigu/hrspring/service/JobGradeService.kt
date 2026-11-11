@@ -12,12 +12,14 @@ import org.springframework.transaction.annotation.Transactional
 class JobGradeService(
     private val jobGradeMapper: JobGradeMapper,
 ) {
+    /** 查询薪资等级列表。 */
     @Cacheable(cacheNames = [CacheNames.JOB_GRADES], key = "'all'")
     @Transactional(readOnly = true)
     fun list(): List<JobGradeDto> =
         jobGradeMapper.selectList(KtQueryWrapper(JobGradeEntity::class.java).orderByAsc(JobGradeEntity::gradeLevel)).map { it.toDto() }
 }
 
+/** 将薪资等级数据转换为对外传输对象。 */
 private fun JobGradeEntity.toDto() = JobGradeDto(
     gradeLevel = gradeLevel,
     lowestSal = lowestSal,

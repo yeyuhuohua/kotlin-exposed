@@ -8,9 +8,11 @@ import com.atguigu.hr.overview.OverviewCache
 /** 协调办公地点查询与缓存，写操作使用统一失效入口避免返回旧数据。 */
 
 object LocationService {
+    /** 查询办公地点列表。 */
     suspend fun listLocations(): Cached<List<LocationDto>> =
         RedisCache.getOrLoad(LocationCache.LOCATIONS) { LocationRepository.listLocations() }
 
+    /** 更新办公地点。 */
     suspend fun updateLocation(id: Int, patch: LocationUpdateRequest): LocationDto? = RedisCache.withInvalidation(
         LocationCache.LOCATIONS,
         EmployeeCache.EMPLOYEE_PREFIX,
@@ -20,6 +22,7 @@ object LocationService {
         LocationRepository.updateLocation(id, patch)
     }
 
+    /** 新增办公地点。 */
     suspend fun createLocation(body: LocationCreateRequest): LocationDto = RedisCache.withInvalidation(
         LocationCache.LOCATIONS,
         OverviewCache.OVERVIEW,

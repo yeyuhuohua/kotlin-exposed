@@ -14,6 +14,7 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 
+/** 注册岗位相关的 HTTP 路由。 */
 @OptIn(ExperimentalKtorApi::class)
 fun Route.jobRoutes() {
     /** 全部岗位。 */

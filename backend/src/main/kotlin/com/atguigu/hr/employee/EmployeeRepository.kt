@@ -70,6 +70,7 @@ object EmployeeRepository {
         ApiList(total = total, items = items)
     }
 
+    /** 查询员工。 */
     suspend fun findEmployee(id: Int): EmployeeDto? = dbQuery {
         Employees.selectAll()
             .where { Employees.employeeId eq id }
@@ -104,6 +105,7 @@ object EmployeeRepository {
         ApiList(total = total, items = items)
     }
 
+    /** 查询指定部门的员工列表。 */
     suspend fun listEmployeesByDepartment(departmentId: Int): List<EmployeeDto> = dbQuery {
         Employees.selectAll()
             .where { Employees.departmentId eq departmentId }
@@ -149,6 +151,7 @@ object EmployeeRepository {
         )
     }
 
+    /** 更新员工。 */
     suspend fun updateEmployee(id: Int, patch: EmployeeUpdateRequest): EmployeeDto? = dbUpdate {
         val rows = Employees.update({ Employees.employeeId eq id }) {
             patch.salary?.let { value -> it[salary] = value }
@@ -173,6 +176,7 @@ object EmployeeRepository {
         if (rows == 0) null else loadEmployee(id)
     }
 
+    /** 新增员工。 */
     suspend fun createEmployee(body: EmployeeCreateRequest): EmployeeDto = dbUpdate {
         Employees.insert {
             it[employeeId] = body.employeeId
@@ -190,6 +194,7 @@ object EmployeeRepository {
         loadEmployee(body.employeeId) ?: error("employee insert missing row")
     }
 
+    /** 加载员工。 */
     private suspend fun loadEmployee(id: Int): EmployeeDto? =
         Employees.selectAll()
             .where { Employees.employeeId eq id }
@@ -240,6 +245,7 @@ private fun ResultRow.toEmployeeDetail() = EmployeeDetailDto(
     regionName = this.getOrNull(Regions.regionName),
 )
 
+/** 把员工详情视图行转换为员工详情 DTO。 */
 private fun ResultRow.toEmployeeDetailFromView() = EmployeeDetailDto(
     employeeId = this[EmpDetailsView.employeeId],
     firstName = this[EmpDetailsView.firstName],

@@ -7,6 +7,7 @@ import { bindRpcRequest, createAgentBindings } from './agent-bindings.mjs'
 import { createSessionStore, sessionId } from './session-store.mjs'
 import { createMcpForwarder } from './mcp-forwarder.mjs'
 
+/** 判断请求 Origin 是否属于允许的 HR 前端来源。 */
 function allowOrigin(origin) {
   if (!origin) return true
   try {
@@ -34,6 +35,7 @@ export function createAuthProxy({
     hrApi, fetchImpl, timeoutMs, agentBindings,
   })
 
+  /** 取得 DSH 上游会话 Cookie 和启动令牌。 */
   function upstreamCookies(host) {
     return new Promise((resolve, reject) => {
       const request = http.request({
@@ -55,6 +57,7 @@ export function createAuthProxy({
     })
   }
 
+  /** 写出不含内部细节的代理错误响应。 */
   function fail(res, status) {
     if (res.headersSent) return res.destroy()
     const messages = {
@@ -75,6 +78,7 @@ export function createAuthProxy({
     handle(req, res).catch((error) => fail(res, error.status || 503))
   })
 
+  /** 处理会话兑换、身份复核及到 DSH 的 HTTP 代理。 */
   async function handle(req, res) {
     const url = new URL(req.url || '/', 'http://127.0.0.1:3080')
     if (url.pathname === '/internal/mcp') return handleMcp(req, res)
@@ -160,6 +164,7 @@ export function createAuthProxy({
     upgrade(req, socket, head).catch(() => socket.destroy())
   })
 
+  /** 复核会话后代理 WebSocket，并在身份失效时断开连接。 */
   async function upgrade(req, socket, head) {
     const session = await authorizedSession(req)
     if (!session || !allowOrigin(req.headers.origin) || socket.destroyed) {

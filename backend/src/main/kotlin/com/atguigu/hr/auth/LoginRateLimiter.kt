@@ -35,6 +35,7 @@ class LoginRateLimiter(
         return (bucket.expiresAt - now + 999) / 1000
     }
 
+    /** 记录一次登录失败，并按策略更新限流状态。 */
     fun recordFailure(key: String) {
         val now = clock()
         val bucket = buckets.compute(key) { _, existing ->
@@ -44,10 +45,12 @@ class LoginRateLimiter(
         if (bucket != null && buckets.size > maxTrackedKeys) prune(now)
     }
 
+    /** 清除指定键对应的登录失败计数。 */
     fun reset(key: String) {
         buckets.remove(key)
     }
 
+    /** 返回当前仍被限流器跟踪的键，供测试检查状态。 */
     fun trackedKeys(): Int = buckets.size
 
     /** 先清过期项；仍超上限时按最快过期的时间丢弃，保证内存有界（被丢弃的 key 相当于放行）。 */

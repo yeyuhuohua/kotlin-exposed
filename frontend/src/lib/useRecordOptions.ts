@@ -10,6 +10,7 @@ export function useRecordOptions(fields: Ref<Field[]>, values: Row) {
   const loading = ref(false)
   const lookupError = ref('')
 
+  /** 加载表单所需的关联记录选项。 */
   async function loadOptions() {
     loading.value = true
     lookupError.value = ''

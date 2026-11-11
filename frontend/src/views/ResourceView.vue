@@ -65,10 +65,12 @@ function protectedRow(row: Row): boolean {
   if (props.resource.key === 'users') return isProtectedUser(row, auth.user?.id)
   return false
 }
+/** 返回记录受保护、不能执行当前操作的原因。 */
 function protectedReason(row: Row): string {
   if (props.resource.key === 'roles') return 'ADMIN 角色不可删除'
   return row.id === auth.user?.id ? '不能删除当前登录账号' : 'admin 账号不可删除'
 }
+/** 生成删除确认时显示的记录名称。 */
 function recordLabel(row: Row): string {
   const column = props.resource.columns[1] ?? props.resource.columns[0]
   return String(row[column.key] ?? row[props.resource.id])
@@ -78,6 +80,7 @@ function askDelete(row: Row) {
   deleteError.value = ''
   deleting.value = row
 }
+/** 请求用户确认后执行记录删除。 */
 async function confirmDelete() {
   if (!deleting.value || !props.resource.updateTemplate) return
   deleteBusy.value = true
@@ -148,14 +151,17 @@ watch(loadedTotal, (value) => {
   page.value = Math.min(page.value, Math.max(1, Math.ceil(value / pageSize.value)))
 })
 const total = computed(() => loadedTotal.value ?? knownTotal.value)
+/** 调整每页条数并重新查询第一页。 */
 function setPageSize(value: number) {
   pageSize.value = value
   page.value = 1
 }
+/** 打开指定记录的编辑对话框。 */
 function edit(row?: Row) {
   editing.value = row
   open.value = true
 }
+/** 在保存成功后关闭对话框并刷新数据。 */
 function saved() {
   open.value = false
   void refresh()

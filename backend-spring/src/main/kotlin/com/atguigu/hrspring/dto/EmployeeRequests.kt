@@ -26,6 +26,7 @@ class EmployeeUpdateRequest {
     @field:CodePointSize(max = 20, message = "phoneNumber must be at most 20 characters")
     var phoneNumber: String? = null
 
+    /** 判断请求是否至少包含一个可更新字段。 */
     @JsonIgnore
     @AssertTrue(message = "no fields to update")
     fun hasUpdates(): Boolean =
@@ -94,6 +95,7 @@ class EmployeePatch(
         private val requiredTexts = setOf("jobId")
         private val allowed = nullableNumbers + nullableInts + nullableTexts + requiredTexts
 
+        /** 把 JSON 对象解析为员工 PATCH，并记录显式出现的字段。 */
         fun parse(body: JsonNode): EmployeePatch {
             if (body !is ObjectNode) throw ApiException.badRequest("invalid request body")
             if (body.size() == 0) throw ApiException.badRequest("no fields to update")
@@ -117,6 +119,7 @@ class EmployeePatch(
             )
         }
 
+        /** 读取可空文本字段，类型不符时抛出校验错误。 */
         private fun JsonNode.text(key: String): String? {
             if (!has(key)) return null
             val node = get(key)
@@ -136,6 +139,7 @@ class EmployeePatch(
             return node.doubleValue()
         }
 
+        /** 读取可空整数字段，拒绝字符串等非整数类型。 */
         private fun JsonNode.integer(key: String): Int? {
             if (!has(key)) return null
             val node = get(key)

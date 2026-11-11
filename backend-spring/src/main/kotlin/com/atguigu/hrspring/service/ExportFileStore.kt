@@ -70,11 +70,13 @@ internal class ExportFileStore(
         }
     }
 
+    /** 关闭当前资源并释放相关句柄。 */
     fun close() {
         releaseInstanceLock()
         runCatching { Runtime.getRuntime().removeShutdownHook(shutdownHook) }
     }
 
+    /** 幂等释放当前实例的文件锁和通道。 */
     private fun releaseInstanceLock() {
         if (!released.compareAndSet(false, true)) return
         try {
@@ -89,6 +91,7 @@ internal class ExportFileStore(
         }
     }
 
+    /** 清理过期文件、孤儿文件和已退出实例的目录。 */
     fun sweepExports() {
         purgeExpired()
         sweepOrphans()
@@ -110,6 +113,7 @@ internal class ExportFileStore(
         return StoredFile(stored.filename, stored.mediaType, stored.path.readBytes())
     }
 
+    /** 保存导出文件并生成带短期下载凭据的链接。 */
     fun store(
         filename: String,
         mediaType: String,
@@ -134,6 +138,7 @@ internal class ExportFileStore(
         )
     }
 
+    /** 根据导出内容类型返回对应文件扩展名。 */
     private fun extensionFor(mediaType: String): String = when (mediaType) {
         DocumentExportService.XLSX -> ".xlsx"
         DocumentExportService.DOCX -> ".docx"
@@ -141,6 +146,7 @@ internal class ExportFileStore(
         else -> error("unknown export type")
     }
 
+    /** 删除已过期导出文件及其下载凭据。 */
     private fun purgeExpired() {
         val now = Instant.now()
         for ((id, stored) in files) {
@@ -189,6 +195,7 @@ internal class ExportFileStore(
         }
     }
 
+    /** 在进程内和文件锁保护下执行跨实例清理。 */
     private fun withSweepLock(block: () -> Unit) {
         synchronized(sweepMonitor) {
             val lockPath = base.resolve(CLEANUP_LOCK)
@@ -215,6 +222,7 @@ internal class ExportFileStore(
         }
     }
 
+    /** 通过实例存活文件锁判断其他进程是否仍在运行。 */
     private fun instanceIsAlive(dir: Path): Boolean {
         val live = dir.resolve(LIVE_FILE)
         if (!Files.isRegularFile(live)) {
@@ -242,6 +250,7 @@ internal class ExportFileStore(
         }
     }
 
+    /** 读取已退出实例记录的 TTL，读取失败时采用最大保留期。 */
     private fun recordedTtl(dir: Path): Long =
         try {
             Files.readString(dir.resolve(LIVE_FILE)).trim().toLong().coerceIn(60, 86_400)
@@ -249,6 +258,7 @@ internal class ExportFileStore(
             86_400
         }
 
+    /** 判断实例目录是否只剩存活标记文件。 */
     private fun onlyMarkerLeft(dir: Path): Boolean =
         try {
             Files.list(dir).use { stream ->
@@ -258,6 +268,7 @@ internal class ExportFileStore(
             false
         }
 
+    /** 只删除服务命名且超过截止时间的非活跃导出文件。 */
     private fun sweepOwnedFiles(dir: Path, cutoff: Instant, live: Set<String>) {
         val listed = try {
             Files.list(dir)
@@ -281,28 +292,34 @@ internal class ExportFileStore(
         }
     }
 
+    /** 删除当前目标及其关联状态。 */
     private fun remove(id: String, stored: StoredExport) {
         if (files.remove(id, stored)) stored.path.deleteIfExists()
     }
 
+    /** 使用固定时间比较下载 Token 的 SHA-256 哈希。 */
     private fun tokenMatches(token: String, expected: ByteArray): Boolean =
         MessageDigest.isEqual(sha256(token), expected)
 
+    /** 计算字符串的 SHA-256 哈希。 */
     private fun sha256(value: String): ByteArray =
         MessageDigest.getInstance("SHA-256").digest(value.toByteArray(StandardCharsets.UTF_8))
 
+    /** 生成 128 位随机十六进制标识。 */
     private fun newId(): String = buildString(32) {
         val bytes = ByteArray(16)
         random.nextBytes(bytes)
         bytes.forEach { append("%02x".format(it)) }
     }
 
+    /** 生成 URL 安全的 256 位随机下载 Token。 */
     private fun newToken(): String {
         val bytes = ByteArray(32)
         random.nextBytes(bytes)
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     }
 
+    /** 解析并创建导出根目录，不可用时拒绝启动存储。 */
     private fun resolveBase(configured: String): Path {
         val path = if (configured.isBlank()) {
             Path.of(System.getProperty("java.io.tmpdir"), "hr-spring-exports")

@@ -27,11 +27,13 @@ class TEmpService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /** 查询示例人员列表。 */
     @Cacheable(cacheNames = [CacheNames.T_EMP], key = "'all'")
     @Transactional(readOnly = true)
     fun list(): List<TEmpDto> =
         tEmpMapper.selectList(KtQueryWrapper(TEmpEntity::class.java).orderByAsc(TEmpEntity::id)).map { it.toDto() }
 
+    /** 新增示例人员并返回保存后的记录。 */
     @CacheEvict(cacheNames = [CacheNames.T_EMP, CacheNames.OVERVIEW], allEntries = true)
     @Transactional
     fun create(@Valid body: TEmpCreateRequest): TEmpDto {
@@ -51,6 +53,7 @@ class TEmpService(
             ?: error("t_emp insert missing row")
     }
 
+    /** 更新指定示例人员。 */
     @CacheEvict(cacheNames = [CacheNames.T_EMP, CacheNames.OVERVIEW], allEntries = true)
     @Transactional
     fun update(id: Int, @Valid patch: TEmpUpdateRequest): TEmpDto {
@@ -75,8 +78,10 @@ class TEmpService(
             KtQueryWrapper(TEmpEntity::class.java).eq(TEmpEntity::id, id).last("FOR UPDATE"),
         ).firstOrNull()
 
+    /** 重新加载示例人员，绕过已有缓存。 */
     private fun reload(id: Int): TEmpDto? = tEmpMapper.selectById(id)?.toDto()
 
+    /** 将示例人员数据转换为对外传输对象。 */
     private fun TEmpEntity.toDto() = TEmpDto(
         id = checkNotNull(id),
         name = name,

@@ -58,6 +58,10 @@ data class RolePermissionsDto(
 @Serializable
 data class RolePermissionsRequest(val revision: Int, val permissions: Set<String>)
 
+    /** 将持久层数据转换为当前登录用户传输对象。 */
+    /** 检查账号及角色是否启用，并判断是否拥有指定权限。 */
+    /** 过滤无效权限并计算当前用户的有效权限集合。 */
+    /** 将账号与权限数据转换为对外传输对象。 */
 @Serializable
 data class TokenDto(
     val accessToken: String,

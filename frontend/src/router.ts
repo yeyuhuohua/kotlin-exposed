@@ -93,6 +93,7 @@ let removePageRoutes: (() => void)[] = []
 let registeredFingerprint = ''
 let registering: Promise<boolean> | undefined
 
+/** 生成页面路由指纹，用于识别后端菜单是否发生变化。 */
 function routeFingerprint(): string {
   const auth = useAuth()
   const granted = (auth.user?.permissions || [])

@@ -39,6 +39,7 @@ class McpSecurityConfig(
     private val toolListHandler: McpToolListHandler,
 ) {
 
+    /** 创建 MCP HTTP 传输，并把请求中的认证用户写入协议上下文。 */
     @Bean
     fun webMvcStreamableServerTransportProvider(
         @Qualifier("mcpServerJsonMapper") jsonMapper: JsonMapper,
@@ -54,15 +55,18 @@ class McpSecurityConfig(
         }
         .build()
 
+    /** 为 MCP 端点注册独立 JWT 过滤器，完成认证、列表过滤和上下文清理。 */
     @Bean
     fun mcpSecurityFilter(): FilterRegistrationBean<OncePerRequestFilter> {
         val endpoint = mcpProperties.mcpEndpoint
         val filter = object : OncePerRequestFilter() {
+            /** 只让 MCP 端点及其子路径进入该过滤器。 */
             override fun shouldNotFilter(request: HttpServletRequest): Boolean {
                 val path = request.applicationPath()
                 return path != endpoint && !path.startsWith("${endpoint.trimEnd('/')}/")
             }
 
+            /** 验证当前用户，处理工具列表或在协议上下文中传递身份后继续请求。 */
             override fun doFilterInternal(
                 request: HttpServletRequest,
                 response: HttpServletResponse,
@@ -106,6 +110,7 @@ class McpSecurityConfig(
         }
     }
 
+    /** 验证 JWT 并加载仍然有效的用户及最新角色权限。 */
     private fun resolveUser(token: String?): AuthUser? {
         if (token.isNullOrBlank()) return null
         val claims = tokenService.verify(token) ?: return null

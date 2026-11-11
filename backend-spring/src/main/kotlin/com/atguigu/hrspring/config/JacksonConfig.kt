@@ -12,6 +12,7 @@ import tools.jackson.databind.type.LogicalType
 /** HTTP 使用的 Jackson 3 JsonMapper。字符串字段不接受数字或布尔。 */
 @Configuration
 class JacksonConfig {
+    /** 配置 Jackson 严格处理 JSON 数字与类型。 */
     @Bean
     fun strictJsonTypes(): JsonMapperBuilderCustomizer = JsonMapperBuilderCustomizer { builder ->
         builder.disable(DeserializationFeature.ACCEPT_FLOAT_AS_INT)

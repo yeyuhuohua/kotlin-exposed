@@ -24,18 +24,21 @@ class DepartmentService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /** 查询部门列表。 */
     @Cacheable(cacheNames = [CacheNames.DEPARTMENTS], key = "'all'")
     @Transactional(readOnly = true)
     fun list(): List<DepartmentDto> =
         departmentMapper.selectList(KtQueryWrapper(DepartmentEntity::class.java).orderByAsc(DepartmentEntity::departmentId))
             .map { it.toDto() }
 
+    /** 查询指定部门。 */
     @Cacheable(cacheNames = [CacheNames.DEPARTMENT], key = "#id")
     @Transactional(readOnly = true)
     fun find(id: Int): DepartmentDto =
         departmentMapper.selectById(id)?.toDto()
             ?: throw ApiException.notFound("department not found")
 
+    /** 新增部门并返回保存后的记录。 */
     @CacheEvict(
         cacheNames = [CacheNames.DEPARTMENTS, CacheNames.OVERVIEW],
         allEntries = true,
@@ -58,6 +61,7 @@ class DepartmentService(
             ?: error("department insert missing row")
     }
 
+    /** 更新指定部门。 */
     @CacheEvict(
         cacheNames = [
             CacheNames.DEPARTMENTS,
@@ -89,6 +93,7 @@ class DepartmentService(
     }
 }
 
+/** 将部门数据转换为对外传输对象。 */
 private fun DepartmentEntity.toDto() = DepartmentDto(
     departmentId = checkNotNull(departmentId),
     departmentName = departmentName,

@@ -18,6 +18,7 @@ class LoginThrottle(
         return addresses.retryAfterSeconds(remoteHost) ?: accounts.retryAfterSeconds(accountKey(username))
     }
 
+    /** 记录一次登录失败，并按策略更新限流状态。 */
     fun recordFailure(remoteHost: String, username: String) {
         if (!enabled) return
         addresses.recordFailure(remoteHost)
@@ -30,12 +31,15 @@ class LoginThrottle(
         accounts.reset(accountKey(username))
     }
 
+    /** 根据账号和 IP 的失败状态计算限流拒绝结果。 */
     fun rejection(): AuthException =
         AuthException(HttpStatusCode.TooManyRequests, "too many login attempts", ErrorCode.RATE_LIMITED)
 
+    /** 生成规范化用户名对应的登录限流键。 */
     private fun accountKey(username: String) = username.trim().lowercase()
 
     companion object {
+        /** 创建指定窗口和阈值的登录限流器。 */
         fun of(enabled: Boolean, windowSeconds: Long, maxAccountFailures: Int, maxAddressFailures: Int) =
             LoginThrottle(
                 enabled = enabled,

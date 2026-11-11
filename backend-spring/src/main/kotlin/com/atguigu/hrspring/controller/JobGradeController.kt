@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController
 class JobGradeController(
     private val jobGradeService: JobGradeService,
 ) {
+    /** 查询薪资等级列表。 */
     @Operation(summary = "薪资等级")
     @GetMapping
     fun list(): ResponseEntity<ApiResult<List<JobGradeDto>>> {

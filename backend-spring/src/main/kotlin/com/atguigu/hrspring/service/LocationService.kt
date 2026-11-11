@@ -24,11 +24,13 @@ class LocationService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /** 查询办公地点列表。 */
     @Cacheable(cacheNames = [CacheNames.LOCATIONS], key = "'all'")
     @Transactional(readOnly = true)
     fun list(): List<LocationDto> =
         locationMapper.selectList(KtQueryWrapper(LocationEntity::class.java).orderByAsc(LocationEntity::locationId)).map { it.toDto() }
 
+    /** 新增办公地点并返回保存后的记录。 */
     @CacheEvict(cacheNames = [CacheNames.LOCATIONS, CacheNames.OVERVIEW], allEntries = true)
     @Transactional
     fun create(@Valid request: LocationCreateRequest): LocationDto {
@@ -50,6 +52,7 @@ class LocationService(
             ?: error("location insert missing row")
     }
 
+    /** 更新指定办公地点。 */
     @CacheEvict(
         cacheNames = [
             CacheNames.LOCATIONS,
@@ -82,6 +85,7 @@ class LocationService(
     }
 }
 
+/** 将办公地点数据转换为对外传输对象。 */
 private fun LocationEntity.toDto() = LocationDto(
     locationId = checkNotNull(locationId),
     streetAddress = streetAddress,

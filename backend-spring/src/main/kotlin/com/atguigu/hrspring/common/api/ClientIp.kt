@@ -20,6 +20,7 @@ class ClientIp(
         .ifEmpty { listOf("127.0.0.1", "0:0:0:0:0:0:0:1") }
         .toSet()
 
+    /** 按可信代理链解析真实客户端 IP，不信任未授权转发头。 */
     fun resolve(request: HttpServletRequest): String {
         val direct = normalize(request.remoteAddr) ?: return request.remoteAddr ?: "unknown"
         if (direct !in trusted) return direct
@@ -51,6 +52,7 @@ class ClientIp(
             return v
         }
 
+        /** 把压缩 IPv6 地址展开为可比较的完整形式。 */
         private fun expandIpv6(addr: String): String {
             return try {
                 val bytes = InetAddress.getByName(addr).address

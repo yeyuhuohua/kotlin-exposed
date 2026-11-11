@@ -2,6 +2,7 @@ import http from 'node:http'
 import https from 'node:https'
 import { timingSafeEqual } from 'node:crypto'
 
+/** 使用固定时间比较内部代理口令。 */
 function matchesSecret(actual, expected) {
   if (!expected || typeof actual !== 'string') return false
   const left = Buffer.from(actual)
@@ -9,11 +10,14 @@ function matchesSecret(actual, expected) {
   return left.length === right.length && timingSafeEqual(left, right)
 }
 
+/** 判断远端地址是否为本机回环地址。 */
 function isLoopback(address) {
   return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1'
 }
 
+/** 创建 MCP 转发器，按 Agent 会话注入用户 JWT。 */
 export function createMcpForwarder({ sessions, agentBindings, brokerToken, mcpUpstream, fail }) {
+  /** 校验内部入口和 Agent 会话，附上对应用户 JWT 后转发 MCP 请求。 */
   return async function handleMcp(req, res) {
     // 该入口只允许同容器插件使用内部口令访问。
     if (!isLoopback(req.socket.remoteAddress) ||

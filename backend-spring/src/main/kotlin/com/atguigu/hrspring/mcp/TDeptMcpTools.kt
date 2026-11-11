@@ -12,9 +12,11 @@ import org.springframework.stereotype.Component
 class TDeptMcpTools(
     private val tDeptService: TDeptService,
 ) {
+    /** 查询 t_dept 门派示例表，返回全部门派。 */
     @McpTool(name = "list_t_dept", description = "查询 t_dept 门派示例表，返回全部门派。")
     fun listTDept(context: McpSyncRequestContext): List<TDeptDto> = tDeptService.list()
 
+    /** 新增门派。id 自增，至少填写 deptName 或 address。 */
     @McpTool(name = "create_t_dept", description = "新增门派。id 自增，至少填写 deptName 或 address。")
     fun createTDept(
         @McpToolParam(description = "门派名，最长 30 个字符", required = false) deptName: String?,
@@ -27,6 +29,7 @@ class TDeptMcpTools(
         ),
     )
 
+    /** 按 id 部分更新门派，只改传入的字段。 */
     @McpTool(name = "update_t_dept", description = "按 id 部分更新门派，只改传入的字段。")
     fun updateTDept(
         @McpToolParam(description = "门派主键", required = true) id: Int,

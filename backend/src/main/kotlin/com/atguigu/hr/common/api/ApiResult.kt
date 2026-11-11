@@ -20,9 +20,11 @@ data class ApiResult<T>(
     val error: String? = null,
 ) {
     companion object {
+        /** 构造成功响应。 */
         fun <T> ok(data: T, message: String = "ok"): ApiResult<T> =
             ApiResult(code = 200, message = message, data = data)
 
+        /** 构造包含稳定错误码的失败响应。 */
         fun fail(code: Int, message: String, error: String? = null): ApiResult<String?> =
             ApiResult(code = code, message = message, data = null, error = error)
     }

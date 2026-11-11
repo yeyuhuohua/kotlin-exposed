@@ -13,11 +13,13 @@ import org.springframework.transaction.annotation.Transactional
 class OrderService(
     private val orderMapper: OrderMapper,
 ) {
+    /** 查询示例订单列表。 */
     @Cacheable(cacheNames = [CacheNames.ORDERS], key = "'all'")
     @Transactional(readOnly = true)
     fun list(): List<OrderDto> =
         orderMapper.selectList(KtQueryWrapper(OrderEntity::class.java)).map { it.toDto() }
 
+    /** 将示例订单数据转换为对外传输对象。 */
     private fun OrderEntity.toDto() = OrderDto(
         orderId = orderId,
         orderName = orderName,

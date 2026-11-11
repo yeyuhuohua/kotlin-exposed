@@ -25,6 +25,7 @@ class LoginThrottle(
     /** 登录服务已做大小写归一化；非法超长用户名只占固定长度的限流键。 */
     fun accountKey(username: String) = "account:${username.take(64)}"
 
+    /** 生成按客户端 IP 区分的登录限流键。 */
     fun addressKey(ip: String) = "address:$ip"
 
     /**
@@ -39,6 +40,7 @@ class LoginThrottle(
         return listOfNotNull(accountWait, addressWait).maxOrNull()
     }
 
+    /** 记录一次登录失败，并按策略更新限流状态。 */
     @Synchronized
     fun recordFailure(accountKey: String, addressKey: String) {
         if (!config.enabled) return
@@ -47,12 +49,14 @@ class LoginThrottle(
         record(addressKey, config.maxAddressFailures, now)
     }
 
+    /** 登录成功后清除对应的失败计数。 */
     @Synchronized
     fun recordSuccess(accountKey: String) {
         if (!config.enabled) return
         buckets.remove(accountKey)
     }
 
+    /** 计算账号或 IP 仍需等待的限流秒数。 */
     private fun remainingBlock(key: String, max: Int, now: Long): Long? {
         val deque = buckets[key] ?: overflow(key)
         prune(deque, now)
@@ -61,6 +65,7 @@ class LoginThrottle(
         return (oldest + config.windowSeconds * 1000 - now + 999) / 1000
     }
 
+    /** 更新指定键的失败次数、窗口和封禁时间。 */
     private fun record(key: String, max: Int, now: Long) {
         if (buckets.size >= MAX_TRACKED_KEYS && now >= nextPruneAt) {
             buckets.entries.removeIf { (_, deque) ->
@@ -77,9 +82,11 @@ class LoginThrottle(
         if (deque.size < max) deque.addLast(now)
     }
 
+    /** 把超出上限的计数或时间安全地收敛到存储上限。 */
     private fun overflow(key: String): ArrayDeque<Long> =
         if (key.startsWith("address:")) overflowAddress else overflowAccount
 
+    /** 清理过期状态，并限制内存中保留的条目数量。 */
     private fun prune(deque: ArrayDeque<Long>, now: Long) {
         val cutoff = now - config.windowSeconds * 1000
         while (true) {

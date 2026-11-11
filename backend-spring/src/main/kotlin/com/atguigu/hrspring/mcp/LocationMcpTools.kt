@@ -12,9 +12,11 @@ import org.springframework.stereotype.Component
 class LocationMcpTools(
     private val locationService: LocationService,
 ) {
+    /** 查询全部办公地点，按 locationId 升序返回。无参数。 */
     @McpTool(name = "list_locations", description = "查询全部办公地点，按 locationId 升序返回。无参数。")
     fun listLocations(context: McpSyncRequestContext): List<LocationDto> = locationService.list()
 
+    /** 新增办公地点。locationId、city 必填，city 最长 30。streetAddress 最长 40，postalCode 最长 12，stateProvince 最长 25，countryId 最长 2，均可选。 */
     @McpTool(
         name = "create_location",
         description = "新增办公地点。locationId、city 必填，city 最长 30。streetAddress 最长 40，postalCode 最长 12，stateProvince 最长 25，countryId 最长 2，均可选。",
@@ -25,6 +27,7 @@ class LocationMcpTools(
         context: McpSyncRequestContext,
     ): LocationDto = locationService.create(request)
 
+    /** 按 locationId 部分更新办公地点。request 里只传要改的字段，不传的保持原值。 */
     @McpTool(
         name = "update_location",
         description = "按 locationId 部分更新办公地点。request 里只传要改的字段，不传的保持原值。",

@@ -36,6 +36,7 @@ class TokenService(
 
     val ttlSeconds: Long get() = auth.ttlSeconds
 
+    /** 签发包含用户 ID、Token 版本和有效期的 JWT。 */
     fun issue(userId: Int, tokenVersion: Int): String {
         val now = Instant.now()
         return JWT.create()

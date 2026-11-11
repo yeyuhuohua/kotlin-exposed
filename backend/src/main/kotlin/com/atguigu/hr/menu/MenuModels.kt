@@ -41,6 +41,7 @@ data class MenuCreateRequest(
     val adminOnly: Boolean = false,
     val enabled: Boolean = true,
 ) {
+    /** 校验菜单请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? = validateMenuKey(key) ?: validateMenuPayload(title, path, icon, group, sort)
 }
 
@@ -54,6 +55,7 @@ data class MenuUpdateRequest(
     val sort: Int = 100,
     val enabled: Boolean = true,
 ) {
+    /** 校验菜单请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? = validateMenuPayload(title, path, icon, group, sort)
 }
 
@@ -71,6 +73,7 @@ fun validateMenuKey(key: String): String? {
     return null
 }
 
+/** 校验菜单请求内容并抛出参数校验异常。 */
 private fun validateMenuPayload(title: String, path: String, icon: String?, group: String, sort: Int): String? {
     if (title.isBlank() || title.trim().exceedsMaxLength(30)) return "menu title must contain 1-30 characters"
     if (!menuPathPattern.matches(path) || path.exceedsMaxLength(100)) {

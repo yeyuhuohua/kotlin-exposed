@@ -21,8 +21,10 @@ data class TDeptUpdateRequest(
     @JsonSchema.Description("所在地，不传则不改")
     val address: String? = null,
 ) {
+    /** 判断请求是否至少包含一个可更新字段。 */
     fun hasUpdates(): Boolean = deptName != null || address != null
 
+    /** 校验示例部门请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? = when {
         deptName != null && deptName.exceedsMaxLength(30) -> "deptName must be at most 30 characters"
         address != null && address.exceedsMaxLength(30) -> "address must be at most 30 characters"
@@ -39,8 +41,10 @@ data class TDeptCreateRequest(
     @JsonSchema.Description("所在地")
     val address: String? = null,
 ) {
+    /** 判断请求是否至少包含一个已提交的字段值。 */
     fun hasValues(): Boolean = deptName != null || address != null
 
+    /** 校验示例部门请求内容，返回第一条错误；合法时返回 null。 */
     fun contentError(): String? = when {
         deptName != null && deptName.exceedsMaxLength(30) -> "deptName must be at most 30 characters"
         address != null && address.exceedsMaxLength(30) -> "address must be at most 30 characters"

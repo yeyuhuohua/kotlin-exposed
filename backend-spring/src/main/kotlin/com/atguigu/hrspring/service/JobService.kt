@@ -25,11 +25,13 @@ class JobService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /** 查询岗位列表。 */
     @Cacheable(cacheNames = [CacheNames.JOBS], key = "'all'")
     @Transactional(readOnly = true)
     fun list(): List<JobDto> =
         jobMapper.selectList(KtQueryWrapper(JobEntity::class.java).orderByAsc(JobEntity::jobId)).map { it.toDto() }
 
+    /** 新增岗位并返回保存后的记录。 */
     @CacheEvict(cacheNames = [CacheNames.JOBS, CacheNames.OVERVIEW], allEntries = true)
     @Transactional
     fun create(@Valid body: JobCreateRequest): JobDto {
@@ -48,6 +50,7 @@ class JobService(
         return jobMapper.selectById(body.jobId)?.toDto() ?: error("job insert missing row")
     }
 
+    /** 更新指定岗位。 */
     @CacheEvict(
         cacheNames = [
             CacheNames.JOBS,
@@ -82,6 +85,7 @@ class JobService(
     }
 }
 
+/** 将岗位数据转换为对外传输对象。 */
 private fun JobEntity.toDto() = JobDto(
     jobId = jobId,
     jobTitle = jobTitle,

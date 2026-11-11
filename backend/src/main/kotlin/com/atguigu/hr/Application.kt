@@ -215,6 +215,7 @@ fun Application.module() {
     }
 }
 
+/** 注册概览、组织资料、演示数据、审计和菜单等业务路由。 */
 internal fun Route.businessRoutes() {
     overviewRoutes()
     employeeRoutes()

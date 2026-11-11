@@ -10,6 +10,7 @@ import kotlinx.coroutines.future.await
 internal object RedisScanner {
     private const val SCAN_BATCH = 256L
 
+    /** 使用游标扫描匹配模式的 Redis 键，避免 KEYS 阻塞。 */
     suspend fun scan(pattern: String): List<String> {
         val keys = mutableListOf<String>()
         var cursor: ScanCursor = ScanCursor.INITIAL

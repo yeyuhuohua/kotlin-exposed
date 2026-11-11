@@ -20,6 +20,7 @@ import io.ktor.utils.io.ExperimentalKtorApi
 /** 这些入口停用后管理员会失去对应管理界面，不允许通过接口停用。 */
 private val protectedMenuKeys = setOf("menus", "users", "roles")
 
+/** 注册菜单相关的 HTTP 路由。 */
 @OptIn(ExperimentalKtorApi::class)
 fun Route.menuRoutes() {
     route("/menus") {

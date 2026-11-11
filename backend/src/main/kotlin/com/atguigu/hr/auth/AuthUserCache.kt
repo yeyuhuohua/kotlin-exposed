@@ -35,8 +35,10 @@ class AuthUserCache(
     /** 数据读出时刻与当时的代次，供 [put] 与失效时间、代次比较。 */
     fun now(): Long = clock()
 
+    /** 返回当前整体缓存清理代次，用于拒绝旧查询回填。 */
     fun currentGeneration(): Long = generation.get()
 
+    /** 按用户 ID 和 Token 版本读取有效的鉴权缓存。 */
     fun get(id: Int, tokenVersion: Int): AuthUser? {
         if (!enabled) return null
         val key = key(id, tokenVersion)
@@ -80,11 +82,13 @@ class AuthUserCache(
         entries.entries.removeIf { it.value.user.roleCode == roleCode }
     }
 
+    /** 判断缓存条目是否早于最新的鉴权失效时间。 */
     private fun Entry.stale(): Boolean =
         generation != this@AuthUserCache.generation.get() ||
             invalidatedUsers[user.id]?.let { loadedAt <= it } == true ||
             invalidatedRoles[user.roleCode]?.let { loadedAt <= it } == true
 
+    /** 返回当前跟踪的鉴权缓存条目，供容量控制使用。 */
     fun trackedEntries(): Int = entries.size
 
     /** 失效标记数量；internal 供测试断言标记会被定期清理。 */
@@ -98,8 +102,10 @@ class AuthUserCache(
         invalidatedRoles.clear()
     }
 
+    /** 生成指定用户 ID 与 Token 版本对应的缓存键。 */
     private fun key(id: Int, tokenVersion: Int) = "$id:$tokenVersion"
 
+    /** 清理过期状态，并限制内存中保留的条目数量。 */
     private fun prune() {
         val now = clock()
         entries.entries.removeIf { it.value.expiresAt <= now }

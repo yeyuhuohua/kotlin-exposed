@@ -9,6 +9,7 @@ const auth = useAuth()
 const notices = useNotices()
 const router = useRouter()
 const route = useRoute()
+/** 在登录失效时清理状态并跳转到登录页。 */
 function expired() {
   const wasLoggedIn = Boolean(auth.user)
   auth.clear()
@@ -22,10 +23,12 @@ function expired() {
 }
 /** 权限刚被回收时一个页面可能并行多个 403，合并成一次强制刷新，避免 /auth/me 风暴。 */
 let forbiddenTimer: ReturnType<typeof setTimeout> | undefined
+/** 处理后端返回的无权限响应。 */
 function forbidden() {
   clearTimeout(forbiddenTimer)
   forbiddenTimer = setTimeout(checkForbidden, 300)
 }
+/** 在无权限事件中保存目标地址并跳转到禁止访问页。 */
 async function checkForbidden() {
   // 被服务端拒绝说明权限可能刚变过，这里强制刷新而不是复用缓存
   await auth.refreshUser({ force: true })

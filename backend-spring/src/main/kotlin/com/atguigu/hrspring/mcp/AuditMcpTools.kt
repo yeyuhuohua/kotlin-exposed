@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component
 class AuditMcpTools(
     private val auditQueryService: AuditQueryService,
 ) {
+    /** 分页查询登录记录。用户名按包含匹配，success 只接受 true 或 false。 */
     @McpTool(name = "list_login_records", description = "分页查询登录记录。用户名按包含匹配，success 只接受 true 或 false。")
     fun listLoginRecords(
         @McpToolParam(description = "每页条数，默认 50，范围 1 到 200", required = false) limit: Int?,
@@ -26,6 +27,7 @@ class AuditMcpTools(
         success = success,
     )
 
+    /** 分页查询接口调用记录。用户名包含匹配，方法精确匹配，路径按前缀匹配。 */
     @McpTool(name = "list_api_calls", description = "分页查询接口调用记录。用户名包含匹配，方法精确匹配，路径按前缀匹配。")
     fun listApiCalls(
         @McpToolParam(description = "每页条数，默认 50，范围 1 到 200", required = false) limit: Int?,

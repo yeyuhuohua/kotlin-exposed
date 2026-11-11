@@ -16,12 +16,14 @@ class PasswordHasher {
 
     private val random = SecureRandom()
 
+    /** 使用随机盐和 PBKDF2-SHA256 生成密码哈希。 */
     fun hash(password: String): String {
         val salt = ByteArray(16).also { random.nextBytes(it) }
         val hash = pbkdf2(password, salt, ITERATIONS)
         return "pbkdf2-sha256$$ITERATIONS$${b64(salt)}$${b64(hash)}"
     }
 
+    /** 使用固定时间比较验证密码或凭据是否匹配。 */
     fun verify(password: String, stored: String): Boolean {
         val parts = stored.split('$')
         if (parts.size != 4 || parts[0] != "pbkdf2-sha256") return false
@@ -42,6 +44,7 @@ class PasswordHasher {
         return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
     }
 
+    /** 将二进制哈希或盐编码为 Base64。 */
     private fun b64(bytes: ByteArray): String = Base64.getEncoder().encodeToString(bytes)
 
     companion object {

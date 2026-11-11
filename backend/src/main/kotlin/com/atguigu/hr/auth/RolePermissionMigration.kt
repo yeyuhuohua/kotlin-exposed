@@ -19,6 +19,7 @@ private object LegacyUserGrants : Table("auth_user_permissions") {
     val permissionCode = varchar("permission_code", 160)
 }
 
+/** 生成内置角色初始授权，供旧数据迁移使用。 */
 internal suspend fun initialRolePermissions(roleCode: String, tables: Set<String>): Set<String> {
     // 页面授权来自菜单表（运行时数据）：ADMIN 全量，其他角色只给启用的非仅管理员菜单。
     val defaults = PermissionCatalog.defaults(roleCode) + menuGrants(roleCode)
@@ -37,6 +38,7 @@ internal suspend fun initialRolePermissions(roleCode: String, tables: Set<String
     }.reduce { shared, next -> shared.intersect(next) }
 }
 
+/** 把菜单清单转换为对应的页面权限集合。 */
 private suspend fun menuGrants(roleCode: String): Set<String> =
     Menus.selectAll().where { Menus.enabled eq true }
         .map { it[Menus.key] to it[Menus.adminOnly] }.toList()

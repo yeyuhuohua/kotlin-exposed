@@ -11,6 +11,7 @@ class DocsConfig(
     @Value("\${springdoc.api-docs.path:/v3/api-docs}") private val apiDocsPath: String,
     @Value("\${spring.mvc.servlet.path:/}") private val servletPath: String,
 ) : WebMvcConfigurer {
+    /** 注册文档页面的简单视图跳转。 */
     override fun addViewControllers(registry: ViewControllerRegistry) {
         if (apiDocsPath == "/v3/api-docs") return
         registry.addRedirectViewController(

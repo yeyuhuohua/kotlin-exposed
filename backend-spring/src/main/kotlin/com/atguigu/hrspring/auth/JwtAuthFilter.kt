@@ -25,6 +25,7 @@ class JwtAuthFilter(
     private val objectMapper: ObjectMapper,
 ) : OncePerRequestFilter() {
 
+    /** 排除公开接口和已由 MCP 专用过滤器认证的请求。 */
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
         if (request.getAttribute(McpSecurityConfig.AUTHENTICATED_REQUEST) == true) return true
         val path = request.applicationPath()
@@ -32,6 +33,7 @@ class JwtAuthFilter(
         return path == "/api/health" || path == "/api/auth/login"
     }
 
+    /** 验证 Bearer JWT，设置当前请求用户，并在结束后清理线程上下文。 */
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -56,6 +58,7 @@ class JwtAuthFilter(
         }
     }
 
+    /** 写出统一的 401 JSON 响应和 Bearer 挑战头。 */
     private fun writeUnauthorized(response: HttpServletResponse) {
         response.status = 401
         response.setHeader("WWW-Authenticate", "Bearer realm=\"hr-api\"")

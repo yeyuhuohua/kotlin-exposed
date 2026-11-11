@@ -19,6 +19,7 @@ class AuditQueryService(
     private val loginRecordMapper: AuditLoginRecordMapper,
     private val apiCallMapper: AuditApiCallMapper,
 ) {
+    /** 查询登录记录列表。 */
     @Transactional(readOnly = true)
     fun listLogins(
         limit: Int?,
@@ -40,6 +41,7 @@ class AuditQueryService(
         )
     }
 
+    /** 查询接口调用记录列表。 */
     @Transactional(readOnly = true)
     fun listApiCalls(
         limit: Int?,
@@ -64,6 +66,7 @@ class AuditQueryService(
         )
     }
 
+    /** 将审计数据转换为对外传输对象。 */
     private fun AuditLoginRecordEntity.toDto() = LoginRecordDto(
         id = checkNotNull(id),
         username = username,
@@ -75,6 +78,7 @@ class AuditQueryService(
         createdAt = createdAt.toString(),
     )
 
+    /** 将审计数据转换为对外传输对象。 */
     private fun AuditApiCallEntity.toDto() = ApiCallRecordDto(
         id = checkNotNull(id),
         userId = userId,
@@ -96,6 +100,7 @@ private fun <T : Any> KtQueryWrapper<T>.containsLike(column: String, raw: String
     apply("$column LIKE {0} ESCAPE '\\\\'", LikeEscape.containsPattern(keyword))
 }
 
+/** 转义用户输入并生成用于前缀搜索的 LIKE 值。 */
 private fun <T : Any> KtQueryWrapper<T>.prefixLike(column: String, raw: String?) {
     val keyword = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return
     apply("$column LIKE {0} ESCAPE '\\\\'", LikeEscape.prefixPattern(keyword))

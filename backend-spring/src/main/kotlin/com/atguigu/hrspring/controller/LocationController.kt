@@ -24,17 +24,20 @@ import org.springframework.web.bind.annotation.RestController
 class LocationController(
     private val locationService: LocationService,
 ) {
+    /** 查询办公地点列表。 */
     @Operation(summary = "全部地点")
     @GetMapping
     fun list(): ResponseEntity<ApiResult<List<LocationDto>>> {
         return cachedOk(locationService.list())
     }
 
+    /** 新增办公地点并返回保存后的记录。 */
     @Operation(summary = "新增地点并刷新缓存")
     @PostMapping
     fun create(@RequestBody request: LocationCreateRequest): ResponseEntity<ApiResult<LocationDto>> =
         body(locationService.create(request), "created")
 
+    /** 更新指定办公地点。 */
     @Operation(summary = "部分更新地点并刷新缓存")
     @PutMapping("/{id}")
     fun update(
@@ -43,6 +46,7 @@ class LocationController(
     ): ResponseEntity<ApiResult<LocationDto>> =
         body(locationService.update(locationId(id), patch), "updated")
 
+    /** 把路径中的地点主键转换为整数，格式错误时返回 400。 */
     private fun locationId(raw: String): Int =
         raw.toIntOrNull() ?: throw ApiException.badRequest("invalid location id")
 }

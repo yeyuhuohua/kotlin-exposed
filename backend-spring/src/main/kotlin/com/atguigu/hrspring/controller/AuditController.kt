@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController
 class AuditController(
     private val auditQueryService: AuditQueryService,
 ) {
+    /** 处理“分页查询登录记录（仅 ADMIN）”请求。 */
     @Operation(summary = "分页查询登录记录（仅 ADMIN）")
     @GetMapping("/api/audit/logins")
     fun logins(
@@ -38,6 +39,7 @@ class AuditController(
         "ok",
     )
 
+    /** 处理“分页查询接口调用记录（仅 ADMIN）”请求。 */
     @Operation(summary = "分页查询接口调用记录（仅 ADMIN）")
     @GetMapping("/api/audit/api-calls")
     fun apiCalls(

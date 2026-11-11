@@ -18,10 +18,13 @@ class CacheEpoch(redis: StringRedisTemplate) {
         rotate = { redis.opsForValue().set(DATA_KEY, UUID.randomUUID().toString()) },
     )
 
+    /** 读取当前缓存失效版本；故障退避期间返回 null。 */
     fun current(): String? = state.current()
 
+    /** 轮换共享缓存失效版本，使旧缓存项不再被读取。 */
     fun invalidate() = state.invalidate()
 
+    /** 标记缓存需要换代，并设置短暂故障退避。 */
     fun unavailable() = state.unavailable()
 
     companion object {
@@ -40,6 +43,7 @@ internal class EpochState(
     private var dirty = true
     private var retryAt = 0L
 
+    /** 读取当前缓存失效版本；故障退避期间返回 null。 */
     @Synchronized
     fun current(): String? {
         if (clock() < retryAt) return null
@@ -56,12 +60,14 @@ internal class EpochState(
         }
     }
 
+    /** 轮换共享缓存失效版本，使旧缓存项不再被读取。 */
     @Synchronized
     fun invalidate() {
         dirty = true
         current()
     }
 
+    /** 标记缓存需要换代，并设置短暂故障退避。 */
     @Synchronized
     fun unavailable() {
         dirty = true
@@ -73,13 +79,16 @@ internal class EpochState(
 internal object CacheLoads {
     private val snapshots = ThreadLocal.withInitial { mutableMapOf<Pair<String, Any>, String>() }
 
+    /** 在当前请求中保存缓存读取时的失效版本快照。 */
     fun remember(name: String, key: Any, epoch: String) {
         val entries = snapshots.get()
         if (entries.size >= 256) entries.clear()
         entries[name to key] = epoch
     }
 
+    /** 取出并移除当前请求中指定缓存项的版本快照。 */
     fun take(name: String, key: Any): String? = snapshots.get().remove(name to key)
 
+    /** 移除当前线程保存的全部缓存读取版本快照。 */
     fun clear() = snapshots.remove()
 }

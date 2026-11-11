@@ -27,23 +27,27 @@ class DepartmentController(
     private val departmentService: DepartmentService,
     private val employeeService: EmployeeService,
 ) {
+    /** 查询部门列表。 */
     @Operation(summary = "全部部门")
     @GetMapping
     fun list(): ResponseEntity<ApiResult<List<DepartmentDto>>> {
         return cachedOk(departmentService.list())
     }
 
+    /** 新增部门并返回保存后的记录。 */
     @Operation(summary = "新增部门并刷新缓存")
     @PostMapping
     fun create(@RequestBody request: DepartmentCreateRequest): ResponseEntity<ApiResult<DepartmentDto>> =
         body(departmentService.create(request), "created")
 
+    /** 查询指定部门。 */
     @Operation(summary = "按主键查询部门")
     @GetMapping("/{id}")
     fun get(@PathVariable id: String): ResponseEntity<ApiResult<DepartmentDto>> {
         return cachedOk(departmentService.find(departmentId(id)))
     }
 
+    /** 更新指定部门。 */
     @Operation(summary = "部分更新部门并刷新缓存")
     @PutMapping("/{id}")
     fun update(
@@ -52,12 +56,14 @@ class DepartmentController(
     ): ResponseEntity<ApiResult<DepartmentDto>> =
         body(departmentService.update(departmentId(id), patch), "updated")
 
+    /** 处理“某部门下的员工”请求。 */
     @Operation(summary = "某部门下的员工")
     @GetMapping("/{id}/employees")
     fun employees(@PathVariable id: String): ResponseEntity<ApiResult<List<EmployeeDto>>> {
         return cachedOk(employeeService.listByDepartment(departmentId(id)))
     }
 
+    /** 把路径中的部门主键转换为整数，格式错误时返回 400。 */
     private fun departmentId(raw: String): Int =
         raw.toIntOrNull() ?: throw ApiException.badRequest("invalid department id")
 }

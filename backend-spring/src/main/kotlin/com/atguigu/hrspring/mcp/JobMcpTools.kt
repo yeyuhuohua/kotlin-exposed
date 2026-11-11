@@ -12,9 +12,11 @@ import org.springframework.stereotype.Component
 class JobMcpTools(
     private val jobService: JobService,
 ) {
+    /** 查询全部岗位，按 jobId 升序返回。无参数。 */
     @McpTool(name = "list_jobs", description = "查询全部岗位，按 jobId 升序返回。无参数。")
     fun listJobs(context: McpSyncRequestContext): List<JobDto> = jobService.list()
 
+    /** 新增岗位。jobId 为主键编码（最长 10，不能是 . 或 ..），jobTitle 为名称（最长 35），两者必填。minSalary、maxSalary 可选，必须非负，且最低不超过最高。 */
     @McpTool(
         name = "create_job",
         description = "新增岗位。jobId 为主键编码（最长 10，不能是 . 或 ..），jobTitle 为名称（最长 35），两者必填。minSalary、maxSalary 可选，必须非负，且最低不超过最高。",
@@ -24,6 +26,7 @@ class JobMcpTools(
         context: McpSyncRequestContext,
     ): JobDto = jobService.create(request)
 
+    /** 按 jobId 部分更新岗位。request 里只传要改的字段（jobTitle、minSalary、maxSalary），不传的保持原值。薪资会与库中另一端合并，最低不得超过最高。 */
     @McpTool(
         name = "update_job",
         description = "按 jobId 部分更新岗位。request 里只传要改的字段（jobTitle、minSalary、maxSalary），不传的保持原值。薪资会与库中另一端合并，最低不得超过最高。",

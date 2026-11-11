@@ -112,6 +112,7 @@ class AuthService(
         }
     }
 
+    /** 加载有效用户及其最新权限。 */
     override fun loadActiveUser(userId: Int, tokenVersion: Int): AuthUser? {
         userCache.get(userId, tokenVersion)?.let { return it }
         val loadedAt = System.currentTimeMillis()
@@ -146,11 +147,14 @@ class AuthService(
         return base.copy(permissions = permissions)
     }
 
+    /** 查询当前用户有权访问的页面路由。 */
     fun pageRoutes(user: AuthUser): List<PageRoute> = menuService.pagesFor(user)
 
+    /** 查询权限目录列表。 */
     fun listPermissions(): List<PermissionDefinition> =
         menuService.pageDefinitions().map { it.toPermissionDefinition() } + PermissionCatalog.definitions
 
+    /** 注销当前登录会话，并清理相关的客户端状态。 */
     fun logout(id: Int) {
         try {
             tx.execute<Int> {
@@ -166,6 +170,7 @@ class AuthService(
         }
     }
 
+    /** 查询用户列表。 */
     @Cacheable(
         cacheNames = [CacheNames.USERS],
         key = "T(com.atguigu.hrspring.common.cache.CacheKeys).users(#limit, #offset)",
@@ -182,9 +187,11 @@ class AuthService(
         return ApiList(total, items)
     }
 
+    /** 查询角色列表。 */
     @Cacheable(cacheNames = [CacheNames.ROLES], key = "'all'")
     fun listRoles(): List<RoleDto> = rolePermissionService.listRoles()
 
+    /** 新增用户。 */
     @CacheEvict(cacheNames = [CacheNames.USERS], allEntries = true)
     fun createUser(@Valid body: UserCreateRequest): UserDto {
         val username = normalizeUsername(body.username)
@@ -221,6 +228,7 @@ class AuthService(
         return created
     }
 
+    /** 更新用户。 */
     @CacheEvict(cacheNames = [CacheNames.USERS], allEntries = true)
     fun updateUser(actorId: Int, id: Int, @Valid body: UserUpdateRequest): UserDto {
         if (id <= 0) badRequest("invalid user id")
@@ -259,6 +267,7 @@ class AuthService(
         }
     }
 
+    /** 删除用户。 */
     @CacheEvict(cacheNames = [CacheNames.USERS], allEntries = true)
     fun deleteUser(actorId: Int, id: Int): Boolean {
         if (id <= 0) badRequest("invalid user id")
@@ -278,25 +287,31 @@ class AuthService(
         }
     }
 
+    /** 新增角色。 */
     @CacheEvict(cacheNames = [CacheNames.ROLES], allEntries = true)
     fun createRole(@Valid body: RoleCreateRequest): RoleDto = rolePermissionService.createRole(body)
 
+    /** 更新角色。 */
     @CacheEvict(cacheNames = [CacheNames.ROLES], allEntries = true)
     fun updateRole(@RoleCode rawCode: String, @Valid body: RoleUpdateRequest): RoleDto =
         rolePermissionService.updateRole(rawCode, body)
 
+    /** 删除角色。 */
     @CacheEvict(cacheNames = [CacheNames.ROLES], allEntries = true, condition = "#result == true")
     fun deleteRole(@RoleCode rawCode: String): Boolean = rolePermissionService.deleteRole(rawCode)
 
+    /** 查询角色权限。 */
     fun getRolePermissions(actor: AuthUser, @RoleCode rawCode: String): RolePermissionsDto =
         rolePermissionService.getRolePermissions(actor, rawCode)
 
+    /** 更新角色权限。 */
     fun updateRolePermissions(
         actor: AuthUser,
         @RoleCode rawCode: String,
         @Valid body: RolePermissionsRequest,
     ): RolePermissionsDto = rolePermissionService.updateRolePermissions(actor, rawCode, body)
 
+    /** 校验登录结果并签发新的用户 Token。 */
     private fun issueLogin(body: LoginRequest): TokenDto {
         val username = body.username.trim().lowercase(Locale.ROOT)
         if (!USERNAME_PATTERN.matches(username) || body.password.length !in 1..128) unauthorized()
@@ -311,6 +326,7 @@ class AuthService(
         )
     }
 
+    /** 查询登录账号。 */
     private fun findForLogin(username: String): Pair<AuthUser, String>? {
         val row = userMapper.selectOne(
             KtQueryWrapper(UserEntity::class.java).eq(UserEntity::username, username),
@@ -319,6 +335,7 @@ class AuthService(
         return toAuthUser(row, role) to row.passwordHash
     }
 
+    /** 加载用户。 */
     private fun loadUser(id: Int): AuthUser? {
         if (id <= 0) return null
         val row = userMapper.selectById(id) ?: return null
@@ -326,6 +343,7 @@ class AuthService(
         return toAuthUser(row, role)
     }
 
+    /** 将持久层数据转换为认证用户传输对象。 */
     private fun toAuthUser(row: UserEntity, role: RoleEntity): AuthUser = AuthUser(
         id = checkNotNull(row.id),
         username = row.username,
@@ -336,6 +354,7 @@ class AuthService(
         rolePermissions = roleGrants(row.roleCode),
     )
 
+    /** 读取指定角色的权限码集合。 */
     private fun roleGrants(code: String): Set<String> {
         if (code == Roles.ADMIN) return PermissionCatalog.defaults(code)
         return rolePermissionMapper.selectList(
@@ -345,6 +364,7 @@ class AuthService(
             .filterTo(linkedSetOf()) { grantable(it) }
     }
 
+    /** 取得指定角色，角色不存在或未启用时返回业务错误。 */
     private fun requireEnabledRole(code: String) {
         val role = roleMapper.selectOne(
             KtQueryWrapper(RoleEntity::class.java).eq(RoleEntity::code, code).last("FOR UPDATE"),
@@ -352,11 +372,13 @@ class AuthService(
         if (role == null || !role.enabled) badRequest("role must exist and be enabled")
     }
 
+    /** 校验角色编码、名称和状态是否合法。 */
     private fun validateRole(code: String) {
         val role = roleMapper.selectById(code)
         if (role == null || !role.enabled) badRequest("role must exist and be enabled")
     }
 
+    /** 去除用户名两端空白并统一为小写。 */
     private fun normalizeUsername(value: String): String {
         val username = value.trim().lowercase(Locale.ROOT)
         if (!USERNAME_PATTERN.matches(username)) {
@@ -365,23 +387,29 @@ class AuthService(
         return username
     }
 
+    /** 取得当前线程绑定的 HTTP 请求；非 HTTP 上下文返回 null。 */
     private fun currentRequest(): HttpServletRequest? =
         (RequestContextHolder.getRequestAttributes() as? ServletRequestAttributes)?.request
 
+    /** 在限流响应中写入 Retry-After 等待秒数。 */
     private fun markRetryAfter(seconds: Long) {
         val attributes = RequestContextHolder.getRequestAttributes() as? ServletRequestAttributes ?: return
         attributes.request.setAttribute(LOGIN_RETRY_AFTER, seconds)
         attributes.response?.setHeader(HttpHeaders.RETRY_AFTER, seconds.toString())
     }
 
+    /** 判断用户名是否属于内置或配置指定的受保护账号。 */
     private fun isProtectedUsername(value: String): Boolean =
         value.equals(PROTECTED_USERNAME, ignoreCase = true) ||
             value.equals(properties.auth.adminUsername.trim(), ignoreCase = true)
 
+    /** 判断账号是否属于禁止降级、停用或删除的受保护账号。 */
     private fun AuthUser.isProtectedAccount(): Boolean = isProtectedUsername(username)
 
+    /** 将持久层数据转换为用户传输对象。 */
     private fun AuthUser.toUserDto(): UserDto = UserDto(id, username, roleCode, enabled, isProtectedAccount())
 
+    /** 将持久层数据转换为用户传输对象。 */
     private fun UserEntity.toUserDto(): UserDto =
         UserDto(checkNotNull(id), username, roleCode, enabled, isProtectedUsername(username))
 
@@ -390,8 +418,10 @@ class AuthService(
         const val LOGIN_RETRY_AFTER = "hrs.login.retryAfter"
         private val USERNAME_PATTERN = Regex("[a-z0-9._-]{3,64}")
 
+        /** 构造 400 错误结果。 */
         private fun badRequest(message: String): Nothing = throw ApiException.badRequest(message)
 
+        /** 构造 401 错误结果。 */
         private fun unauthorized(): Nothing = throw ApiException(
             401,
             "invalid username or password",

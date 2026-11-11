@@ -53,6 +53,7 @@ const registry: Record<string, Component> = {
 /** 菜单管理表单的可选图标清单。 */
 export const menuIconNames = Object.keys(registry).sort()
 
+/** 按名称返回已注册菜单图标，未知名称使用默认文件图标。 */
 export function menuIcon(name: string | null | undefined): Component {
   if (name && Object.hasOwn(registry, name)) return registry[name]
   return File

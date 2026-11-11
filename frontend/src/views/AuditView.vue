@@ -30,6 +30,7 @@ const logins = useResource((signal) =>
     { signal },
   ),
 )
+/** 应用登录审计筛选条件并重新查询。 */
 function applyLoginFilters() {
   loginFilters.value = { username: loginUsername.value.trim(), success: loginSuccess.value }
   // 页码为 1 时 watch 不会触发，必须手动刷新
@@ -56,6 +57,7 @@ const calls = useResource((signal) =>
     { signal },
   ),
 )
+/** 应用接口审计筛选条件并重新查询。 */
 function applyCallFilters() {
   callFilters.value = {
     username: callUsername.value.trim(),
@@ -66,27 +68,32 @@ function applyCallFilters() {
   if (callPage.value === 1) void calls.refresh()
   else callPage.value = 1
 }
+/** 调整登录审计每页条数并重新查询。 */
 function setLoginPageSize(value: number) {
   loginPageSize.value = value
   loginPage.value = 1
 }
+/** 调整接口审计每页条数并重新查询。 */
 function setCallPageSize(value: number) {
   callPageSize.value = value
   callPage.value = 1
 }
 
 const methodOptions = ['', 'GET', 'POST', 'PUT', 'PATCH', 'DELETE']
+/** 根据请求状态码返回审计记录样式类名。 */
 function statusClass(status: number): 'success' | 'warning' | 'error' {
   if (status < 300) return 'success'
   if (status < 500) return 'warning'
   return 'error'
 }
+/** 返回登录结果对应的样式类名。 */
 function loginResultClass(success: boolean): 'success' | 'error' {
   return success ? 'success' : 'error'
 }
 
 // 切换标签页时按需首次加载；分页与刷新各自独立。
 const loaded = { logins: false, calls: false }
+/** 确保审计页面数据已加载。 */
 function ensureLoad(target: 'logins' | 'calls') {
   if (loaded[target]) return
   loaded[target] = true

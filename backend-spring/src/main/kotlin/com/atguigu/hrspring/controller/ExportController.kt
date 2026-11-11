@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets
 class ExportController(
     private val documentExportService: DocumentExportService,
 ) {
+    /** 处理“下载临时导出文件”请求。 */
     @Operation(summary = "下载临时导出文件")
     @GetMapping("/api/exports/{id}")
     fun download(

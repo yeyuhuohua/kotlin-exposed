@@ -8,6 +8,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 
+/** 注册示例订单相关的 HTTP 路由。 */
 @OptIn(ExperimentalKtorApi::class)
 fun Route.orderRoutes() {
     /** order 表示例数据。 */

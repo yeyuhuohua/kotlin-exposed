@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController
 class EmployeeController(
     private val employeeService: EmployeeService,
 ) {
+    /** 查询员工列表。 */
     @Operation(summary = "分页查询员工")
     @GetMapping("/api/employees")
     fun list(
@@ -54,12 +55,14 @@ class EmployeeController(
         )
     }
 
+    /** 新增员工并返回保存后的记录。 */
     @Operation(summary = "新增员工并刷新缓存")
     @PostMapping("/api/employees")
     fun create(
         @RequestBody request: EmployeeCreateRequest,
     ): ResponseEntity<ApiResult<EmployeeDto>> = body(employeeService.create(request), "created")
 
+    /** 查询指定员工。 */
     @Operation(summary = "按主键查询员工")
     @GetMapping("/api/employees/{id}")
     fun get(
@@ -68,6 +71,7 @@ class EmployeeController(
         return cachedOk(employeeService.get(employeeId(id)))
     }
 
+    /** 更新指定员工。 */
     @Operation(summary = "部分更新员工并刷新缓存")
     @PutMapping("/api/employees/{id}")
     fun update(
@@ -76,6 +80,7 @@ class EmployeeController(
     ): ResponseEntity<ApiResult<EmployeeDto>> =
         body(employeeService.update(employeeId(id), request), "updated")
 
+    /** 按请求中显式提交的字段部分更新员工。 */
     @Operation(summary = "精确部分更新员工（可清空可空字段）")
     @PatchMapping("/api/employees/{id}")
     fun patch(
@@ -87,6 +92,7 @@ class EmployeeController(
             "updated",
         )
 
+    /** 删除指定员工。 */
     @Operation(summary = "删除员工并清除相关缓存")
     @DeleteMapping("/api/employees/{id}")
     fun delete(
@@ -96,6 +102,7 @@ class EmployeeController(
         return body("deleted", "ok")
     }
 
+    /** 处理“员工详情（多表 JOIN）”请求。 */
     @Operation(summary = "员工详情（多表 JOIN）")
     @GetMapping("/api/employees/{id}/details")
     fun details(
@@ -104,6 +111,7 @@ class EmployeeController(
         return cachedOk(employeeService.getDetail(employeeId(id)))
     }
 
+    /** 返回员工详情视图分页缓存使用的 Redis 键。 */
     @Operation(summary = "员工详情视图分页")
     @GetMapping("/api/emp-details")
     fun empDetails(
@@ -114,5 +122,6 @@ class EmployeeController(
     }
 }
 
+/** 把路径中的员工主键转换为整数，格式错误时返回 400。 */
 private fun employeeId(raw: String): Int =
     raw.toIntOrNull() ?: throw ApiException.badRequest("invalid employee id")
